@@ -33,7 +33,7 @@ def timeMatch( refTime, scanTime, thresh): # Time-based matching
 #
 def Ant2Bl(ant1, ant2):	    # Antenna -> baseline index (without autocorr)
     antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
-    return antenna1* (antenna1 - 1)/2 + antenna2
+    return int(antenna1* (antenna1 - 1)/2 + antenna2)
 #
 def Ant2BlD(ant1, ant2):    # Antenna -> baseline index and direction (True if inverted)
     antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
@@ -522,7 +522,7 @@ def GetTimerecord(msfile, ant1, ant2, spwID, PScan):
 #
 def GetVisCross(msfile, spwID, scanID):
     antNum = len(GetAntName(msfile))
-    corrNum= antNum* (antNum + 1)/2		# Number of correlations (with autocorr)
+    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
     blNum  = corrNum - antNum
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
     Out='DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (data_desc_id, scanID)
@@ -589,7 +589,7 @@ def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
 #
 def GetUVW(msfile, spwID, scanID):
     antNum = len(GetAntName(msfile))
-    corrNum= antNum* (antNum + 1)/2		# Number of correlations (with autocorr)
+    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
     blNum  = corrNum - antNum
     #
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
@@ -597,12 +597,12 @@ def GetUVW(msfile, spwID, scanID):
     tb.open(msfile)
     antXantYspw = tb.query(Out, sortlist='noduplicates ANTENNA1, ANTENNA2, TIME')
     timeXY = antXantYspw.getcol('TIME')
-    timeNum = len(timeXY) / corrNum
+    timeNum = int(len(timeXY) / corrNum)
     uvw = antXantYspw.getcol('UVW')
     tb.close()
     timeStamp = timeXY.reshape(corrNum, timeNum)[0]
-    xcorr_index = range(blNum)
-    for bl_index in range(blNum):
+    xcorr_index = list(range(blNum))
+    for bl_index in list(range(blNum)):
         ant1, ant0 = Bl2Ant(bl_index)
         xcorr_index[bl_index] = Ant2Bla_RevLex(ant0, ant1, antNum)
     #
@@ -1242,9 +1242,9 @@ def delay_cal( spec, delay ):
 	# delay_cal() returns delay-calibrated spectrum
 	#
 	nspec = len( spec )
-	twiddle = np.exp( pi* delay* np.multiply(range(-nspec/2, nspec/2), 1j) / nspec )
+	twiddle = np.exp( pi* delay* np.multiply(list(range(-nspec, nspec, 2)), 0.5j) / nspec )
 	return np.multiply(spec, twiddle)
-
+#
 def delay_search( spec ):
 	nspec = len( spec )
 	#-------- Search for delay
@@ -1327,17 +1327,16 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=np.array([])): 
     XYsnr = 0.0
     blNum = len(blMap); antNum = Bl2Ant(blNum)[0]
-    #timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, BPScan, -1, False)    # Xspec[pol, ch, bl, time]
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, BPScan, -1, True)    # Xspec[pol, ch, bl, time]
     if bunchNum > 1:
         def bunchN(Spec): return bunchVec(Spec, bunchNum)
         Xspec = np.apply_along_axis(bunchN, 1, Xspec)
     #
     if len(FG) > 0: flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
-    else: flagIndex = range(len(timeStamp))
+    else: flagIndex = list(range(len(timeStamp)))
     #
     ant0, ant1, polNum, chNum, timeNum = ANT0[0:blNum], ANT1[0:blNum], Pspec.shape[0], Xspec.shape[1], Xspec.shape[3]
-    chRange = range(int(0.05*chNum), int(0.95*chNum))                   # Trim band edge
+    chRange = list(range(int(0.05*chNum), int(0.95*chNum)))                   # Trim band edge
     kernel_index = KERNEL_BL[0:(antNum-1)]
     if polNum == 4:
         BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)          # BP_ant[ant, pol, ch]
@@ -1350,9 +1349,9 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         antDelayX = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecX)[0]/chNum)
         antDelayY = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecY)[0]/chNum)
         delayCalTable = np.ones([2, antNum, chNum], dtype=complex)
-        for ant_index in range(antNum):
-            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(range(-chNum/2, chNum/2), 1j) / chNum )
-            delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(range(-chNum/2, chNum/2), 1j) / chNum )
+        for ant_index in list(range(antNum)):
+            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
+            delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
         #
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[polYindex][:,ant0] / delayCalTable[polXindex][:,ant1]).transpose(1, 3, 2, 0)
         #---- Gain Cal
@@ -1383,10 +1382,10 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         antDelayX = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecX)[0]/chNum)
         antDelayY = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecY)[0]/chNum)
         delayCalTable = np.ones([2, antNum, chNum], dtype=complex)
-        for ant_index in range(antNum):
+        for ant_index in list(range(antNum)):
             print('%d ' % (ant_index))
-            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(range(-chNum/2, chNum/2), 1j) / chNum )
-            delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(range(-chNum/2, chNum/2), 1j) / chNum )
+            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
+            delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
         #
         delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[:,ant0] / delayCalTable[:,ant1]).transpose(1, 3, 2, 0)
         #---- Gain Cal
@@ -1410,8 +1409,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         timeAvgSpecX = np.mean(Xspec[0,chRange][:,kernel_index], axis=2)
         antDelayX = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecX)[0]/chNum)
         delayCalTable = np.ones([1, antNum, chNum], dtype=complex)
-        for ant_index in range(antNum):
-            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(range(-chNum/2, chNum/2), 1j) / chNum )
+        for ant_index in list(range(antNum)):
+            delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
         #
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[:,ant0] / delayCalTable[:,ant1]).transpose(1, 3, 2, 0)
         #---- Gain Cal

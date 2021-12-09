@@ -51,7 +51,7 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
         TskyPL.plot( airmass, Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color=rgb, alpha=0.5)
         text_sd = 'Tau(zenith)=%6.4f' % (chAvgTau0)
         TskyPL.text(1.01, 0.95* plotMax, text_sd, fontsize='9')
-        TskyPL.set_title('SPW ' + `spwList[spw_index]`)
+        TskyPL.set_title('SPW %d' % (spwList[spw_index]))
     #
     TskyPL.legend(loc = 'lower right', prop={'size' :7}, numpoints = 1)
     figTauFit.savefig('TAUF_' + prefix + '.pdf')
@@ -77,7 +77,7 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
         TauEPL.plot( DTSpl, Tau0ESpl, '-')
         TauEPL.scatter( DT, Tau0E, s=10.0* scanFlag[spw_index])
         TauEPL.tick_params(axis='x', labelsize=6)
-        TauEPL.set_title('SPW ' + `spwList[spw_index]`)
+        TauEPL.set_title('SPW %d' % (spwList[spw_index]))
     figTauE.savefig('TAUE_' + prefix + '.pdf')
     plt.close('all')
     return
@@ -115,7 +115,7 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                 #
                 currentPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, plotMax])
                 currentPL.tick_params(axis='both', labelsize=6)
-                if scan_index == 0: currentPL.set_title('SPW ' + `spwList[spw_index]`)
+                if scan_index == 0: currentPL.set_title('SPW %d' % (spwList[spw_index]))
                 if scan_index == 0 and spw_index == 0: currentPL.text(1.2* np.min(freqList[0]) - 0.2* np.max(freqList[0]), (0.9 + 0.075*scanNum)*plotMax, antList[ant_index], fontsize='16')
                 if scan_index < scanNum - 1: currentPL.set_xticklabels([])
                 if spw_index == 0: currentPL.text(np.min(freqList[spw_index]), 0.8* plotMax, timeLabel, fontsize='8')
@@ -188,7 +188,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 ACPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
                 ACPL.tick_params(axis='both', labelsize=6)
                 ACPL.set_xticklabels([])
-                ACPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'AC SPW=' + `spwList[spw_index]` + ' Pol-' + polName[pol_index], fontsize=7)
+                ACPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'AC SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
                 ACPL.text( np.min(Freq), 0.85*plotMax + 0.15*plotMin, text_sd, fontsize=7)
                 ACPL.step(Freq, plotAC, where='mid')
                 #
@@ -204,7 +204,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL.tick_params(axis='both', labelsize=6)
                 SDPL.get_xaxis().get_major_formatter().set_useOffset(False)
                 if pol_index == 0: SDPL.set_xticklabels([])
-                SDPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'SD SPW=' + `spwList[spw_index]` + ' Pol-' + polName[pol_index], fontsize=7)
+                SDPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'SD SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
                 SDPL.text( np.min(Freq), 0.85* plotMax + 0.15*plotMin, text_sd, fontsize=7)
                 SDPL.step(Freq, plotSD, where='mid')
             #
@@ -225,7 +225,7 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
     msfile = prefix + '.ms'
     antNum, spwNum = len(antList), len(spwList)
     figAnt = plt.figure(figsize = (11, 8))
-    figAnt.suptitle(prefix + ' Scan ' + `BPscan`)
+    figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
     #-------- Plot BP
@@ -252,11 +252,11 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             AmpPL.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            AmpPL.text( np.min(Freq), 1.1* plotMax, 'SPW=' + `spwList[spw_index]` + ' Amp')
+            AmpPL.text( np.min(Freq), 1.1* plotMax, 'SPW=%d Amp' % (spwList[spw_index]))
             PhsPL.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            PhsPL.text( np.min(Freq), 2.5, 'SPW=' + `spwList[spw_index]` + ' Phase')
+            PhsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
         #
         plt.show()
         figAnt.savefig(pp, format='pdf')
@@ -282,7 +282,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
         XYP  = XYspec[spw_index]
-        PhsPL.plot( Freq, np.angle(XYP)*180.0/pi, '.', label = 'SPW ' + `spw`)
+        PhsPL.plot( Freq, np.angle(XYP)*180.0/pi, '.', label = 'SPW %d' % (spw))
         PhsPL.axis([np.min(Freq), np.max(Freq), -180.0, 180.0])
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
