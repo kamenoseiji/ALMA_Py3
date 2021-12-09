@@ -59,7 +59,7 @@ for bl_index in range(2016):    # Maximum number of baseline
 #
 def Ant2Bla_RevLex(ant0, ant1, antNum):    # Reverse Lexical, with autcorr
     antenna0 = min(ant0, ant1); antenna1 = max(ant0, ant1)
-    kernel = antNum* antenna0 - antenna0* (antenna0 - 1)/2
+    kernel = int(antNum* antenna0 - antenna0* (antenna0 - 1)/2)
     return kernel + antenna1 - antenna0
 #
 def Ant2Bl_RevLex(ant1, ant2, antnum):    # Reverse Lexical, without autcorr
@@ -545,7 +545,7 @@ def GetVisCross(msfile, spwID, scanID):
 #
 def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
     antNum = len(GetAntName(msfile))
-    corrNum= antNum* (antNum + 1)/2		# Number of correlations (with autocorr)
+    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
     blNum  = corrNum - antNum
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
     Out = 'DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (data_desc_id, scanID)
@@ -554,9 +554,9 @@ def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
     antXantYspw = tb.query(Out, sortlist='noduplicates ANTENNA1, ANTENNA2, TIME')
     timeXY = antXantYspw.getcol('TIME')
     if AC:
-        timeNum = len(timeXY) / corrNum
+        timeNum = int(len(timeXY) / corrNum)
     else:
-        timeNum = len(timeXY) / blNum
+        timeNum = int(len(timeXY) / blNum)
     try:
         dataXY = antXantYspw.getcol('DATA')		# dataXY in array[pol, ch, baselinextime]
     except:
@@ -565,11 +565,10 @@ def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
     polNum, chNum = dataXY.shape[0], dataXY.shape[1]
     if AC:
         timeStamp = timeXY.reshape(corrNum, timeNum)[0]
-        acorr_index = range(antNum)
-        xcorr_index = range(blNum)
-        for ant_index in range(antNum):
+        acorr_index, xcorr_index = list(range(antNum)), list(range(blNum))
+        for ant_index in list(range(antNum)):
             acorr_index[ant_index] = Ant2Bla_RevLex(ant_index, ant_index, antNum)
-        for bl_index in range(blNum):
+        for bl_index in list(range(blNum)):
             ant1, ant0 = Bl2Ant(bl_index)
             xcorr_index[bl_index] = Ant2Bla_RevLex(ant0, ant1, antNum)
         #
@@ -585,6 +584,7 @@ def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
         Xspec = dataXY.reshape(polNum, chNum, blNum, timeNum)[:,:,xcorr_index,:]
         Pspec = np.ones([polNum, chNum, antNum, timeNum])
     #
+    del(dataXY)
     return timeStamp, Pspec, Xspec
 #
 def GetUVW(msfile, spwID, scanID):
@@ -1751,56 +1751,6 @@ def PowerSpec(msfile, pol, TsysScan, TsysSPW, vanvSW):
 	#
 	return Tsysfreq, PskySpec, PambSpec, PhotSpec
 #
-#-------- Bandpass Plog
-def PlotBP(msfile, antList, spwList, BPList):
-    spwNum, antNum = len(spwList), len(antList)
-    #-------- Prepare Plots
-    for ant_index in range(antNum):
-        figAnt = plt.figure(ant_index, figsize = (11, 8))
-        figAnt.suptitle(prefix + ' ' + antList[ant_index])
-        figAnt.text(0.45, 0.05, 'Frequency [GHz]')
-        figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
-    #
-    #-------- Plot BP
-    for ant_index in range(antNum):
-        figAnt = plt.figure(ant_index)
-        for spw_index in range(spwNum):
-            chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index]); Freq = 1.0e-9* Freq  # GHz
-            BPampPL = figAnt.add_subplot( 2, spwNum, spw_index + 1 )
-            BPphsPL = figAnt.add_subplot( 2, spwNum, spw_index + spwNum + 1 )
-            for pol_index in range(ppolNum):
-                plotBP = BPList[spw_index][ant_index, pol_index]
-                BPampPL.plot( Freq, abs(plotBP), ls='steps-mid', label = 'Pol=' + PolList[pol_index])
-                BPampPL.axis([np.min(Freq), np.max(Freq), 0.0, 1.25])
-                BPampPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
-                BPampPL.yaxis.offsetText.set_fontsize(10)
-                BPampPL.ticklabel_format(style='sci',axis='y',scilimits=(0,0))
-                BPphsPL.plot( Freq, np.angle(plotBP), '.', label = 'Pol=' + PolList[pol_index])
-                BPphsPL.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
-            #
-            BPampPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            BPphsPL.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-            BPampPL.text( np.min(Freq), 1.1, 'SPW=%d Amp' % (spwList[spw_index]))
-            BPphsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
-        #
-    #
-    return figAnt
-#
-#
-#-------- Amp and Phase Plot
-def plotAmphi(fig, freq, spec):
-	amp = abs(spec);	phase = np.angle(spec)
-	#ampAxis = fig.add_axes((0, 0.2, 1, 0.8))
-	#Panel = fig.add_subplot(111)
-	ampAxis = fig.add_axes((0.1, 0.3, 0.89, 0.6))	# left, bottom, width, height
-	phsAxis = fig.add_axes((0.1, 0.1, 0.89, 0.2), sharex = ampAxis)
-	ampAxis.tick_params(labelbottom = 'off')
-	ampAxis.plot(freq, amp, ls='steps-mid')
-	ampAxis.axis( [min(freq), max(freq), 0, 1.1* max(amp)], size='x-small' )
-	phsAxis.plot(freq, phase, '.')
-	phsAxis.axis( [min(freq), max(freq), -pi, pi], size='x-small' )
-	return
-#
 def GFSmatrix(antDelay, Frequency):
     chNum, antNum = len(Frequency), len(antDelay)
     blNum = antNum* (antNum - 1) / 2
@@ -1986,14 +1936,6 @@ def XY2PhaseVec(TS, VisXY, UC_QS, QC_US, SmoothWindow):    # XY*, YX* to measuer
     vis_weight = abs(residual)
     SP_residual = splineComplex(TS, np.exp((0.0 + 1.0j) * np.angle(residual* np.sign(UC_QS))), SmoothWindow, vis_weight)
     return np.angle(SP_residual), solution[0], solution[1]
-'''
-def XY2PhaseVec(TS, UC_QS, Vis, SmoothWindow):    # XY*, YX* to measuere XYphase variation
-    product = 0.5* (Vis[0] + Vis[1].conjugate())* np.sign(UC_QS)
-    vis_weight = abs(product)
-    # vis_weight[np.where(abs(product.real) < 3.0* np.std(product.imag))[0].tolist()] *= 1.0e-6   # threshold = 3 sigma
-    SP_product = splineComplex(TS, np.exp((0.0 + 1.0j) * np.angle(product)), SmoothWindow, vis_weight)
-    return np.angle(SP_product)
-'''
 #
 def XY2Stokes(PA, Vis):            # XY*, YX* to determine Q, U
     UCmQS = 0.5* (Vis[0] + Vis[1]).real
