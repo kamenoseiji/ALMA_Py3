@@ -1341,10 +1341,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
     if polNum == 4:
         BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)          # BP_ant[ant, pol, ch]
         polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
-        #print '  -- Mapping baselines...'
         Xspec  = CrossPolBL(Xspec[:,:,blMap], blInv)[:,:,:,flagIndex]
         #---- Delay Cal
-        #print '  -- Delay Cal...'
         timeAvgSpecX, timeAvgSpecY = np.mean(Xspec[0,chRange][:,kernel_index], axis=2), np.mean(Xspec[3,chRange][:,kernel_index], axis=2)
         antDelayX = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecX)[0]/chNum)
         antDelayY = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecY)[0]/chNum)
@@ -1360,14 +1358,11 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         CaledXspec = (Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
-        #print '  -- Time Averaging...'
         XPspec = np.mean(CaledXspec, axis=3)  # Time Average
         del CaledXspec
         #---- Antenna-based bandpass table
-        #print '  -- Antenna-based Solution...'
         BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
         #---- XY delay
-        #print '  -- XY delay...'
         BPCaledXspec = XPspec.transpose(2, 0, 1) /(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
         del XPspec
         BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
@@ -1383,7 +1378,6 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         antDelayY = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecY)[0]/chNum)
         delayCalTable = np.ones([2, antNum, chNum], dtype=complex)
         for ant_index in list(range(antNum)):
-            print('%d ' % (ant_index))
             delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
             delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
         #
@@ -1774,21 +1768,22 @@ def PMatrix(CompSol):
 #
 def PTdotR(CompSol, Cresid):
     antNum = len(CompSol)
-    blNum = antNum* (antNum-1) / 2
+    blNum = int(antNum* (antNum-1) / 2)
     ant0, ant1= np.array(ANT0[0:blNum]), np.array(ANT1[0:blNum])
     PTR = np.zeros(2*antNum)
     for ant_index in range(antNum):
         index0 = np.where(ant0 == ant_index)[0].tolist()
         index1 = np.where(ant1 == ant_index)[0].tolist()
-        PTR[range(ant_index)]          += (CompSol[ant_index].real* Cresid[index0].real + CompSol[ant_index].imag* Cresid[index0].imag)
-        PTR[range(ant_index+1,antNum)] += (CompSol[ant_index].real* Cresid[index1].real - CompSol[ant_index].imag* Cresid[index1].imag)
-        PTR[range(antNum, antNum+ant_index)]    += (CompSol[ant_index].imag* Cresid[index0].real - CompSol[ant_index].real* Cresid[index0].imag)
-        PTR[range(antNum+ant_index+1,2*antNum)] += (CompSol[ant_index].imag* Cresid[index1].real + CompSol[ant_index].real* Cresid[index1].imag)
+        PTR[list(range(ant_index))]          += (CompSol[ant_index].real* Cresid[index0].real + CompSol[ant_index].imag* Cresid[index0].imag)
+        PTR[list(range(ant_index+1,antNum))] += (CompSol[ant_index].real* Cresid[index1].real - CompSol[ant_index].imag* Cresid[index1].imag)
+        PTR[list(range(antNum, antNum+ant_index))]    += (CompSol[ant_index].imag* Cresid[index0].real - CompSol[ant_index].real* Cresid[index0].imag)
+        PTR[list(range(antNum+ant_index+1,2*antNum))] += (CompSol[ant_index].imag* Cresid[index1].real + CompSol[ant_index].real* Cresid[index1].imag)
     #
-    return PTR[range(antNum) + range(antNum+1, 2*antNum)]
+    return PTR[list(range(antNum)) + list(range(antNum+1, 2*antNum))]
 #
 def gainComplexVec( bl_vis, niter=2 ):       # bl_vis[baseline, channel]
-    ChavVis = np.median(bl_vis.real, axis=1) + (0.0+1.0j)*np.median(bl_vis.imag, axis=1)
+    #ChavVis = np.median(bl_vis.real, axis=1) + (0.0+1.0j)*np.median(bl_vis.imag, axis=1)
+    ChavVis = np.mean(bl_vis.real, axis=1) + (0.0+1.0j)*np.mean(bl_vis.imag, axis=1)
     blNum, chNum  =  bl_vis.shape[0], bl_vis.shape[1]
     antNum =  Bl2Ant(blNum)[0]
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()
@@ -1802,7 +1797,7 @@ def gainComplexVec( bl_vis, niter=2 ):       # bl_vis[baseline, channel]
         Cresid = vis - CompSol[ant0]* CompSol[ant1].conjugate()
         t = np.linalg.solve(L, PTdotR(CompSol, Cresid))
         correction = np.linalg.solve(L.T, t)
-        return CompSol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
+        return CompSol + correction[list(range(antNum))] + 1.0j* np.append(0, correction[list(range(antNum, 2*antNum-1))])
     #
     Solution = np.apply_along_axis(GlobalGainSolve, 0, bl_vis)
     #---- Local iteration
@@ -1813,9 +1808,9 @@ def gainComplexVec( bl_vis, niter=2 ):       # bl_vis[baseline, channel]
         Cresid = vis - sol[ant0]* sol[ant1].conjugate()
         t = np.linalg.solve(L, PTdotR(sol, Cresid))
         correction = np.linalg.solve(L.T, t)
-        return sol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
+        return sol + correction[list(range(antNum))] + 1.0j* np.append(0, correction[list(range(antNum, 2*antNum-1))])
     #
-    for iter_index in range(niter): Solution = np.apply_along_axis(LocalGainSolve, 0, np.concatenate([bl_vis, Solution]))
+    for iter_index in list(range(niter)): Solution = np.apply_along_axis(LocalGainSolve, 0, np.concatenate([bl_vis, Solution]))
     return Solution
 #
 def gainComplex( bl_vis, niter=2 ):
@@ -1828,13 +1823,13 @@ def gainComplex( bl_vis, niter=2 ):
     #CompSol[0] = sqrt(np.median(abs(bl_vis.real))) + 0j
     CompSol[1:antNum] = bl_vis[kernelBL] / CompSol[0]
     #----  Iteration
-    for iter_index in range(niter):
+    for iter_index in list(range(niter)):
         PTP        = PMatrix(CompSol)
         L          = np.linalg.cholesky(PTP)         # Cholesky decomposition
         Cresid     = bl_vis - CompSol[ant0]* CompSol[ant1].conjugate()
         t          = np.linalg.solve(L, PTdotR(CompSol, Cresid))
         correction = np.linalg.solve(L.T, t)
-        CompSol    = CompSol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
+        CompSol    = CompSol + correction[list(range(antNum))] + 1.0j* np.append(0, correction[list(range(antNum, 2*antNum-1))])
     #
     return CompSol
 #

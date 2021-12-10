@@ -58,31 +58,27 @@ for spw_index in list(range(spwNum)):
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])
     np.save('%s-SPW%d-Freq.npy' % (prefix, spwList[spw_index]), Freq) 
     BW = chNum* np.median(chWid)    # Bandwidth
-    print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spwList[spw_index], SideBand[int(np.sign(np.median(chWid))+1)/2], 0.5* XYD / (BW * 1.0e-9), XYsnr))
+    print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spwList[spw_index], SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
 #
-
-
-'''
 ppolNum = BPList[0].shape[1]
 PolList = ['X', 'Y']
 #
 #-------- Save CalTables
 np.save(prefix + '-REF' + antList[UseAnt[refantID]] + '.Ant.npy', antList[antMap]) 
-for spw_index in range(spwNum):
-    np.save(prefix + '-REF' + antList[UseAnt[refantID]] + '-SC' + `BPscan` + '-SPW' + `spwList[spw_index]` + '-BPant.npy', BPList[spw_index]) 
-    np.save(prefix + '-REF' + antList[UseAnt[refantID]] + '-SC' + `BPscan` + '-SPW' + `spwList[spw_index]` + '-XYspec.npy', XYList[spw_index]) 
-    np.save(prefix + '-REF' + antList[UseAnt[refantID]] + '-SC' + `BPscan` + '-SPW' + `spwList[spw_index]` + '-XYdelay.npy', XYdelayList[spw_index]) 
+for spw_index in list(range(spwNum)):
+    np.save('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), BPList[spw_index]) 
+    np.save('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYList[spw_index]) 
+    np.save('%s-REF%s-SC%d-SPW%d-XYdelay.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYdelayList[spw_index]) 
 #
 #-------- Plots
 if BPPLOT:
-    if ppolNum == 4:
-        pp = PdfPages('XYP_' + prefix + '_REF' + antList[UseAnt[refantID]] + '_Scan' + `BPscan` + '.pdf')
+    if XYsnr > 3.0:
+        pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
         plotXYP(pp, prefix, spwList, XYList, bunchNum) 
     #
-    pp = PdfPages('BP_' + prefix + '_REF' + antList[UseAnt[refantID]] + '_Scan' + `BPscan` + '.pdf')
+    pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
     if 'spurRFLists' in locals():
         plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList, bunchNum, 1.2, spurRFLists) 
     else:
         plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList, bunchNum) 
 #
-'''

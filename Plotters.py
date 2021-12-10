@@ -224,6 +224,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
 def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2, plotMarker=[[]]):
     msfile = prefix + '.ms'
     antNum, spwNum = len(antList), len(spwList)
+    polColor = ['b', 'g']
     figAnt = plt.figure(figsize = (11, 8))
     figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
@@ -242,9 +243,9 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             AmpList = AmpList + [AmpPL]
             PhsList = PhsList + [PhsPL]
             for pol_index in range(ppolNum):
-                plotBP = BPList[spw_index][ant_index,pol_index]
-                AmpPL.step(Freq, abs(plotBP), where='mid', label = 'Pol=' + PolList[pol_index])
-                PhsPL.plot( Freq, np.angle(plotBP), '.', label = 'Pol=' + PolList[pol_index])
+                plotBandpass = BPList[spw_index][ant_index,pol_index]
+                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + PolList[pol_index])
+                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + PolList[pol_index])
             #
             if len(plotMarker[0]) > 0: 
                 for spurIndex in range(len(plotMarker[spw_index])): AmpPL.vlines(x=1.0e-9 * plotMarker[spw_index][spurIndex], ymin=0.0, ymax=1.25*plotMax, color='gray') 
@@ -258,7 +259,7 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
             PhsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
         #
-        plt.show()
+        #plt.show()
         figAnt.savefig(pp, format='pdf')
     #
     plt.close('all')
@@ -277,7 +278,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
     figXYP.suptitle(prefix + ' XY Phase')
     figXYP.text(0.45, 0.05, 'Frequency [GHz]')
     figXYP.text(0.03, 0.45, 'XY Phase [deg]', rotation=90)
-    for spw_index in range(spwNum):
+    for spw_index in list(range(spwNum)):
         spw = spwList[spw_index]
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
@@ -287,7 +288,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
     #
-    plt.show()
+    #plt.show()
     figXYP.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
