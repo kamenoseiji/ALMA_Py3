@@ -3,6 +3,7 @@ import matplotlib.ticker as ptick
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 Tcmb = 2.725
+polColor = ['b', 'g', 'm', 'y']
 #
 #-------- Set Color Map
 lineCmap = plt.get_cmap('Set1')
@@ -20,7 +21,7 @@ def plotTauSpec(prefix, spwList, freqList, Tau0spec):
         TauPL = figTauSP.add_subplot(1, spwNum, spw_index + 1 )
         TauPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, 1.05* plotMax])
         TauPL.tick_params(axis='both', labelsize=6)
-        TauPL.step(freqList[spw_index][chRange], Tau0spec[spw_index][chRange], where='mid')
+        TauPL.step(freqList[spw_index][chRange], Tau0spec[spw_index][chRange], color='k', where='mid')
         text_sd = 'SPW = %d' % (spwList[spw_index])
         TauPL.text(np.min(freqList[spw_index]), 1.01* plotMax, text_sd, fontsize='8')
     #
@@ -43,12 +44,12 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
         plotMax = 1.2 * np.max(chAvgTsky)
         TskyPL = figTauFit.add_subplot(1, spwNum, spw_index + 1 )
         TskyPL.axis([1.0, 2.5, 0.0, plotMax])
+        TskyPL.plot( airmass, Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color='k', alpha=0.5)
         for ant_index in range(antNum):
             rgb = lineCmap(float(ant_index) / antNum )
             plotTsky = chAvgTsky[ant_index]
             TskyPL.scatter( secZ, plotTsky, s=10.0* scanFlag[spw_index, ant_index], color=rgb, label = antList[ant_index])
         #
-        TskyPL.plot( airmass, Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color=rgb, alpha=0.5)
         text_sd = 'Tau(zenith)=%6.4f' % (chAvgTau0)
         TskyPL.text(1.01, 0.95* plotMax, text_sd, fontsize='9')
         TskyPL.set_title('SPW %d' % (spwList[spw_index]))
@@ -74,8 +75,8 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
         SP = tauSMTH( atmTime-atmTime[0], Tau0E )
         Tau0ESpl = scipy.interpolate.splev(mjdSpl-atmTime[0], SP)
         TauEPL = figTauE.add_subplot(1, spwNum, spw_index + 1 )
-        TauEPL.plot( DTSpl, Tau0ESpl, '-')
-        TauEPL.scatter( DT, Tau0E, s=10.0* scanFlag[spw_index])
+        TauEPL.plot( DTSpl, Tau0ESpl, '-', color='k')
+        TauEPL.scatter( DT, Tau0E, s=10.0* scanFlag[spw_index], color='c')
         TauEPL.tick_params(axis='x', labelsize=6)
         TauEPL.set_title('SPW %d' % (spwList[spw_index]))
     figTauE.savefig('TAUE_' + prefix + '.pdf')
@@ -110,8 +111,8 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                 for pol_index in range(polNum):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
-                    currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', label = 'Tsys Pol '+ PolList[pol_index])
-                    currentPL.plot( freqList[spw_index][chRange], plotTrx,  ls=':', label = 'Trec Pol ' + PolList[pol_index])
+                    currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ PolList[pol_index])
+                    currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + PolList[pol_index])
                 #
                 currentPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, plotMax])
                 currentPL.tick_params(axis='both', labelsize=6)
@@ -123,7 +124,7 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                 #
             #
         #
-        plt.show()
+        #plt.show()
         figAnt.savefig(pp, format='pdf')
         #
         #
@@ -209,7 +210,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL.step(Freq, plotSD, where='mid')
             #
         #
-        plt.show()
+        #plt.show()
         figAnt.savefig(pp, format='pdf')
     #
     plt.close('all')
@@ -224,7 +225,6 @@ def plotAC(prefix, antList, spwList, freqList, AC):
 def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2, plotMarker=[[]]):
     msfile = prefix + '.ms'
     antNum, spwNum = len(antList), len(spwList)
-    polColor = ['b', 'g']
     figAnt = plt.figure(figsize = (11, 8))
     figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
@@ -328,7 +328,7 @@ def plotDSpec(pp, prefix, antList, spwList, DxList, DyList):
         #
         DxPL.legend(loc = 'upper right', prop={'size' :7}, numpoints = 1)
         DyPL.legend(loc = 'upper right', prop={'size' :7}, numpoints = 1)
-        plt.show()
+        #plt.show()
         figAnt.savefig(pp, format='pdf')
     #
     plt.close('all'); pp.close()

@@ -414,7 +414,7 @@ def GetSourceList(msfile):              # Source List
 def GetSunAngle(msfile):
     sunAngleList = []
     sourceList, posList = GetSourceList(msfile)
-    for source_index in range(len(sourceList)):
+    for source_index in list(range(len(sourceList))):
         sunAngleList = sunAngleList + [au.angleToSun(vis=msfile, field=source_index, verbose=False)]
     #
     return sunAngleList
