@@ -4,6 +4,7 @@ import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 Tcmb = 2.725
 polColor = ['b', 'g', 'm', 'y']
+polName = ['X', 'Y', 'XY', 'YX']
 #
 #-------- Set Color Map
 lineCmap = plt.get_cmap('Set1')
@@ -87,7 +88,6 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
     pp = PdfPages('TSYS_' + prefix + '.pdf')
     #-------- Plots for Tsys spectra
     antNum, spwNum, scanNum, polNum  = len(antList), len(spwList), len(atmTime), TrxList[0].shape[0]
-    PolList = ['X', 'Y']
     #-------- Prepare Plots
     figAnt = plt.figure(figsize = (8, 11))
     figAnt.suptitle(prefix)
@@ -111,8 +111,8 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                 for pol_index in range(polNum):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
-                    currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ PolList[pol_index])
-                    currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + PolList[pol_index])
+                    currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
+                    currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + polName[pol_index])
                 #
                 currentPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, plotMax])
                 currentPL.tick_params(axis='both', labelsize=6)
@@ -140,7 +140,6 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
 def plotAC(prefix, antList, spwList, freqList, AC):
     pp = PdfPages('AC_' + prefix + '.pdf')
     antNum, spwNum, polNum = len(antList), len(spwList), AC[0].shape[2]
-    polName = ['X', 'Y']
     figAnt = plt.figure(figsize = (11, 8))
     figAnt.suptitle(prefix + ' Power Spectra')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
@@ -244,8 +243,8 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             PhsList = PhsList + [PhsPL]
             for pol_index in range(ppolNum):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
-                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + PolList[pol_index])
-                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + PolList[pol_index])
+                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
+                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
             #
             if len(plotMarker[0]) > 0: 
                 for spurIndex in range(len(plotMarker[spw_index])): AmpPL.vlines(x=1.0e-9 * plotMarker[spw_index][spurIndex], ymin=0.0, ymax=1.25*plotMax, color='gray') 
@@ -269,6 +268,47 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
     del(AmpPL)
     del(PhsPL)
     del(figAnt)
+    return
+#
+#-------- Plot Gain
+def plotGain(prefix, spw):
+    #-------- Load tables
+    antFile = prefix + '.Ant.npy'; antList = np.load(antFile); antNum = len(antList)
+    timeFile = '%s-SPW%d.TS.npy' % (prefix, spw)
+    GainFile = '%s-SPW%d.GA.npy' % (prefix, spw)
+    pp = PdfPages('GA_%s-SPW%d.pdf' %  (prefix, spw))
+    DT, timeStamp, Gain = [], np.load(timeFile), np.load(GainFile)
+    polNum = Gain.shape[1]
+    for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
+    #-------- Prepare Plots
+    figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
+    figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')
+    figAmp.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d'))); figPhs.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')))
+    figAmp.text(0.03, 0.7, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.55, 'Gain Phase [deg]', rotation=90)
+    plotMin, plotMax = 0.0, 1.1* np.percentile(abs(Gain), 80)
+    #-------- Plot Gain
+    for ant_index in list(range(antNum)):
+        AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
+        PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
+        for pol_index in list(range(polNum)): AmpPL.plot( DT, abs(Gain[ant_index, pol_index]), '.', markersize=3, color=polColor[pol_index])
+        for pol_index in list(range(polNum)): PhsPL.plot( DT, np.angle(Gain[ant_index, pol_index])*180.0/pi, '.', markersize=3, color=polColor[pol_index])
+        ampMed = np.median(abs(Gain[ant_index]), axis=1)
+        AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
+        AmpPL.yaxis.offsetText.set_fontsize(3)
+        PhsPL.yaxis.offsetText.set_fontsize(3)
+        AmpPL.ticklabel_format(style='sci',axis='y',scilimits=(0,0))
+        AmpPL.tick_params(labelsize=4)
+        PhsPL.tick_params(labelsize=4)
+        AmpPL.axis([np.min(DT), np.max(DT), plotMin, plotMax])
+        PhsPL.axis([np.min(DT), np.max(DT), -180.0, 180.0])
+        if polNum == 2: text_sd = '%s : Gain(median) = (%.2f%% %.2f%%)' % (antList[ant_index], 100.0* ampMed[0], 100.0* ampMed[1])
+        else: text_sd = '%s : Gain(median) = (%.2f%%)' % (antList[ant_index], 100.0* ampMed[0])
+        AmpPL.text( 0.05, 1.02, text_sd, transform=AmpPL.transAxes, fontsize=5)
+        PhsPL.text( 0.05, 1.02, antList[ant_index], transform=PhsPL.transAxes, fontsize=5)
+    #
+    figAmp.savefig(pp, format='pdf'); figPhs.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
     return
 #
 #-------- Plot XY-phase spectra

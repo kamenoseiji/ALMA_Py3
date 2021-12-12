@@ -3,6 +3,7 @@ import sys
 from scipy import stats
 import matplotlib.pyplot as plt
 exec(open(SCR_DIR + 'interferometry.py').read())
+exec(open(SCR_DIR + 'Plotters.py').read())
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 3.0
 msfile = wd + prefix + '.ms'; msmd.open(msfile)
@@ -96,3 +97,4 @@ np.save(prefix + '.Field.npy', np.array(fieldList))
 np.save('%s-SPW%d.TS.npy' % (prefix, spw), np.array(timeList)) 
 np.save('%s-SPW%d.GA.npy' % (prefix, spw), Gain) 
 np.save('%s-SPW%d.FG.npy' % (prefix, spw), antFG) 
+plotGain(prefix, spw)
