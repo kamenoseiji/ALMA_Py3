@@ -1270,15 +1270,15 @@ def bunchVec( spec, bunchNum ):
     if bunchNum == 1:
         return spec
     else:
-	    chNum = len(spec)/bunchNum
-	    totalNum = chNum* bunchNum
+	    chNum = int(len(spec)/bunchNum)
+	    totalNum = int(chNum* bunchNum)
 	    return(np.mean( spec[0:totalNum].reshape(chNum, bunchNum), axis=1))
     #
 def specBunch( blSpec, chBunch, timeBunch ):
 	chNum, timeNum = blSpec.shape[0], blSpec.shape[1]
-	totalNum = chNum* timeNum
-	tmp = np.mean(blSpec.reshape(chBunch, totalNum/chBunch), 0).reshape((chNum/chBunch), timeNum).T.reshape(timeBunch, totalNum/chBunch/timeBunch)
-	return np.mean(tmp, 0).reshape((timeNum/timeBunch), (chNum/chBunch)).T 
+	totalNum = int(chNum* timeNum)
+	tmp = np.mean(blSpec.reshape(chBunch, int(totalNum/chBunch)), 0).reshape(int(chNum/chBunch), timeNum).T.reshape(timeBunch, int(totalNum/chBunch/timeBunch))
+	return np.mean(tmp, 0).reshape(int(timeNum/timeBunch), int(chNum/chBunch)).T 
 
 def gainAnt(vis, viserr):		# vis[blNum]
 	blNum = len(vis);  antNum = Bl2Ant(blNum)[0]
