@@ -10,7 +10,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
 from scipy.interpolate import griddata
 from scipy.sparse import lil_matrix
-#import urllib2
+import urllib
 from urllib.request import urlopen
 import scipy.optimize
 import time
@@ -310,8 +310,8 @@ def GetFWHM(msfile, spw, antD ):    # antD is the antenna diameter [m]
 #
 def GetSSOAeC(URI, band):
     if band == 4 : band = 3
-    request =  urllib2.Request('%sSSO.B%d.table' % (URI, band))
-    response = urllib2.urlopen(request)
+    request =  urllib.Request('%sSSO.B%d.table' % (URI, band))
+    response = urllib.urlopen(request)
     fileLines = response.readlines()
     lineLength = len(fileLines)
     SSOList, AeC = [], []
@@ -326,8 +326,8 @@ def GetAeff(URI, antMap, band, refMJD):
     antNum = len(antMap)
     Aeff  = np.ones([antNum, 2])
     #request =  urllib2.Request(URI + 'AeB' + `band` + '.table')
-    request =  urllib2.Request('%sAeB%d.table' % (URI, Band))
-    response = urllib2.urlopen(request)
+    request =  urllib.Request('%sAeB%d.table' % (URI, Band))
+    response = urllib.urlopen(request)
     fileLines = response.readlines()
     lineLength = len(fileLines)
     antPolList = fileLines[0].split()[1:]
@@ -357,19 +357,20 @@ def GetAeff(URI, antMap, band, refMJD):
     return Aeff
 #
 def GetDterm(URI, antMap, band, refMJD):
+    print('GetDterm : %sDtermB%d.%s.table' % (URI,  band, antMap[0]))
     if band == 4 : band = 3
     antNum = len(antMap)
     Dterm  = np.zeros([antNum, 2, 4], dtype=complex)    # Dterm[ant, pol, spw]
     for ant_index in range(antNum):
         ant = antMap[ant_index]
         try:
-            request =  urllib2.Request('%sDtermB%d.%s.table', URI,  band, ant)
+            request =  urllib.request('%sDtermB%d.%s.table' % (URI,  band, ant))
             #request =  urllib2.Request(URI + 'DtermB' + `band` + '.' + ant + '.table')
-            response = urllib2.urlopen(request)
+            response = urllib.urlopen(request)
         except:
             #request =  urllib2.Request(URI + 'DtermB' + `band` + '.' + ant[0:2] + '00.table')
-            request =  urllib2.Request('%sDtermB%d.%s00.table', URI,  band, ant[0:2])
-            response = urllib2.urlopen(request)
+            request =  urllib.request('%sDtermB%d.%s00.table' % (URI,  band, ant[0:2]))
+            response = urllib.urlopen(request)
         #
         fileLines = response.readlines()
         lineLength = len(fileLines)
