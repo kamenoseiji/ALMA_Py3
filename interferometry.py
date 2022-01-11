@@ -10,8 +10,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
 from scipy.interpolate import griddata
 from scipy.sparse import lil_matrix
-import urllib
-from urllib.request import urlopen
+import urllib.request, urllib.error
 import scipy.optimize
 import time
 import datetime
@@ -46,13 +45,13 @@ def Bl2Ant(bl_index):     # Baseline -> antenna indexing (canonical ordering)
 def revList(inList):
     listLen = len(inList)
     outList = []
-    for index in range(listLen):
+    for index in list(range(listLen)):
         outList.append( inList.index(index) )
     #
     return outList
 #
 ANT0 = []; ANT1 = []     # List the BL -> antenna indexing
-for bl_index in range(2016):    # Maximum number of baseline
+for bl_index in list(range(2016)):    # Maximum number of baseline
     ants = Bl2Ant(bl_index)
     ANT0.append(ants[0])        # bl -> ant0 (baseline-end antenna) mapping
     ANT1.append(ants[1])        # bl -> ant1 (baseline-begin antenna) mapping
@@ -74,9 +73,9 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     useKernelBL = np.array(kernelBL)[flagIndex].tolist()
     SAantennas = unique(np.append(ant0[useKernelBL], ant1[useKernelBL]))
     SAantMap = [refant] + sort(np.array(list(set(SAantennas) - set([refant])))).tolist()
-    SAantNum = len(SAantennas); SAblNum = SAantNum* (SAantNum - 1)/2
-    SAblMap, SAblInv = range(SAblNum), range(SAblNum)
-    for bl_index in range(SAblNum): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
+    SAantNum = len(SAantennas); SAblNum = int(SAantNum* (SAantNum - 1)/2)
+    SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
+    for bl_index in list(range(SAblNum)): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
     return SAantMap, SAblMap, SAblInv
 #
 def angFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant antennas out
@@ -84,7 +83,7 @@ def angFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant anten
     UVW = np.mean(UVW, axis=2); BLlength = np.sqrt(np.diag(UVW.T.dot(UVW)))
     blNum = len(BLlength)
     tempRefAntID = bestRefant(BLlength)
-    refBLList = np.where(np.array(ANT0)[range(blNum)] == tempRefAntID)[0].tolist() + np.where(np.array(ANT1)[range(blNum)] == tempRefAntID)[0].tolist()
+    refBLList = np.where(np.array(ANT0)[list(range(blNum))] == tempRefAntID)[0].tolist() + np.where(np.array(ANT1)[list(range(blNum))] == tempRefAntID)[0].tolist()
     useAntIndex = np.where(BLlength[refBLList] <  BLlimit)[0]
     useAntList = [tempRefAntID] + useAntIndex[np.where(useAntIndex < tempRefAntID)[0]].tolist() + (useAntIndex[np.where(useAntIndex >= tempRefAntID)[0]] + 1).tolist()
     return list(set(antFlag) | (set(antList) - set(antList[useAntList])))
@@ -310,14 +309,13 @@ def GetFWHM(msfile, spw, antD ):    # antD is the antenna diameter [m]
 #
 def GetSSOAeC(URI, band):
     if band == 4 : band = 3
-    request =  urllib.Request('%sSSO.B%d.table' % (URI, band))
-    response = urllib.urlopen(request)
+    response =  urllib.request.urlopen(url = '%sSSO.B%d.table' % (URI, band))
     fileLines = response.readlines()
     lineLength = len(fileLines)
     SSOList, AeC = [], []
     for line_index in range(lineLength):
-        SSOList = SSOList + [fileLines[line_index].split(',')[0]]
-        AeC     = AeC + [float(fileLines[line_index].split(',')[1])]
+        SSOList = SSOList + [fileLines[line_index].decode('utf-8').split(',')[0]]
+        AeC     = AeC + [float(fileLines[line_index].decode('utf-8').split(',')[1])]
     #
     return dict(zip(SSOList, AeC))
 #
@@ -325,16 +323,14 @@ def GetAeff(URI, antMap, band, refMJD):
     if band == 4 : band = 3
     antNum = len(antMap)
     Aeff  = np.ones([antNum, 2])
-    #request =  urllib2.Request(URI + 'AeB' + `band` + '.table')
-    request =  urllib.Request('%sAeB%d.table' % (URI, Band))
-    response = urllib.urlopen(request)
+    response =  urllib.request.urlopen(url = '%sAeB%d.table' % (URI, band))
     fileLines = response.readlines()
     lineLength = len(fileLines)
-    antPolList = fileLines[0].split()[1:]
+    antPolList = fileLines[0].decode('utf-8').split()[1:]
     polList = ['X', 'Y']
     #-------- reference timing
     mjdSec = np.ones(lineLength - 3)
-    for line_index in range(3, lineLength): mjdSec[line_index - 3] = qa.convert(fileLines[line_index].split()[0], 's')['value']
+    for line_index in range(3, lineLength): mjdSec[line_index - 3] = qa.convert(fileLines[line_index].decode('utf-8').split()[0], 's')['value']
     refpointer = np.argmin(abs(mjdSec - refMJD))
     if (refpointer == 0) | (refpointer == len(mjdSec) - 1) :
         for ant_index in range(antNum):
@@ -342,7 +338,7 @@ def GetAeff(URI, antMap, band, refMJD):
             for pol_index in range(2):
                 keyhead = ant + '-' + polList[pol_index]
                 pointer = antPolList.index(keyhead) + 1
-                Aeff[ant_index, pol_index] = float(fileLines[refpointer + 3].split()[pointer])
+                Aeff[ant_index, pol_index] = float(fileLines[refpointer + 3].decode('utf-8').split()[pointer])
         return Aeff
     #
     tmpMJD  = np.array([mjdSec[refpointer-1], mjdSec[refpointer], mjdSec[refpointer+1]])
@@ -351,7 +347,7 @@ def GetAeff(URI, antMap, band, refMJD):
         for pol_index in range(2):
             keyhead = ant + '-' + polList[pol_index]
             pointer = antPolList.index(keyhead) + 1
-            tmpAeff = np.array([float(fileLines[refpointer+2].split()[pointer]), float(fileLines[refpointer+3].split()[pointer]), float(fileLines[refpointer+4].split()[pointer])])
+            tmpAeff = np.array([float(fileLines[refpointer+2].decode('utf-8').split()[pointer]), float(fileLines[refpointer+3].decode('utf-8').split()[pointer]), float(fileLines[refpointer+4].decode('utf-8').split()[pointer])])
             Aeff[ant_index, pol_index] = quadratic_interpol(tmpMJD, tmpAeff, refMJD)
     #
     return Aeff
@@ -364,33 +360,30 @@ def GetDterm(URI, antMap, band, refMJD):
     for ant_index in range(antNum):
         ant = antMap[ant_index]
         try:
-            request =  urllib.request('%sDtermB%d.%s.table' % (URI,  band, ant))
-            #request =  urllib2.Request(URI + 'DtermB' + `band` + '.' + ant + '.table')
-            response = urllib.urlopen(request)
+            response =  urllib.request.urlopen(url = '%sDtermB%d.%s.table' % (URI,  band, ant))
         except:
-            #request =  urllib2.Request(URI + 'DtermB' + `band` + '.' + ant[0:2] + '00.table')
-            request =  urllib.request('%sDtermB%d.%s00.table' % (URI,  band, ant[0:2]))
-            response = urllib.urlopen(request)
+            response =  urllib.request.urlopen(url = '%sDtermB%d.%s00.table' % (URI,  band, ant[0:2]))
         #
         fileLines = response.readlines()
         lineLength = len(fileLines)
         #---- Date
         mjdSec = np.ones(lineLength - 1)
-        for line_index in range(1, lineLength): mjdSec[line_index - 1] = qa.convert(fileLines[line_index].split()[0], 's')['value']
+        for line_index in list(range(1, lineLength)):
+            mjdSec[line_index - 1] = qa.convert(fileLines[line_index].decode('utf-8').split()[0], 's')['value']
         refpointer = np.argmin(abs(mjdSec - refMJD))
         if (refpointer == 0) | (refpointer == len(mjdSec) - 1) :
-            for spwpol_index in range(8):
+            for spwpol_index in list(range(8)):
                 pol_index = spwpol_index % 2
                 spw_index = spwpol_index // 2
-                Dterm[ant_index, pol_index, spw_index] = complex(fileLines[refpointer + 1].split()[spwpol_index + 1].replace('i','j'))
+                Dterm[ant_index, pol_index, spw_index] = complex(fileLines[refpointer + 1].decode('utf-8').split()[spwpol_index + 1].replace('i','j'))
             #
             return Dterm
         #
         tmpMJD  = np.array([mjdSec[refpointer-1], mjdSec[refpointer], mjdSec[refpointer+1]])
-        for spwpol_index in range(8):
+        for spwpol_index in list(range(8)):
             pol_index = spwpol_index % 2
             spw_index = spwpol_index // 2
-            tmpD = np.array([ complex(fileLines[refpointer].replace('i', 'j').split()[spwpol_index + 1]), complex(fileLines[refpointer+1].replace('i', 'j').split()[spwpol_index + 1]), complex(fileLines[refpointer+2].replace('i', 'j').split()[spwpol_index + 1])])
+            tmpD = np.array([ complex(fileLines[refpointer].decode('utf-8').replace('i', 'j').split()[spwpol_index + 1]), complex(fileLines[refpointer+1].decode('utf-8').replace('i', 'j').split()[spwpol_index + 1]), complex(fileLines[refpointer+2].decode('utf-8').replace('i', 'j').split()[spwpol_index + 1])])
             Dterm[ant_index, pol_index, spw_index] = quadratic_interpol(tmpMJD, tmpD.real, refMJD) + (0.0 + 1.0j)*quadratic_interpol(tmpMJD, tmpD.imag, refMJD)
         #
     #

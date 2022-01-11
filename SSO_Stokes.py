@@ -59,18 +59,18 @@ for spw_index in list(range(spwNum)):
     if np.median(Tau0spec[spw_index][chRange]) < 0.0: TrxFlag *= 0.0    # Negative Tau(zenith) 
 #
 TrxFlag[useAnt] *= np.median(np.min(scanFlag, axis=1), axis=(0,2))
-print('Ant:',)
-for ant_index in list(range(antNum)): print(antList[ant_index],)
-print; print('givn',)
-for ant_index in list(range(antNum)): print('   %.0f' % (flagAnt[ant_index]),)
-print; print('Trx ',)
-for ant_index in list(range(antNum)): print('   %.0f' % (TrxFlag[ant_index]),)
-print; print('gain',)
-for ant_index in list(range(antNum)): print('   %.0f' % (gainFlag[ant_index]),)
-print
+print('Ant: ', end='')
+for ant_index in list(range(antNum)): print(antList[ant_index], end=' ')
+print(); print('givn', end='')
+for ant_index in list(range(antNum)): print('    %.0f' % (flagAnt[ant_index]), end='')
+print(); print('Trx ', end='')
+for ant_index in list(range(antNum)): print('    %.0f' % (TrxFlag[ant_index]), end='')
+print(); print('gain', end='')
+for ant_index in list(range(antNum)): print('    %.0f' % (gainFlag[ant_index]), end='')
+print()
 flagAnt = flagAnt* TrxFlag* gainFlag
-UseAnt = np.where(flagAnt > 0.0)[0]; UseAntNum = len(UseAnt); UseBlNum  = UseAntNum* (UseAntNum - 1) / 2
-print('%d / %d usable antennas' % UseAntNum, antNum)
+UseAnt = np.where(flagAnt > 0.0)[0]; UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
+print('%d / %d usable antennas' % (UseAntNum, antNum))
 if len(UseAnt) < 4: sys.exit('Too few usable antennas. Reduction failed.')
 #-------- Check Scans for atmCal
 ingestFile = open(prefix + '-' + UniqBands[band_index] + '-Ingest.log', 'w') 
@@ -172,7 +172,6 @@ for spw_index in list(range(spwNum)):
 #
 GainP = np.array(GainP) # GainP[spw, pol, ant, time]
 AeSeqX, AeSeqY = np.array(AeSeqX), np.array(AeSeqY) # AeSeqX[spw, antMap], AeSeqX[spw, antMap] : (relative) aperture efficiency, assuming 1 Jy
-#
 ##-------- inter-SPW phasing using EQ scan
 spwPhase = [0.0]* 2* spwNum
 for ant_index in list(range(1,UseAntNum)):
@@ -192,11 +191,9 @@ exec(open(SCR_DIR + 'SSOflux.py').read()); logfile.write(FLScaleText + '\n')
 #  uvFlag[SSO, spw, bl] : 0=resolved, 1=unresolved
 ########
 flaggedBlList = list(set(range(blNum)) - set(blMap)); uvFlag[:,:,flaggedBlList] = 0.0
-
 atmCorrect = []
 for spw_index in list(range(spwNum)): atmCorrect = atmCorrect + [np.median(Tau0spec[spw_index])]
 atmCorrect = np.exp(-outer( np.array(atmCorrect),  1.0/np.sin( np.array(OnEL)[indexList(np.array(SSOscanID), np.array(onsourceScans))]))).T
-
 SSOflux = SSOflux0* atmCorrect  # SSOflux[SSO, spw] : attenuated SSO flux
 uvFlag = np.min(uvFlag, axis=1) # all-SPW uv flag
 ##-------- Scaling with the flux calibrator
@@ -258,17 +255,15 @@ SSOUseList = np.where(SSO_flag == 1.0)[0].tolist()
 fluxCalText = ''
 if len(SSOUseList) > 0:
     fluxCalText = sourceList[BandSSOList[SSOUseList[0]]]
-    #for sso_ID in SSOUseList:
-    #    fluxCalText = fluxCalText + sourceList[BandSSOList[sso_ID]] + '-'
-    ##
-    #fluxCalText = fluxCalText[:-1]
-    #exec(open(SCR_DIR + 'AmpCalStokes.py').read())
-'''
+    for sso_ID in SSOUseList:
+        fluxCalText = fluxCalText + sourceList[BandSSOList[sso_ID]] + '-'
+    #
+    fluxCalText = fluxCalText[:-1]
+    exec(open(SCR_DIR + 'AmpCalStokes.py').read())
 else:
     fluxCalText = 'SEFD'
     print('No available Solar System Objects!! Try a-priori calibration.')
-    exec(open(SCR_DIR + 'aprioriStokes.py'))
+    exec(open(SCR_DIR + 'aprioriStokes.py').read())
 #
-'''
 msmd.close()
 msmd.done()

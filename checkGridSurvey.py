@@ -156,26 +156,24 @@ for band_index in list(range(NumBands)):
     msmd.done()
     if polNum == 4:
         pPol, cPol = [0,3], [1,2];  ppolNum, cpolNum = len(pPol), len(cPol)
-        exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
-        #execfile(SCR_DIR + 'aprioriStokes.py')
-        '''
+        #exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
+        #exec(open(SCR_DIR + 'aprioriStokes.py').read())
         if Apriori:
             try:
-                execfile(SCR_DIR + 'aprioriStokes.py')
+                exec(open(SCR_DIR + 'aprioriStokes.py').read())
             except:
                 print('  --A priori flux calibration falied.')
         else:
             try:
-                execfile(SCR_DIR + 'checkSEFDStokes.py')
+                exec(open(SCR_DIR + 'SSO_Stokes.py').read())
             except:
                 print('  --SSO-based flux calibration falied. Switch to a priori (SEFD) calibration.')
                 try:
-                    execfile(SCR_DIR + 'aprioriStokes.py')
+                    exec(open(SCR_DIR + 'aprioriStokes.py').read())
                 except:
                     print('  --A priori flux calibration falied.')
             #
         #
-        '''
     #
     if polNum == 2:
         cPol = [0,1], []; ppolNum, cpolNum = len(pPol), len(cPol)
@@ -189,11 +187,9 @@ for band_index in list(range(NumBands)):
             exec(open(SCR_DIR + 'aprioriFlux.py').read())
     #
 #---- end of band loop
-'''
 del msfile, UniqBands, useAnt, atmspwLists, atmSPWs
 if 'spwFlag' in locals(): del spwFlag
 if 'BPScans' in locals(): del BPScans
 if 'EQScans' in locals(): del EQScans
 if 'antFlag' in locals(): del antFlag
 if 'flagAnt' in locals(): del flagAnt
-'''
