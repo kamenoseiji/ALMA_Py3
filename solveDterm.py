@@ -1,9 +1,9 @@
-execfile(SCR_DIR + 'interferometry.py')
-execfile(SCR_DIR + 'Grid.py')
-execfile(SCR_DIR + 'Plotters.py')
+exec(open(SCR_DIR + 'interferometry.py').read())
+exec(open(SCR_DIR + 'Grid.py').read())
+exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
-ALMA_lat = -23.029/180.0*pi     # ALMA AOS Latitude
+ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #----------------------------------------- Procedures
 spwNum = len(spwList)
 polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
@@ -288,11 +288,10 @@ for spw_index in list(range(spwNum)):
     #-------- D-term-corrected visibilities (invD dot Vis = PS)
     del chAvgVis, StokesVis
     print('  -- Applying D-term spectral correction')
-    M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,chNum/bunchNum])).transpose(0,3,1,2)
-    StokesVis = np.zeros([4, chNum/bunchNum, PAnum], dtype=complex )
+    M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
+    StokesVis = np.zeros([4, int(chNum/bunchNum), PAnum], dtype=complex )
     for time_index in list(range(PAnum)): StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
     chAvgVis = np.mean(StokesVis[:,chRange], axis=1)
-    #XYC = chAvgVis[[1,2]]* np.sign(UCmQS)
     XYC = chAvgVis[[1,2]]
     PS = InvPAVector(PA, np.ones(PAnum))
     for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
@@ -327,7 +326,6 @@ for spw_index in list(range(spwNum)):
             scanMJD = mjdSec[scanST[scan_index]]
             text_sd = 'Scan %d : %s' % (scanList[scan_index], qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
             plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scan_index]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
-            # plt.text( RADDEG* ThetaPlot[scanST[scan_index]], -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
         #
     #
     plt.xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); plt.ylabel('Cross correlations [Jy]')
@@ -338,7 +336,7 @@ for spw_index in list(range(spwNum)):
     #-------- Save Results
     np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName), antList[antMap])
     np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refantName), np.array([mjdSec, Az, El, PA]))
-    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw+ refantName), mjdSec )
+    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refantName), mjdSec )
     np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refantName), Gain )
     np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refantName), XYphase )
     np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refantName), XYvis )
@@ -368,10 +366,10 @@ for spw_index in list(range(spwNum)):
         StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
         #
         IMax = np.max(StokesSpec[0])
-        StokesI_SP.plot(Freq[chRange], StokesSpec[0][chRange], ls='steps-mid', label=polLabel[0], color=Pcolor[0])
-        StokesP_SP.plot(Freq[chRange], StokesSpec[1][chRange], ls='steps-mid', label=polLabel[1], color=Pcolor[1])
-        StokesP_SP.plot(Freq[chRange], StokesSpec[2][chRange], ls='steps-mid', label=polLabel[2], color=Pcolor[2])
-        StokesP_SP.plot(Freq[chRange], StokesSpec[3][chRange], ls='steps-mid', label=polLabel[3], color=Pcolor[3])
+        StokesI_SP.step(Freq[chRange], StokesSpec[0][chRange], where='mid', label=polLabel[0], color=Pcolor[0])
+        StokesP_SP.step(Freq[chRange], StokesSpec[1][chRange], where='mid', label=polLabel[1], color=Pcolor[1])
+        StokesP_SP.step(Freq[chRange], StokesSpec[2][chRange], where='mid', label=polLabel[2], color=Pcolor[2])
+        StokesP_SP.step(Freq[chRange], StokesSpec[3][chRange], where='mid', label=polLabel[3], color=Pcolor[3])
         StokesI_SP.tick_params(axis='both', labelsize=6)
         StokesP_SP.tick_params(axis='both', labelsize=6)
         StokesI_SP.axis([np.min(Freq[chRange]), max(Freq[chRange]), 0.0, 1.25*IMax])
@@ -391,5 +389,5 @@ for spw_index in list(range(spwNum)):
 #
 #-------- Plot D-term spectra
 DxList, DyList = np.array(DxList).transpose(1,0,2), np.array(DyList).transpose(1,0,2)
-pp = PdfPages('D_' + prefix + '-REF' + refantName + '-Dspec.pdf')
+pp = PdfPages('D_%s-REF%s-Dspec.pdf' % (prefix, refantName))
 plotDSpec(pp, prefix, antList[antMap], spwList, DxList, DyList)

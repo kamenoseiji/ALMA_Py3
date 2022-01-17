@@ -342,13 +342,13 @@ def plotDSpec(pp, prefix, antList, spwList, DxList, DyList):
     figAnt.suptitle(prefix + ' D-term spectra')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'D-term Spectra (Real and Imaginary)', rotation=90)
-    for ant_index in range(antNum):
+    for ant_index in list(range(antNum)):
         if ant_index > 0:
             for PL in DxPList: figAnt.delaxes(PL)
             for PL in DyPList: figAnt.delaxes(PL)
         #
         DxPList, DyPList = [], []
-        for spw_index in range(spwNum):
+        for spw_index in list(range(spwNum)):
             DxPL = figAnt.add_subplot( 2, spwNum, spw_index + 1 )
             DyPL = figAnt.add_subplot( 2, spwNum, spw_index + spwNum + 1 )
             DxPList = DxPList + [DxPL]
