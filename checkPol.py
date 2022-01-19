@@ -4,7 +4,7 @@ exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Grid.py').read())
 fileNum = len(prefixList)
 QAresult = ['Fail', 'Pass']
-det_thresh, XY_thresh = 200, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
+det_thresh, XY_thresh = 100, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
 if 'PHASECAL' not in locals(): PHASECAL = False
 #-------- Check SPWs for polarization
 bpSPWList, bandNames, BandPA = [], [], []
@@ -133,9 +133,9 @@ for band_index in list(range(NumBands)):
         UCMQS, QCPUS = StokesDic[sourceName][2]*CSrange - StokesDic[sourceName][1]* SNrange, StokesDic[sourceName][1]*CSrange + StokesDic[sourceName][2]* SNrange
         ThetaRange[ThetaRange >  1.56] = np.inf
         ThetaRange[ThetaRange < -1.56] = -np.inf
-        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
+        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', linewidth=0.5, label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
         PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=colorIndex, linestyle='solid', label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
-        PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
+        PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , markersize=0.5, label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
         PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=colorIndex, label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
     #
     if numPolSource < 10: PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
