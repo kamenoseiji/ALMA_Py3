@@ -4,7 +4,8 @@ exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Grid.py').read())
 fileNum = len(prefixList)
 QAresult = ['Fail', 'Pass']
-det_thresh, XY_thresh = 400, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
+det_thresh, XY_thresh = 200, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
+if 'PHASECAL' not in locals(): PHASECAL = False
 #-------- Check SPWs for polarization
 bpSPWList, bandNames, BandPA = [], [], []
 for prefix in prefixList:
@@ -25,7 +26,6 @@ for band_index in list(range(NumBands)):
 #
 #-------- Loop for MS files
 for band_index in list(range(NumBands)):
-    QA = 1    # pass QA0
     bpscanLists = []
     bandID = int(UniqBands[band_index][3:5])
     for file_index in list(range(fileNum)):
@@ -46,8 +46,10 @@ for band_index in list(range(NumBands)):
         msmd.open(msfile)
         #print('---Checking source list for %s' % (prefix))
         sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-        PolScans = msmd.scansforintent("*CALIBRATE_POLARIZATION*")
-        PolScanList = PolScanList + [PolScans[indexList(PolScans, np.array(bpscanLists[file_index]))].tolist()]
+        PolScans = msmd.scansforintent("*CALIBRATE_BANDPASS*")
+        PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_POLARIZATION*"))
+        if PHASECAL: PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_PHASE*"))
+        PolScanList = PolScanList + [PolScans[indexList(np.array(bpscanLists[file_index]), PolScans)].tolist()]
         polSourceID, polSourceName = [], []
         for PolScan in PolScanList[file_index]:
             sourceID = msmd.sourceidforfield(msmd.fieldsforscan(PolScan))
@@ -60,9 +62,17 @@ for band_index in list(range(NumBands)):
         msmd.close(); msmd.done()
     #
     polSourceList = unique(polSourceList).tolist(); numPolSource = len(polSourceList)
-    if numPolSource == 0: conrinue
+    if numPolSource == 0: continue
     StokesDic = dict(zip(polSourceList, [[]]*numPolSource))
-     #-------- Check QU catalog
+    ScansDic  = dict(zip(polSourceList, [[]]*numPolSource))
+    for source in polSourceList: ScansDic[source] = [[]]*fileNum
+    #---- Relate files and scans for each source
+    for file_index in list(range(fileNum)):
+        for scan_index in list(range(len(PolScanList[file_index]))):
+            print('Scan %3d : %s ' % (PolScanList[file_index][scan_index], polScanSource[file_index][scan_index]))
+            ScansDic[polScanSource[file_index][scan_index]][file_index] = ScansDic[polScanSource[file_index][scan_index]][file_index] + [PolScanList[file_index][scan_index]]
+        #
+    #-------- Check QU catalog
     os.system('rm -rf CalQU.data')
     text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, qa.time('%fs' % (refTime[0]), form='ymd')[0], BANDFQ[bandID])
     for source in polSourceList: text_sd = text_sd + ' ' + source
@@ -75,14 +85,18 @@ for band_index in list(range(NumBands)):
         StokesDic[sourceName] = [float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
     #
     #-------- for each polcal source
-    print('Source     : I[Jy]  Q[Jy]  U[Jy] p[%] EVPA[d]:   min   max   det   QA')
+    combPA, combQCpUS, combUCmQS = [], [], []
+    print('Source     |  I[Jy]  Q[Jy]  U[Jy] p[%] EVPA[d]|   min   max    det  QA')
+    print('-----------+----------------------------------+-------------------------')
     figPL = plt.figure(figsize = (11, 8))
     lineCmap = plt.get_cmap('Set1')
     figPL.suptitle('Session %s : Band %d : Expected Cross Polarization' % (prefixList[0].split('_')[4], bandID) )
     PolPL = figPL.add_subplot( 1, 1, 1 )
     for src_index in list(range(numPolSource)):
+        QA = 1    # pass QA0
+        sourceName = polSourceList[src_index]
         PolAZ, PolEL, PolPA, refTime = [], [], [], []
-        colorIndex = lineCmap(int(src_index / 8.0))
+        colorIndex = plt.rcParams['axes.prop_cycle'].by_key()['color'][src_index % 10]
         for file_index in list(range(fileNum)):
             prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
             #-------- AZEL in the MS
@@ -91,9 +105,8 @@ for band_index in list(range(NumBands)):
                 azelTime_index = np.where( AntID == trialID )[0].tolist() 
                 if len(azelTime_index) > 1: break
             #
-            for scan_index in list(range(len(PolScanList[file_index]))):
-                if polScanSource[file_index][scan_index] != polSourceList[src_index] : continue
-                interval, timeStamp = GetTimerecord(msfile, trialID, trialID, bpSPWList[file_index][0], PolScanList[file_index][scan_index])
+            for scanID in ScansDic[sourceName][file_index]:
+                interval, timeStamp = GetTimerecord(msfile, trialID, trialID, bpSPWList[file_index][0], scanID)
                 AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, trialID, AZ, EL)
                 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]
                 PolAZ, PolEL, PolPA, refTime = PolAZ + AzScan.tolist(), PolEL + ElScan.tolist(),  PolPA + PA.tolist(), refTime + timeStamp.tolist()
@@ -102,12 +115,15 @@ for band_index in list(range(NumBands)):
         CS, SN = np.cos(2.0* np.array(PolPA)), np.sin(2.0* np.array(PolPA))
         QCpUS = StokesDic[sourceName][1]*CS + StokesDic[sourceName][2]*SN   # Qcos + Usin
         UCmQS = StokesDic[sourceName][2]*CS - StokesDic[sourceName][1]*SN   # Ucos - Qsin
+        combPA    = combPA + PolPA
+        combQCpUS = combQCpUS + QCpUS.tolist()
+        combUCmQS = combUCmQS + UCmQS.tolist()
         polDeg, EVPA = np.sqrt( StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2 ) / StokesDic[sourceName][0], 0.5* np.arctan2(StokesDic[sourceName][2],StokesDic[sourceName][1])
         det_D = np.sum(UCmQS**2)*len(UCmQS) - (np.sum(UCmQS))**2      # Determinant for D-term
         maxUCmQS, minUCmQS, maxXY = np.max(UCmQS), np.min(UCmQS), np.max(abs(UCmQS)) 
         if det_D < det_thresh: QA = int(QA*0)
         if maxXY < XY_thresh:  QA = int(QA*0)
-        print('%s : %.3f %.3f %.3f %4.1f %6.1f : %5.2f %5.2f %.1f  %s' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], 100.0*polDeg, EVPA*180.0/np.pi, minUCmQS, maxUCmQS, det_D, QAresult[QA]))
+        print('%s | %6.3f %6.3f %6.3f %4.1f %6.1f | %5.2f %5.2f %6.1f  %s' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], 100.0*polDeg, EVPA*180.0/np.pi, minUCmQS, maxUCmQS, det_D, QAresult[QA]))
         plotPA = np.array(PolPA) - EVPA; plotPA = np.arctan(np.tan(plotPA))
         ThetaPlot = np.array(PolPA) - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
         ThetaMin, ThetaMax = min(ThetaPlot), max(ThetaPlot)
@@ -117,12 +133,17 @@ for band_index in list(range(NumBands)):
         UCMQS, QCPUS = StokesDic[sourceName][2]*CSrange - StokesDic[sourceName][1]* SNrange, StokesDic[sourceName][1]*CSrange + StokesDic[sourceName][2]* SNrange
         ThetaRange[ThetaRange >  1.56] = np.inf
         ThetaRange[ThetaRange < -1.56] = -np.inf
-        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=lineCmap(src_index/8), linestyle='dashed', label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
-        PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=lineCmap((src_index + 2)/8), linestyle='solid', label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
-        PolPL.plot(RADDEG* plotPA,  QCpUS, 'o', color=lineCmap((src_index + 4)/8) , label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
-        PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=lineCmap((src_index + 6)/8), label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
+        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
+        PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=colorIndex, linestyle='solid', label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
+        PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
+        PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=colorIndex, label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
     #
-    PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
+    if numPolSource < 10: PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
+    combUCmQS = np.array(combUCmQS)
+    det_D = np.sum(combUCmQS**2)*len(combUCmQS) - (np.sum(combUCmQS))**2      # Determinant for D-term
+    if (det_D > det_thresh) & (np.max(abs(combUCmQS)) > XY_thresh) : QA = 1
+    print('----------------------------------------------+-------------------------')
+    print('Combined solution                             | %5.2f %5.2f %6.1f  %s' % (np.min(combUCmQS), np.max(combUCmQS), det_D, QAresult[QA]))
     PolPL.set_xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); PolPL.set_ylabel('Cross correlations [Jy]'); PolPL.set_title(prefixList); PolPL.grid()
     figPL.savefig('%s.Band%d.QUXY.png' % (prefixList[0].split('_')[4], bandID))
     plt.close('all')
