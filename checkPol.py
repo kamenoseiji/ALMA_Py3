@@ -84,6 +84,12 @@ for band_index in list(range(NumBands)):
         sourceName = eachLine.split()[0]
         StokesDic[sourceName] = [float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
     #
+    for sourceName in polSourceList:
+        if len(StokesDic[sourceName]) < 4:
+            StokesDic.pop(sourceName)
+            polSourceList.remove(sourceName)
+    #
+    numPolSource = len(StokesDic)
     #-------- for each polcal source
     combPA, combQCpUS, combUCmQS = [], [], []
     print('Source     |  I[Jy]  Q[Jy]  U[Jy] p[%] EVPA[d]|   min   max    det  QA')
