@@ -374,6 +374,7 @@ for band_index in list(range(NumBands)):
     for scan_index in list(range(len(scanList))):
         sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scanList[scan_index])[0])
         SunAngle = SunAngleSourceList[sourceID]
+        print('Sun Angle : %.1f' % (SunAngle))
         if SunAngle < SunAngleTsysLimit: scanFlag[:,:,:,scan_index] *= 0.01
     #
     for spw_index in list(range(spwNum)):
