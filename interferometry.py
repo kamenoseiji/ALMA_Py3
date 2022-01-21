@@ -480,6 +480,15 @@ def GetLoadTemp(msfile, AntID, spw):
 	tb.close()
 	return np.median(temp[0]), np.median(temp[1])
 #
+def GetLoadTempTime(msfile, AntID):
+	Out = msfile + '/' + 'CALDEVICE'
+	tb.open(Out)
+	Condition = 'ANTENNA_ID == %d && SPECTRAL_WINDOW_ID == 0' % (AntID)
+	temp      = tb.query(Condition).getcol('TEMPERATURE_LOAD')
+	timeStamp =  tb.query(Condition).getcol('TIME')
+	tb.close()
+	return np.delete(timeStamp, -1), np.delete(temp, 1, -1)
+#
 def GetTemp(msfile):
     Out = msfile + '/WEATHER'
     tb.open(Out)
@@ -503,7 +512,13 @@ def GetBasePair(AntNum):
 			Test.append(j)
 			BasePair.append(Test)
 	return BasePair
-
+#
+def GetStateID(msfile, keyword): # Get State ID that includes the keyword
+    tb.open(msfile+'/STATE')
+    STATE_array = tb.getcol('OBS_MODE')
+    tb.close()
+    return [index for index in range(len(STATE_array)) if keyword in STATE_array[index]]
+#
 def GetTimerecord(msfile, ant1, ant2, spwID, PScan):
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (ant1, ant2, data_desc_id, PScan)
