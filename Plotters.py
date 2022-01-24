@@ -112,7 +112,8 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
                     currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
-                    currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + polName[pol_index])
+                    #currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + polName[pol_index])
+                    currentPL.step( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], where='mid', label = 'Trec Pol ' + polName[pol_index])
                 #
                 currentPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, plotMax])
                 currentPL.tick_params(axis='both', labelsize=6)
