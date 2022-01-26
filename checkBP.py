@@ -56,6 +56,7 @@ for spw_index in list(range(spwNum)):
     XYList = XYList + [XY_BP]
     XYdelayList = XYdelayList + [XYD]
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])
+    chNum, chWid, Freq = int(chNum / bunchNum), chWid* bunchNum, bunchVec(Freq, bunchNum)
     np.save('%s-SPW%d-Freq.npy' % (prefix, spwList[spw_index]), Freq) 
     BW = chNum* np.median(chWid)    # Bandwidth
     print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spwList[spw_index], SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))

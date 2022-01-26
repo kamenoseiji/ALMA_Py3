@@ -230,25 +230,25 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
     #-------- Plot BP
-    for ant_index in range(antNum):
+    for ant_index in list(range(antNum)):
         if ant_index > 0:
             for PL in AmpList: figAnt.delaxes(PL)
             for PL in PhsList: figAnt.delaxes(PL)
         #
         AmpList, PhsList = [], []
-        for spw_index in range(spwNum):
+        for spw_index in list(range(spwNum)):
             chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index]); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
             AmpPL = figAnt.add_subplot(2, spwNum, spw_index + 1 )
             PhsPL = figAnt.add_subplot(2, spwNum, spwNum + spw_index + 1 )
             AmpList = AmpList + [AmpPL]
             PhsList = PhsList + [PhsPL]
-            for pol_index in range(ppolNum):
+            for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
                 PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
             #
             if len(plotMarker[0]) > 0: 
-                for spurIndex in range(len(plotMarker[spw_index])): AmpPL.vlines(x=1.0e-9 * plotMarker[spw_index][spurIndex], ymin=0.0, ymax=1.25*plotMax, color='gray') 
+                for spurIndex in list(range(len(plotMarker[spw_index]))): AmpPL.vlines(x=1.0e-9 * plotMarker[spw_index][spurIndex], ymin=0.0, ymax=1.25*plotMax, color='gray') 
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)

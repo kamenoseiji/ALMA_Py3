@@ -27,21 +27,33 @@ if 'antFlag' in locals():
     index =  indexList(np.array(antFlag), antList)
     if len(index) > 0: flagAnt[index] = 0.0
 useAnt = np.where(flagAnt == 1.0)[0].tolist(); useAntNum = len(useAnt)
+#-------- Check Number of bands
+if 'atmSPWs' not in locals(): atmSPWs = GetAtmSPWs(msfile); atmSPWs.sort()
+atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = unique(atmBandNames).tolist(); NumBands = len(UniqBands)
+BPscans  = GetBPcalScans(msfile)   # BP scan list
+msmd.open(msfile); atmScanList = msmd.scansforintent('*ATMOSPHERE*') 
 #-------- Check SPWs
 print('---Checking spectral windows and scans with atmCal for ' + prefix)
-BPscan  = GetBPcalScans(msfile)[0]   # BP scan
-msmd.open(msfile)
-atmScanList = msmd.scansforintent('*ATMOSPHERE*') 
-BPspws = msmd.spwsforscan(BPscan)
-BBspwList = sort(list( set(BPspws) & set(msmd.almaspws(sqld=True)))).tolist();  BBnum = len(BBspwList)
-BBdic = dict(zip(list(range(1,BBnum + 1)), [[]]*BBnum)) # dictionary {BB: [SQLDspw, [atmScans], [onsourceScans]]}
-for BBID in list(range(1,BBnum+1)):
-    spwList = list(set( msmd.spwsforbaseband(BBID, sqldmode='Only') ) & set(BPspws))
-    spwScanList = msmd.scansforspw(spwList[0])
-    BBdic[BBID] = [spwList[0], sort(list(set(spwScanList) & set(atmScanList))).tolist(), sort(list(set(spwScanList) - set(atmScanList))).tolist()]
+BandDic = dict( zip(list(range(NumBands)), []))
+for band_index in list(range(NumBands)):
+    BPscan = BPscans[band_index]
+    msmd.open(msfile); BPspws = msmd.spwsforscan(BPscan); BandName = unique( GetBandNames(msfile, BPspws) )[0]
+    msmd.open(msfile); BBspwList = sort(list( set(BPspws) & set(msmd.almaspws(sqld=True)))).tolist();  BBnum = len(BBspwList)  # BBspwList : SPWs for SQLD
+    BBdic = dict(zip(list(range(1,BBnum + 1)), [[]]*BBnum)) # dictionary {BB: [SQLDspw, [CHAVspws], [SPECspws], [atmScans], [onsourceScans]]}
+    for BBID in list(range(1,BBnum+1)):
+        CHAVspwList, SPECspwList = [], []
+        BBspw       = list(set( msmd.spwsforbaseband(BBID, sqldmode='Only') ) & set(BPspws))[0]; BBScanList = msmd.scansforspw(BBspw)
+        CorrspwList = list( set( msmd.spwsforbaseband(BBID, sqldmode='exclude') ) & set( BPspws ) )
+        for spw in CorrspwList:
+            if msmd.nchan(spw) == 1: CHAVspwList = CHAVspwList + [spw]
+            if msmd.nchan(spw) >  1: SPECspwList = SPECspwList + [spw]
+        #
+        BBdic[BBID] = [BBspw, CHAVspwList, SPECspwList, sort(list(set(BBScanList) & set(atmScanList))).tolist(), sort(list(set(BBScanList) - set(atmScanList))).tolist()]
+    #
+    BandDic[BandName] = BBdic
+    msmd.close(); msmd.done()
 #
-msmd.close(); msmd.done()
-#--------
+#-------- Autocorrelation data filtered by antenna, spw, and StateID
 def GetPSpecState(msfile, ant, spwID, stateID):
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d && STATE_ID == %d' % (ant, ant, data_desc_id, stateID)
@@ -52,14 +64,22 @@ def GetPSpecState(msfile, ant, spwID, stateID):
     tb.close()
     return timeStamp, ACORR.real
 #
+for state in ['OFF', 'AMB', 'HOT']:
+#-------- Ambient and Hot power levels
+for band_index in list(range(NumBands)):
+    BandName = UniqBands[band_index]
+    for antID in useAnt:
+        for BBID in list(range(1,BBnum+1)):
+            spwID = BandDic[BandName][BBID][1]  # SPW for CHAV
+            timeStamp, chavAC = GetPSpecState(msfile, antID, spwID, 50)kj
 
+'''
 
 if 'atmSPWs' not in locals():
     atmSPWs = GetAtmSPWs(msfile); atmSPWs.sort()
 atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = unique(atmBandNames).tolist()
 if UniqBands == []: UniqBands = BandList
 NumBands = len(UniqBands)
-'''
 msmd.open(msfile)
 atmspwLists, atmscanLists = [], []
 for band_index in list(range(NumBands)):
