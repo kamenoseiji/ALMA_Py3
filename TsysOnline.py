@@ -16,6 +16,7 @@
 #
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
+paraPol = [[0], [0,1], [0,1], [0,3]]
 #-------- Check MS file
 msfile = wd + prefix + '.ms'
 tempAtm = GetTemp(msfile)
@@ -54,25 +55,92 @@ for band_index in list(range(NumBands)):
     msmd.close(); msmd.done()
 #
 #-------- Autocorrelation data filtered by antenna, spw, and StateID
-def GetPSpecState(msfile, ant, spwID, stateID):
+def GetPSpecScanState(msfile, ant, spwID):
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
-    Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d && STATE_ID == %d' % (ant, ant, data_desc_id, stateID)
+    Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d' % (ant, ant, data_desc_id)
     tb.open(msfile)
     MSpointer = tb.query(Out)
-    timeStamp = MSpointer.getcol('TIME')
-    ACORR  = MSpointer.getcol('DATA')
+    timeStamp, ScanID, StateID, ACORR  = MSpointer.getcol('TIME'), MSpointer.getcol('SCAN_NUMBER'), MSpointer.getcol('STATE_ID'), MSpointer.getcol('DATA')
     tb.close()
-    return timeStamp, ACORR.real
+    return timeStamp, ScanID, StateID, ACORR.real
 #
-for state in ['OFF', 'AMB', 'HOT']:
+for band_index in list(range(NumBands)):
+    BandName = UniqBands[band_index]
+    chavSPWs = []
+    for spw in list(BandDic[BandName].values()): chavSPWs = chavSPWs + spw[1]
+    spwNum = len(chavSPWs)
+    #-------- Check State IDs in atmCal scans
+    StateDic = dict( zip(['OFF', 'AMB', 'HOT', 'ON'], [[]]* 4)) 
+    StateInd = dict( zip(['OFF', 'AMB', 'HOT', 'ON'], [[]]* 4)) 
+    scanNum  = len(list(BandDic[BandName].values())[0][3])
+    PchavBase= dict( zip(['OFF', 'AMB', 'HOT'], [np.zeros([useAntNum,spwNum, 2, scanNum]), np.zeros([useAntNum,spwNum, 2, scanNum]), np.zeros([useAntNum,spwNum, 2, scanNum])])) # [ant, spw, pol, scan]
+    msmd.open(msfile)
+    atmStateIDs = msmd.statesforscan(BandDic[BandName][1][3][0])
+    onStateIDs = []
+    for scanID in BandDic[BandName][1][4]:
+        onStateIDs = onStateIDs + msmd.statesforscan(scanID).tolist()
+    msmd.close(); msmd.done()
+    StateDic['ON'] = unique(onStateIDs).tolist()
+    for stateName in ['OFF', 'AMB', 'HOT']:
+        stateIDs = GetStateID(msfile, stateName); StateDic[stateName] = [stateIDs[indexList(atmStateIDs, stateIDs)[0]]]
+    #
+    for ant_index in list(range(useAntNum)):
+        antID = useAnt[ant_index]
+        for BBID in list(range(1,BBnum+1)):
+            spwList = BandDic[BandName][BBID][1]
+            atmScanList = BandDic[BandName][BBID][3]
+            OnScanList  = BandDic[BandName][BBID][4]
+            for spwID in spwList:
+                spw_index = np.where(chavSPWs == spwID)[0][0]
+                #print('State:%s Ant:%s BB:%d SPW:%d' % (stateName, antList[antID], BBID, spwID))
+                timeStamp, ScanID, StateID, chavAC = GetPSpecScanState(msfile, antID, spwID)
+                polNum = chavAC.shape[0]; polIndex = paraPol[polNum-1]; Pchav = chavAC[polIndex,0]
+                #for stateName in StateDic.keys():
+                for stateName in PchavBase.keys():
+                    index = []
+                    for State in StateDic[stateName]:
+                        index = index + np.where(StateID == State)[0].tolist()
+                    #
+                    print('%s : [%d - %d]' % (stateName, index[0], index[-1]))
+                    StateInd[stateName] = index
+                    for scan_index in list(range(scanNum)):
+                        scanID = atmScanList[scan_index]
+                        integ_index = list(set(np.where(ScanID == scanID)[0]) & set(StateInd[stateName]))
+                        #PchavBase[stateName][ant_index, spw_index, :, scan_index] = np.median( Pchav[:,integ_index], axis=1 )
+                        PchavBase[stateName][ant_index, spw_index, 0, scan_index] = np.median( Pchav[0,integ_index] )
+                        PchavBase[stateName][ant_index, spw_index, 1, scan_index] = np.median( Pchav[1,integ_index] )
+                        print('Scan %d %s : [%d - %d] %f %f' % (scanID, stateName, integ_index[0], integ_index[-1], PchavBase[stateName][ant_index, spw_index, 0, scan_index], PchavBase[stateName][ant_index, spw_index, 1, scan_index]))
+                    #
+                #
+            #
+        #
+    #
+'''
+                
+
+
+
+                #for scanID in scanList:
+                #    print('State:%s Ant:%s BB:%d SPW:%d Scan:%d' % (stateName, antList[antID], BBID, spwID, scanID))
+                #    timeStamp, chavAC = GetPSpecState(msfile, antID, spwID, stateID, scanID)
+                #    polNum = chavAC.shape[0]; polIndex = paraPol[polNum-1]
+                #    scanTime, Pchav = scanTime + [np.median(timeStamp)], Pchav + [np.median(chavAC[polIndex,0], axis=1)]
+                #
+                #scanTime, Pchav = np.array(scanTime), np.array(Pchav).T
+                #PchavBBdic[BBID] = PchavBBdic[BBID] + [spwID, scanTime, Pchav]
+            #
+            #PchavAntDic[antID] = PchavBBdic
+        #
+    #
 #-------- Ambient and Hot power levels
 for band_index in list(range(NumBands)):
     BandName = UniqBands[band_index]
     for antID in useAnt:
         for BBID in list(range(1,BBnum+1)):
             spwID = BandDic[BandName][BBID][1]  # SPW for CHAV
-            timeStamp, chavAC = GetPSpecState(msfile, antID, spwID, 50)kj
+            timeStamp, chavAC = GetPSpecState(msfile, antID, spwID, 50)
 
+'''
 '''
 
 if 'atmSPWs' not in locals():
