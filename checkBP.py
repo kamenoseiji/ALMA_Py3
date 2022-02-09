@@ -1,7 +1,5 @@
 #---- Script for Band-3 Astroholograpy Data
 import sys
-import subprocess
-from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
@@ -37,7 +35,7 @@ print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 #-------- Bandpass Table
 print('---Generating antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
-BPList, XYList, XYdelayList = [], [], []
+FreqList, BPList, XYList, XYdelayList = [], [], [], []
 spwNum = len(spwList)
 if 'bunchNum' not in locals(): bunchNum = 1
 for spw_index in list(range(spwNum)):
@@ -58,6 +56,7 @@ for spw_index in list(range(spwNum)):
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])
     chNum, chWid, Freq = int(chNum / bunchNum), chWid* bunchNum, bunchVec(Freq, bunchNum)
     np.save('%s-SPW%d-Freq.npy' % (prefix, spwList[spw_index]), Freq) 
+    FreqList = FreqList + [Freq]
     BW = chNum* np.median(chWid)    # Bandwidth
     print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spwList[spw_index], SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
 #
@@ -81,5 +80,7 @@ if BPPLOT:
     if 'spurRFLists' in locals():
         plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList, bunchNum, 1.2, spurRFLists) 
     else:
-        plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList, bunchNum) 
+        if 'plotMin' not in locals(): plotMin = 0.0
+        if 'plotMax' not in locals(): plotMax = 1.2
+        plotSP(pp, prefix, antList[antMap], spwList, FreqList, BPList, plotMin, plotMax) 
 #

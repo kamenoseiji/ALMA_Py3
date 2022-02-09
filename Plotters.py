@@ -221,6 +221,47 @@ def plotAC(prefix, antList, spwList, freqList, AC):
     #del(SDPL)
     return
 #
+#-------- Plot Cross power spectrum
+def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.2):
+    antNum, spwNum = len(antList), len(spwList)
+    figAnt = plt.figure(figsize = (11, 8))
+    figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
+    figAnt.text(0.45, 0.05, 'Frequency [GHz]')
+    figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
+    #-------- Plot BP
+    for ant_index in list(range(antNum)):
+        if ant_index > 0:
+            for PL in AmpList: figAnt.delaxes(PL)
+            for PL in PhsList: figAnt.delaxes(PL)
+        #
+        AmpList, PhsList = [], []
+        for spw_index in list(range(spwNum)):
+            Freq = freqList[spw_index]
+            AmpPL = figAnt.add_subplot(2, spwNum, spw_index + 1 )
+            PhsPL = figAnt.add_subplot(2, spwNum, spwNum + spw_index + 1 )
+            AmpList = AmpList + [AmpPL]
+            PhsList = PhsList + [PhsPL]
+            ppolNum = BPList[spw_index].shape[1]
+            for pol_index in list(range(ppolNum)):
+                plotBandpass = BPList[spw_index][ant_index,pol_index]
+                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
+                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+            #
+            if spw_index == 0: AmpPL.set_title(antList[ant_index])
+            AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
+            AmpPL.tick_params(axis='both', labelsize=6)
+            AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
+            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
+            PhsPL.axis([np.min(Freq), np.max(Freq), -np.pi, np.pi])
+            PhsPL.tick_params(axis='both', labelsize=6)
+            PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
+            PhsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
+        #
+        figAnt.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
+#
 #-------- Plot Bandpass
 def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2, plotMarker=[[]]):
     msfile = prefix + '.ms'
