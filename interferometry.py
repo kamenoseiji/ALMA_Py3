@@ -552,6 +552,39 @@ def GetVisCross(msfile, spwID, scanID):
     Xspec = dataXY.reshape(polNum, chNum, corrNum, timeNum)[:,:,xcorr_index,:]
     return timeStamp, Xspec
 #
+def GetVisAllBL(msfile, spwID, scanID):
+    antNum = len(GetAntName(msfile))
+    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
+    blNum  = corrNum - antNum
+    xcorr_index = list(range(blNum))
+    for bl_index in list(range(blNum)):
+        ant1, ant0 = Bl2Ant(bl_index)
+        xcorr_index[bl_index] = Ant2Bl_RevLex(ant0, ant1, antNum)
+    #
+    data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
+    Out = 'DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (data_desc_id, scanID)
+    tb.open(msfile)
+    antXantYspw = tb.query(Out)
+    colNameList = antXantYspw.colnames()
+    colName = 'DATA'
+    if 'FLOAT_DATA' in colNameList: colName = 'FLOAT_DATA'
+    timeXY = antXantYspw.getcol('TIME')
+    timeStamp = unique(timeXY)
+    timeNum = len(timeStamp)
+    acorrIndex, xcorrIndex = [], []
+    for time_index in list(range(timeNum)):
+        index = np.where( timeXY == timeStamp[time_index] )[0]
+        acorrIndex = acorrIndex + index[0:antNum].tolist()
+        xcorrIndex = xcorrIndex + index[antNum:].tolist()
+    #
+    dataXY = antXantYspw.getcol(colName)
+    polNum, chNum = dataXY.shape[0], dataXY.shape[1]
+    Pspec = dataXY[:,:,acorrIndex].reshape(polNum, chNum, timeNum, antNum).transpose(0,1,3,2)
+    Xspec = dataXY[:,:,xcorrIndex].reshape(polNum, chNum, timeNum, blNum).transpose(0,1,3,2)[:,:,xcorr_index,:]
+    del(dataXY); del(timeXY)
+    return timeStamp, Pspec, Xspec
+#
+'''
 def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
     antNum = len(GetAntName(msfile))
     corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
@@ -596,6 +629,7 @@ def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
     del(dataXY)
     return timeStamp, Pspec, Xspec
 #
+'''
 def GetUVW(msfile, spwID, scanID):
     antNum = len(GetAntName(msfile))
     corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
@@ -1336,7 +1370,7 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=np.array([])): 
     XYsnr = 0.0
     blNum = len(blMap); antNum = Bl2Ant(blNum)[0]
-    timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, BPScan, -1, True)    # Xspec[pol, ch, bl, time]
+    timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, BPScan)    # Xspec[pol, ch, bl, time]
     if bunchNum > 1:
         def bunchN(Spec): return bunchVec(Spec, bunchNum)
         Xspec = np.apply_along_axis(bunchN, 1, Xspec)
