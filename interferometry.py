@@ -661,11 +661,11 @@ def GetVisibility(msfile, ant1, ant2, pol, spwID, scanID):
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (ant1, ant2, data_desc_id, scanID)
     tb.open(msfile)
     antXantYspw = tb.query(Out)
+    colNameList = antXantYspw.colnames()
+    colName = 'DATA'
+    if 'FLOAT_DATA' in colNameList: colName = 'FLOAT_DATA'
     timeXY = antXantYspw.getcol('TIME')
-    try:
-        dataXY = antXantYspw.getcol('DATA')[pol]
-    except:
-        dataXY = antXantYspw.getcol('FLOAT_DATA')[pol]
+    dataXY = antXantYspw.getcol(colName)[pol]
     tb.close()
     return timeXY, dataXY
 #
@@ -674,11 +674,11 @@ def GetPSpec(msfile, ant, spwID):
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d' % (ant, ant, data_desc_id)
     tb.open(msfile)
     antXantYspw = tb.query(Out)
+    colNameList = antXantYspw.colnames()
+    colName = 'DATA'
+    if 'FLOAT_DATA' in colNameList: colName = 'FLOAT_DATA'
     timeXY = antXantYspw.getcol('TIME')
-    try:
-        dataXY = antXantYspw.getcol('DATA')
-    except:
-        dataXY = antXantYspw.getcol('FLOAT_DATA')
+    dataXY = antXantYspw.getcol(colName)
     tb.close()
     return timeXY, dataXY.real
 #
@@ -687,11 +687,11 @@ def GetPSpecScan(msfile, ant, spwID, scanID):
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (ant, ant, data_desc_id, scanID)
     tb.open(msfile)
     antXantYspw = tb.query(Out)
+    colNameList = antXantYspw.colnames()
+    colName = 'DATA'
+    if 'FLOAT_DATA' in colNameList: colName = 'FLOAT_DATA'
     timeXY = antXantYspw.getcol('TIME')
-    try:
-        dataXY = antXantYspw.getcol('DATA')
-    except:
-        dataXY = antXantYspw.getcol('FLOAT_DATA')
+    dataXY = antXantYspw.getcol(colName)
     tb.close()
     return timeXY, dataXY.real
 #

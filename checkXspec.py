@@ -30,15 +30,15 @@ timeNum = min(timeNum, len(timeStamp))
 #
 #-------- Prepare Plots
 for spw_index in range(spwNum):
-    figSPW = plt.figure(spw_index, figsize = (64, 64))
+    figSPW = plt.figure(spw_index, figsize = (64, 64), dpi=72, frameon=False, tight_layout=True, constrained_layout=True)
     figSPW.text(0.45, 0.05, 'Frequency [GHz]')
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90)
-#
-#-------- Plot BP
-for spw_index in range(spwNum):
+    #
+    #-------- Plot BP
+    #for spw_index in range(spwNum):
     print(' Loading SPW = %d' % (spwList[spw_index]))
-    figSPW = plt.figure(spw_index)
+    #figSPW = plt.figure(spw_index)
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index]); Freq = 1.0e-9* Freq  # GHz
     chRange = list(range(int(round(chNum/chBunch * 0.05)), int(round(chNum/chBunch * 0.95))))
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
@@ -65,6 +65,7 @@ for spw_index in range(spwNum):
     polColor = ['b', 'g']
     for bl_index in list(range(blNum)):
         ants = Bl2Ant(bl_index)
+        print('Preparing baseline %s - %s' % (antList[ants[1]], antList[ants[0]]))
         BLampPL = figSPW.add_subplot( antNum, antNum, antNum* ants[1] + ants[0] + 1 )
         BLphsPL = figSPW.add_subplot( antNum, antNum, antNum* ants[0] + ants[1] + 1 )
         for pol_index in list(range(polNum)):
@@ -100,5 +101,5 @@ for spw_index in range(spwNum):
             ACampPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
         #
     #
-    figSPW.savefig('BP_%s_Scan%d_SPW%d.png' % (prefix, BPscan, spwList[spw_index]))
+    figSPW.savefig('PS_%s_Scan%d_SPW%d.png' % (prefix, BPscan, spwList[spw_index]))
 #
