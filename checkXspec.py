@@ -88,8 +88,9 @@ for spw_index in range(spwNum):
         #
         axes[ant_index, ant_index].axis([np.min(Freq), np.max(Freq), 0.0, 1.25*aMax])
     #
-    for ant_index in list(range(1,antNum-1)):
+    for ant_index in list(range(antNum-1)):
         axes[ant_index, ant_index].xaxis.set_major_locator(plt.NullLocator())
+    for ant_index in list(range(1,antNum-1)):
         axes[ant_index, ant_index].yaxis.set_major_locator(plt.NullLocator())
     #
     axes[antNum -1, antNum -1].yaxis.tick_right()
