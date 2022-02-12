@@ -101,7 +101,7 @@ for band_index in list(range(NumBands)):
     for src_index in list(range(numPolSource)):
         QA = 1    # pass QA0
         sourceName = polSourceList[src_index]
-        PolAZ, PolEL, PolPA, refTime = [], [], [], []
+        PolAZ, PolEL, PolPA, refTime, textPA, textSD = [], [], [], [], [], []
         colorIndex = plt.rcParams['axes.prop_cycle'].by_key()['color'][src_index % 10]
         for file_index in list(range(fileNum)):
             prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
@@ -116,6 +116,9 @@ for band_index in list(range(NumBands)):
                 AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, trialID, AZ, EL)
                 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]
                 PolAZ, PolEL, PolPA, refTime = PolAZ + AzScan.tolist(), PolEL + ElScan.tolist(),  PolPA + PA.tolist(), refTime + timeStamp.tolist()
+                text_sd = 'Scan %d : %s' % (scanID, qa.time('%fs' % (timeStamp[0]), form='fits', prec=6)[0][11:21])
+                textSD = textSD + [text_sd]
+                textPA = textPA + [PA[0]]
             #
         #
         CS, SN = np.cos(2.0* np.array(PolPA)), np.sin(2.0* np.array(PolPA))
@@ -137,13 +140,18 @@ for band_index in list(range(NumBands)):
         ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)
         CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
         UCMQS, QCPUS = StokesDic[sourceName][2]*CSrange - StokesDic[sourceName][1]* SNrange, StokesDic[sourceName][1]*CSrange + StokesDic[sourceName][2]* SNrange
+        maxP = max(np.max(abs(QCPUS)), np.max(abs(UCMQS)))
         ThetaRange[ThetaRange >  1.56] = np.inf
         ThetaRange[ThetaRange < -1.56] = -np.inf
         PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', linewidth=0.5, label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
         PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=colorIndex, linestyle='solid', label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
         PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , markersize=0.5, label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
         PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=colorIndex, label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
+        for index in list(range(len(textPA))):
+            plt.text(RADDEG* np.arctan(np.tan(textPA[index] - EVPA)), -1.09* maxP, textSD[index], verticalalignment='bottom', fontsize=6, rotation=90)
+        #
     #
+    plt.ylim([-1.1* maxP, 1.1*maxP])
     if numPolSource < 10: PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
     combUCmQS = np.array(combUCmQS)
     det_D = np.sum(combUCmQS**2)*len(combUCmQS) - (np.sum(combUCmQS))**2      # Determinant for D-term

@@ -52,10 +52,9 @@ for scan in scanList:
     polNum = len(polIndex)
     if chNum == 1:  chRange = [0]
     if 'chRange' not in locals(): chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
-    print('Baseline and polarization mapping... ')
     tempSpec = ParaPolBL(Xspec[polIndex][:,:,blMap], blInv).transpose(3,2,0,1)  # Parallel Polarization Baseline Mapping : tempSpec[time, blMap, pol, ch]
     if 'BP_ant' in locals():
-        print('Applying bandpass calibration...')
+        #print('Applying bandpass calibration...')
         BPCaledXspec = (tempSpec / (BP_ant[ant0]* BP_ant[ant1].conjugate())).transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
     else:
         BPCaledXspec = tempSpec.transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
@@ -81,6 +80,7 @@ for scan in scanList:
         #
         flagList = flagList + [gainFlag]
     #
+    print('')
     timeList.extend(timeStamp.tolist())
     scan_index += 1
 #

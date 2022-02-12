@@ -114,7 +114,7 @@ for spw_index in list(range(spwNum)):
         scan = scanList[scan_index]
         #-------- Load Visibilities
         print('-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan))
-        timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan, -1, True)  # Xspec[POL, CH, BL, TIME]
+        timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)  # Xspec[POL, CH, BL, TIME]
         del Pspec
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
         if 'FG' in locals():
@@ -316,12 +316,12 @@ for spw_index in list(range(spwNum)):
         plt.plot(RADDEG* ThetaRange, -QCpUS, '-', color=colorIndex, linestyle='dashdot', label=sourceName + ' YY* - I')     # YY* - 1.0
         plt.plot(RADDEG* ThetaRange,  UCmQS, '-', color=colorIndex, linestyle='solid', label=sourceName + ' ReXY*')
         plt.plot(RADDEG* ThetaRange,  np.zeros(len(ThetaRange)), '-', color=colorIndex, linestyle='dotted', label=sourceName + ' ImXY*')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - StokesDic[sourceName][0], ',', color=colorIndex)
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].real, ',', color=colorIndex)
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].imag, ',', color=colorIndex)
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, ',', color=colorIndex)
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, ',', color=colorIndex)
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], ',', color=colorIndex)
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - StokesDic[sourceName][0], 'k,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].real, 'k,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].imag, 'k,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, 'k,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, 'k,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k,')
         for scan_index in scanLS:
             scanMJD = mjdSec[scanST[scan_index]]
             text_sd = 'Scan %d : %s' % (scanList[scan_index], qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
