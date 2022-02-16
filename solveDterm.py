@@ -5,6 +5,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #----------------------------------------- Procedures
+if 'antFlag' not in locals():   antFlag = []
 spwNum = len(spwList)
 polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
 #
