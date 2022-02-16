@@ -98,6 +98,7 @@ for band_index in list(range(NumBands)):
     lineCmap = plt.get_cmap('Set1')
     figPL.suptitle('Session %s : Band %d : Expected Cross Polarization' % (prefixList[0].split('_')[4], bandID) )
     PolPL = figPL.add_subplot( 1, 1, 1 )
+    maxP = 0.01
     for src_index in list(range(numPolSource)):
         QA = 1    # pass QA0
         sourceName = polSourceList[src_index]
@@ -116,7 +117,7 @@ for band_index in list(range(NumBands)):
                 AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, trialID, AZ, EL)
                 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]
                 PolAZ, PolEL, PolPA, refTime = PolAZ + AzScan.tolist(), PolEL + ElScan.tolist(),  PolPA + PA.tolist(), refTime + timeStamp.tolist()
-                text_sd = 'Scan %d : %s' % (scanID, qa.time('%fs' % (timeStamp[0]), form='fits', prec=6)[0][11:21])
+                text_sd = 'Scan %d : %s %s' % (scanID, qa.time('%fs' % (timeStamp[0]), form='fits', prec=6)[0][11:21], sourceName)
                 textSD = textSD + [text_sd]
                 textPA = textPA + [PA[0]]
             #
@@ -140,13 +141,13 @@ for band_index in list(range(NumBands)):
         ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)
         CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
         UCMQS, QCPUS = StokesDic[sourceName][2]*CSrange - StokesDic[sourceName][1]* SNrange, StokesDic[sourceName][1]*CSrange + StokesDic[sourceName][2]* SNrange
-        maxP = max(np.max(abs(QCPUS)), np.max(abs(UCMQS)))
+        maxP = max(maxP, np.max(abs(QCPUS)), np.max(abs(UCMQS)))
         ThetaRange[ThetaRange >  1.56] = np.inf
         ThetaRange[ThetaRange < -1.56] = -np.inf
-        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', linewidth=0.5, label=polSourceList[src_index] + ' XX* - I')     # XX* - 1.0
-        PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=colorIndex, linestyle='solid', label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
-        PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , markersize=0.5, label=polSourceList[src_index] + '(XX* - YY*)/2')     # Real part of XY*
-        PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=colorIndex, label=polSourceList[src_index] + ' Re(XY*)')     # Real part of XY*
+        PolPL.plot(RADDEG* ThetaRange,  QCPUS, '-', color=colorIndex, linestyle='dashed', linewidth=0.5, label=sourceName + ' XX* - I')     # XX* - 1.0
+        PolPL.plot(RADDEG* ThetaRange,  UCMQS, '-', color=colorIndex, linestyle='solid', label=sourceName + ' Re(XY*)')     # Real part of XY*
+        PolPL.plot(RADDEG* plotPA,  QCpUS, '.', color=colorIndex , markersize=0.5, label=sourceName + '(XX* - YY*)/2')     # Real part of XY*
+        PolPL.plot(RADDEG* plotPA,  UCmQS, 'o', color=colorIndex, label=sourceName + ' Re(XY*)')     # Real part of XY*
         for index in list(range(len(textPA))):
             plt.text(RADDEG* np.arctan(np.tan(textPA[index] - EVPA)), -1.09* maxP, textSD[index], verticalalignment='bottom', fontsize=6, rotation=90)
         #
