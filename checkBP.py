@@ -11,6 +11,8 @@ msfile = wd + prefix + '.ms'
 antList = GetAntName(msfile); antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 #-------- Configure Array
 print('---Checking array configulation')
+if 'BPPLOT' not in locals(): BPPLOT = False
+if 'antFlag' not in locals(): antFlag = []
 flagAnt = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
