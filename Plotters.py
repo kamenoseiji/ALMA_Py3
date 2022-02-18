@@ -145,8 +145,6 @@ def plotAC(prefix, antList, spwList, freqList, AC):
     figAnt.suptitle(prefix + ' Power Spectra')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.5, 'Median amplitude and variation [dB]', rotation=90)
-    #phaseCalIndex = range(55,60) + range(135,140) + range(160,165)
-    #targetIndex = range(55,135) + range(140,160)
     #-------- Plot AC
     for ant_index in range(antNum):
         if ant_index > 0:
@@ -159,41 +157,23 @@ def plotAC(prefix, antList, spwList, freqList, AC):
         for spw_index in range(spwNum):
             Freq = freqList[spw_index]
             for pol_index in range(polNum):
-                '''
-                ACPL = figAnt.add_subplot(2, spwNum, spwNum* pol_index + spw_index + 1)
-                ACList = ACList + [ACPL]
-                plotAC = np.mean(AC[spw_index][ant_index, targetIndex, pol_index], axis=0) / np.mean(AC[spw_index][ant_index, phaseCalIndex, pol_index], axis=0)
-                maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
-                text_sd = 'Peak = %.3f at %.2f GHz' % (maxAC, maxFreq)
-                plotMax, plotMin = max(1.1, maxAC), min(0.99, minAC)
-                if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.1*plotMax-0.1*plotMin, antList[ant_index], fontsize='10')
-                ACPL.get_xaxis().get_major_formatter().set_useOffset(False)
-                #ACPL.xaxis.set_major_locator(ptick.MultipleLocator(0.01))
-                #ACPL.xaxis.set_major_formatter(ptick.FormatStrFormatter('%0.2f'))
-                ACPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
-                ACPL.tick_params(axis='both', labelsize=6)
-                #ACPL.set_xticklabels([])
-                ACPL.set_xticks(np.arange( int(np.min(Freq)*100)/100.0, int(np.max(Freq)*100)/100.0, 0.01))
-                ACPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'AC SPW=' + `spwList[spw_index]` + ' Pol-' + polName[pol_index], fontsize=7)
-                ACPL.text( np.min(Freq), 0.85*plotMax + 0.15*plotMin, text_sd, fontsize=7)
-                ACPL.plot(Freq, plotAC, ls='steps-mid')
-                '''
                 ACPL = figAnt.add_subplot(4, spwNum, spwNum* pol_index + spw_index + 1)
                 SDPL = figAnt.add_subplot(4, spwNum, spwNum* (2+pol_index) + spw_index + 1)
                 ACList = ACList + [ACPL]; SDList = SDList + [SDPL]
-                plotAC = 10.0* np.log10(np.median(AC[spw_index][ant_index, :, pol_index], axis=0) / ACMAX)
+                avgAC = np.mean(AC[spw_index][ant_index, :, pol_index], axis=0)
+                plotAC = 10.0* np.log10(avgAC )
                 maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
-                plotMax, plotMin = max(5.0, maxAC), min(-5.0, minAC)
-                if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.1*plotMax+0.5, antList[ant_index], fontsize='10')
-                ACPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
+                plotMax, plotMin = max(5.0, maxAC), min(0.0, minAC)
+                if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.3*plotMax - 0.3* plotMin, antList[ant_index], fontsize=10)
+                ACPL.axis([np.min(Freq), np.max(Freq), plotMin, 1.1* plotMax])
                 ACPL.tick_params(axis='both', labelsize=6)
                 ACPL.set_xticklabels([])
-                ACPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'AC SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
-                ACPL.text( np.min(Freq), 0.85*plotMax + 0.15*plotMin, text_sd, fontsize=7)
+                ACPL.text( np.min(Freq), 1.2*plotMax - 0.2*plotMin, 'AC SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
+                ACPL.text( np.min(Freq), 1.12*plotMax - 0.12*plotMin, text_sd, fontsize=7)
                 ACPL.step(Freq, plotAC, where='mid')
                 #
-                plotSD = 10.0* np.log10(np.std(AC[spw_index][ant_index, :, pol_index], axis=0) / np.median(AC[spw_index][ant_index, :, pol_index]))
+                plotSD = 10.0* np.log10(np.std(AC[spw_index][ant_index, :, pol_index]/avgAC, axis=0))
                 maxSD, minSD, maxFreq = np.max(plotSD), np.min(plotSD), Freq[np.argmax(plotSD)]
                 text_sd = '%.1f at %.2f GHz' % (maxSD, maxFreq)
                 bgcolor = 'green'
@@ -205,12 +185,11 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL.tick_params(axis='both', labelsize=6)
                 SDPL.get_xaxis().get_major_formatter().set_useOffset(False)
                 if pol_index == 0: SDPL.set_xticklabels([])
-                SDPL.text( np.min(Freq), 0.92*plotMax + 0.08*plotMin, 'SD SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
-                SDPL.text( np.min(Freq), 0.85* plotMax + 0.15*plotMin, text_sd, fontsize=7)
+                SDPL.text( np.min(Freq), 1.16* plotMax - 0.16*plotMin, 'SD SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
+                SDPL.text( np.min(Freq), 1.08* plotMax - 0.08*plotMin, text_sd, fontsize=7)
                 SDPL.step(Freq, plotSD, where='mid')
             #
         #
-        #plt.show()
         figAnt.savefig(pp, format='pdf')
     #
     plt.close('all')
@@ -218,7 +197,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
     del(ACList)
     del(SDList)
     del(ACPL)
-    #del(SDPL)
+    del(SDPL)
     return
 #
 #-------- Plot Cross power spectrum
