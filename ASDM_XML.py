@@ -84,6 +84,18 @@ def BBLOfreq( ASDM ):
     #
     return LO1, LO2.tolist(), sideBandSign
 #
+def SourceList( ASDM ):
+    SrcList, PosList,  = [], []
+    SRC_XML = ASDM + '/' + 'Source.xml'
+    tree = ET.parse(SRC_XML)
+    root = tree.getroot()
+    for row in root.findall('row'):
+        #-------- Find Src Name
+        for posCoordinate in row.findall('direction'): PosList = PosList + [[float(posCoordinate.text.split(' ')[2]), float(posCoordinate.text.split(' ')[3])]]
+        for srcName in row.findall('sourceName'): SrcList = SrcList + [srcName.text]
+    #
+    return SrcList, PosList
+#
 def PolScan( ASDM ):
     scanList, SrcList, STList, ETList = [], [], [], []
     KEY_ALMA ='CALIBRATE_POLARIZATION'

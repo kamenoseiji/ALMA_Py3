@@ -19,6 +19,8 @@ BANDFQ = [0.0, 43.2, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 460.0, 650.0, 870.0
 Tcmb = 2.725    # CMB temperature
 kb        = 1.38064852e3 # Boltzman constant (* 1e26 for Jy scaling)
 RADDEG = 180.0 / math.pi
+ALMA_long= -67.755/180.0* np.pi     # ALMA AOS Longitude
+ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #======== Baseline and Antenna Indexing
 KERNEL_BL = (arange(64)*arange(1,65)/2).astype(int)
 def indexList( refArray, motherArray ):     # Compare two arrays and return matched index
@@ -178,7 +180,7 @@ def InvPAVector(PA, Unity):
         [ sn,  cs,  cs, -sn],
         [Zeroty,-1.0j*Unity,1.0j*Unity, Zeroty]])
 #
-def AzEl2PA(az, el, lat=-23.029/180.0*pi): # Azimuth, Elevation, Latitude (default=ALMA) in [rad]
+def AzEl2PA(az, el, lat=ALMA_lat): # Azimuth, Elevation, Latitude (default=ALMA) in [rad]
     cos_lat, sin_lat = np.cos(lat), np.sin(lat)
     #return np.arctan( -cos_lat* np.sin(az) / (np.sin(lat)* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
     return np.arctan2( -cos_lat* np.sin(az), (sin_lat* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
@@ -207,6 +209,13 @@ def gst2ha( gst, longitude, ra ):      # gst, lambda, ra in [rad]
     lst = gst + longitude
     ha  = lst - ra
     return 2.0* pi* modf((ha + pi)/ (2.0* pi))[0] - pi
+#
+def ha2azel(ha, dec, lat=ALMA_lat):  # Hour angle to az, el, default = ALMA Declination
+    sin_el = np.sin(lat)* np.sin(dec) + np.cos(lat)* np.cos(dec)* np.cos(ha)
+    el = np.arcsin(sin_el)
+    az = np.arctan2( np.cos(dec)* np.sin(ha), np.sin(lat)* np.cos(dec)* np.cos(ha) - np.cos(lat)* np.sin(dec)) + np.pi
+    pa = np.arctan2( np.sin(ha), np.tan(lat)* np.cos(dec) - np.sin(dec)* np.cos(ha))
+    return az, el, pa
 #
 def radec2ecliptic( ra, dec, mjd ):          # J2000 -> ecliptic, mjd in [day]
     MJD_EPOCH = 51544.5             # MJD at 2000 1/1 12:00:00 UT

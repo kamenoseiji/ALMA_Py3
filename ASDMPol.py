@@ -9,86 +9,42 @@ det_thresh, XY_thresh = 100, 0.05   # Determinant > 400, XY cross correlation > 
 if 'PHASECAL' not in locals(): PHASECAL = False
 #-------- Check SPWs for polarization
 bandNames, BandPA = [], []
-scanList, SrcList, STList, ETList = [], [], [], []
+scanList, SrcList, STList, ETList, sourceListXML, PosListXML = [], [], [], [], [], []
 for prefix in prefixList:
     bandNames = bandNames + BandList( prefix )
     scanL, srcL, STL, ETL = PolScan( prefix )
     scanList, SrcList, STList, ETList = scanList + scanL, SrcList + srcL, STList + STL, ETList + ETL
+    sourceList, PosList = SourceList( prefix )
+    sourceListXML = sourceListXML + sourceList
+    PosListXML    = PosListXML + PosList
 #
+#-------- Check Source Coordinate
+uniqSrcList = list(set(sourceListXML)); srcNum = len(uniqSrcList)
+SrcDic  = dict(zip(uniqSrcList, [[]]*srcNum))
+for source in uniqSrcList:
+    index = np.where(np.array(sourceListXML) == source)[0][0]
+    SrcDic[source] = PosListXML[index]
+#    
+del sourceListXML, PosListXML
 UniqBands = list(set(bandNames)); NumBands = len(UniqBands)
 for band_index in list(range(NumBands)):
-    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index].split('_')[-1])] + 90.0)*pi/180.0]
+    bandID = int(UniqBands[band_index].split('_')[-1])
+    BandPA = BandPA + [(BANDPA[bandID] + 90.0)*pi/180.0]
     print('%s : BandPA = %.2f' % (UniqBands[band_index], BandPA[band_index]))
-'''
-
-
-
-    msfile = wd + prefix + '.ms'
-    bpSPWs = GetBPcalSPWs(msfile); bpSPWList = bpSPWList + [bpSPWs]
-    print('---Checking spectral windows for %s : ' % (prefix), end=''); print(bpSPWs)
-    msmd.open(msfile)
-    bpspwNames = msmd.namesforspws(bpSPWs)
-    bandNamePattern, bandNamesInEB = r'RB_..', []
-    for spwName in bpspwNames : bandNamesInEB = bandNamesInEB + re.findall(bandNamePattern, spwName)
-    bandNames = bandNames + [bandNamesInEB]
-    msmd.close(); msmd.done()
-#
-UniqBands = unique(bandNames).tolist(); NumBands = len(UniqBands)
-for band_index in list(range(NumBands)):
-    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*pi/180.0]
-    #print('%s : BandPA = %.2f' % (UniqBands[band_index], BandPA[band_index]))
-#
-#-------- Loop for MS files
-for band_index in list(range(NumBands)):
-    bpscanLists = []
-    bandID = int(UniqBands[band_index][3:5])
-    for file_index in list(range(fileNum)):
-        prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
-        bpSPWs = bpSPWList[file_index]
-        msmd.open(msfile)
-        #-------- Check SPWs for polarization
-        bpspwNames = bandNames[file_index]
-        bpspwList  = np.array(bpSPWs)[indexList( np.array([UniqBands[band_index]]), np.array(bpspwNames))].tolist()
-        bpscanLists = bpscanLists + [msmd.scansforspw(bpspwList[0]).tolist()]
-        msmd.close(); msmd.done()
     #
-    interval, refTime = GetTimerecord(msfile, 0, 0, bpSPWs[0], bpscanLists[file_index][0])
-    #-------- Check polcal source list
-    PolScanList, polSourceList, polScanSource = [], [], []
-    for file_index in list(range(fileNum)):
-        prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
-        msmd.open(msfile)
-        #print('---Checking source list for %s' % (prefix))
-        sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-        PolScans = msmd.scansforintent("*CALIBRATE_BANDPASS*")
-        PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_POLARIZATION*"))
-        if PHASECAL: PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_PHASE*"))
-        PolScanList = PolScanList + [PolScans[indexList(np.array(bpscanLists[file_index]), PolScans)].tolist()]
-        polSourceID, polSourceName = [], []
-        for PolScan in PolScanList[file_index]:
-            sourceID = msmd.sourceidforfield(msmd.fieldsforscan(PolScan))
-            polSourceID = polSourceID + [sourceID]
-            polSourceName = polSourceName + [sourceList[sourceID]]
-        #
-        polSourceIDList = unique(polSourceID).tolist()
-        for sourceID in polSourceIDList: polSourceList = polSourceList + [sourceList[sourceID]]
-        polScanSource = polScanSource + [polSourceName]
-        msmd.close(); msmd.done()
-    #
-    polSourceList = unique(polSourceList).tolist(); numPolSource = len(polSourceList)
+    polSourceList = unique(SrcList).tolist(); numPolSource = len(polSourceList)
     if numPolSource == 0: continue
     StokesDic = dict(zip(polSourceList, [[]]*numPolSource))
     ScansDic  = dict(zip(polSourceList, [[]]*numPolSource))
-    for source in polSourceList: ScansDic[source] = [[]]*fileNum
+    for source in polSourceList: ScansDic[source] = []
     #---- Relate files and scans for each source
-    for file_index in list(range(fileNum)):
-        for scan_index in list(range(len(PolScanList[file_index]))):
-            print('Scan %3d : %s ' % (PolScanList[file_index][scan_index], polScanSource[file_index][scan_index]))
-            ScansDic[polScanSource[file_index][scan_index]][file_index] = ScansDic[polScanSource[file_index][scan_index]][file_index] + [PolScanList[file_index][scan_index]]
-        #
+    for scan_index in list(range(len(scanList))):
+        print('Scan %3d : %s %s - %s' % (scanList[scan_index], SrcList[scan_index], qa.time('%fs' % (STList[scan_index]*1.0e-9), form='ymd')[0], qa.time('%fs' % (ETList[scan_index]*1.0e-9), form='ymd')[0]))
+        ScansDic[SrcList[scan_index]] = ScansDic[SrcList[scan_index]] + [scanList[scan_index]]
     #-------- Check QU catalog
     os.system('rm -rf CalQU.data')
-    text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, qa.time('%fs' % (refTime[0]), form='ymd')[0], BANDFQ[bandID])
+    text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, qa.time('%fs' % (np.median(STList)*1.0e-9), form='ymd')[0], BANDFQ[bandID])
+    print(text_sd)
     for source in polSourceList: text_sd = text_sd + ' ' + source
     os.system(text_sd)
     fp = open('CalQU.data')
@@ -116,30 +72,18 @@ for band_index in list(range(NumBands)):
     for src_index in list(range(numPolSource)):
         QA = 1    # pass QA0
         sourceName = polSourceList[src_index]
-        PolAZ, PolEL, PolPA, refTime, textPA, textSD = [], [], [], [], [], []
+        refTime, textPA, textSD = [], [], []
         colorIndex = plt.rcParams['axes.prop_cycle'].by_key()['color'][src_index % 10]
-        for file_index in list(range(fileNum)):
-            prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
-            #-------- AZEL in the MS
-            azelTime, AntID, AZ, EL = GetAzEl(msfile)
-            for trialID in list(range(64)):
-                azelTime_index = np.where( AntID == trialID )[0].tolist() 
-                if len(azelTime_index) > 1: break
-            #
-            for scanID in ScansDic[sourceName][file_index]:
-                interval, timeStamp = GetTimerecord(msfile, trialID, trialID, bpSPWList[file_index][0], scanID)
-                AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, trialID, AZ, EL)
-                PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]
-                PolAZ, PolEL, PolPA, refTime = PolAZ + AzScan.tolist(), PolEL + ElScan.tolist(),  PolPA + PA.tolist(), refTime + timeStamp.tolist()
-                text_sd = 'Scan %d : %s %s' % (scanID, qa.time('%fs' % (timeStamp[0]), form='fits', prec=6)[0][11:21], sourceName)
-                textSD = textSD + [text_sd]
-                textPA = textPA + [PA[0]]
-            #
+        scan_index = np.where(np.array(SrcList) == sourceName)[0].tolist()
+        for index in scan_index: refTime = refTime + np.arange(1.0e-9* STList[index],  1.0e-9* ETList[index], 10).tolist()
+        HA = gst2ha( mjd2gmst( np.array(refTime)/86400.0, 0.0), ALMA_long, SrcDic[sourceName][0])
+        AZ, EL, PA = ha2azel( HA, SrcDic[sourceName][1] )
         #
-        CS, SN = np.cos(2.0* np.array(PolPA)), np.sin(2.0* np.array(PolPA))
+        PA = PA + BandPA[band_index]
+        CS, SN = np.cos(2.0* np.array(PA)), np.sin(2.0* np.array(PA))
         QCpUS = StokesDic[sourceName][1]*CS + StokesDic[sourceName][2]*SN   # Qcos + Usin
         UCmQS = StokesDic[sourceName][2]*CS - StokesDic[sourceName][1]*SN   # Ucos - Qsin
-        combPA    = combPA + PolPA
+        combPA    = combPA + PA.tolist()
         combQCpUS = combQCpUS + QCpUS.tolist()
         combUCmQS = combUCmQS + UCmQS.tolist()
         polDeg, EVPA = np.sqrt( StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2 ) / StokesDic[sourceName][0], 0.5* np.arctan2(StokesDic[sourceName][2],StokesDic[sourceName][1])
@@ -148,8 +92,8 @@ for band_index in list(range(NumBands)):
         if det_D < det_thresh: QA = int(QA*0)
         if maxXY < XY_thresh:  QA = int(QA*0)
         print('%s | %6.3f %6.3f %6.3f %4.1f %6.1f | %5.2f %5.2f %6.1f  %s' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], 100.0*polDeg, EVPA*180.0/np.pi, minUCmQS, maxUCmQS, det_D, QAresult[QA]))
-        plotPA = np.array(PolPA) - EVPA; plotPA = np.arctan(np.tan(plotPA))
-        ThetaPlot = np.array(PolPA) - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
+        plotPA = np.array(PA) - EVPA; plotPA = np.arctan(np.tan(plotPA))
+        ThetaPlot = np.array(PA) - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
         ThetaMin, ThetaMax = min(ThetaPlot), max(ThetaPlot)
         PArange = np.arange(ThetaMin + EVPA, ThetaMax + EVPA, 0.01)
         ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)
@@ -177,4 +121,3 @@ for band_index in list(range(NumBands)):
     figPL.savefig('%s.Band%d.QUXY.png' % (prefixList[0].split('_')[4], bandID))
     plt.close('all')
 #
-'''

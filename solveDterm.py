@@ -3,7 +3,6 @@ exec(open(SCR_DIR + 'Grid.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
-ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #----------------------------------------- Procedures
 if 'antFlag' not in locals():   antFlag = []
 spwNum = len(spwList)
