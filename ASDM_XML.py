@@ -91,8 +91,8 @@ def SourceList( ASDM ):
     root = tree.getroot()
     for row in root.findall('row'):
         #-------- Find Src Name
-        for posCoordinate in row.findall('direction'): PosList = PosList + [[float(posCoordinate.text.split(' ')[2]), float(posCoordinate.text.split(' ')[3])]]
-        for srcName in row.findall('sourceName'): SrcList = SrcList + [srcName.text]
+        for posCoordinate in row.findall('direction'): PosList = PosList + [[float(posCoordinate.text.strip().split()[2]), float(posCoordinate.text.strip().split()[3])]]
+        for srcName in row.findall('sourceName'): SrcList = SrcList + [srcName.text.strip()]
     #
     return SrcList, PosList
 #
