@@ -5,7 +5,7 @@ exec(open(SCR_DIR + 'Grid.py').read())
 exec(open(SCR_DIR + 'ASDM_XML.py').read())
 fileNum = len(prefixList)
 QAresult = ['Fail', 'Pass']
-det_thresh, XY_thresh = 100, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
+det_thresh, XY_thresh = 20, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
 if 'PHASECAL' not in locals(): PHASECAL = False
 #-------- Check SPWs for polarization
 bandNames, BandPA = [], []
@@ -87,7 +87,7 @@ for band_index in list(range(NumBands)):
         combQCpUS = combQCpUS + QCpUS.tolist()
         combUCmQS = combUCmQS + UCmQS.tolist()
         polDeg, EVPA = np.sqrt( StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2 ) / StokesDic[sourceName][0], 0.5* np.arctan2(StokesDic[sourceName][2],StokesDic[sourceName][1])
-        det_D = np.sum(UCmQS**2)*len(UCmQS) - (np.sum(UCmQS))**2      # Determinant for D-term
+        det_D = (UCmQS.dot(UCmQS)* len(UCmQS) - np.sum(UCmQS)**2) / UCmQS.dot(UCmQS) # Determinant for D-term
         maxUCmQS, minUCmQS, maxXY = np.max(UCmQS), np.min(UCmQS), np.max(abs(UCmQS)) 
         if det_D < det_thresh: QA = int(QA*0)
         if maxXY < XY_thresh:  QA = int(QA*0)
@@ -113,7 +113,7 @@ for band_index in list(range(NumBands)):
     plt.ylim([-1.1* maxP, 1.1*maxP])
     if numPolSource < 10: PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
     combUCmQS = np.array(combUCmQS)
-    det_D = np.sum(combUCmQS**2)*len(combUCmQS) - (np.sum(combUCmQS))**2      # Determinant for D-term
+    det_D = (combUCmQS.dot(combUCmQS)* len(combUCmQS) - np.sum(combUCmQS)**2) / combUCmQS.dot(combUCmQS) # Determinant for D-term
     if (det_D > det_thresh) & (np.max(abs(combUCmQS)) > XY_thresh) : QA = 1
     print('----------------------------------------------+-------------------------')
     print('Combined solution                             | %5.2f %5.2f %6.1f  %s' % (np.min(combUCmQS), np.max(combUCmQS), det_D, QAresult[QA]))
