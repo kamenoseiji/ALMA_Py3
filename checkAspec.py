@@ -39,13 +39,14 @@ for spw_index in range(spwNum):
     AC = AC + [np.zeros([antNum, timeNum, 2, chNum])]
 #
 #-------- Load autocorrelation power spectra
+polIndex = [[],[0,0], [0,1], [0,1], [0,3]]
 for ant_index in range(antNum):
     for spw_index in range(spwNum):
         timePointer = 0
         for scan_index in range(scanNum):
             timeStamp, Pspec = GetPSpecScan(msfile, ant_index, spwList[spw_index], scanList[scan_index])    # Pspec[pol, ch, time]
-            recNum = len(timeStamp)
-            AC[spw_index][ant_index, timePointer:(timePointer + recNum)] = Pspec.transpose(2, 0, 1) # AC[spw][ant, time, pol, ch] 
+            recNum, polNum = len(timeStamp), Pspec.shape[0]
+            AC[spw_index][ant_index, timePointer:(timePointer + recNum)] = Pspec[polIndex[polNum]].transpose(2, 0, 1) # AC[spw][ant, time, pol, ch] 
             timePointer += recNum
         #
     #
