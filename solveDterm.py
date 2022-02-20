@@ -215,7 +215,7 @@ for spw_index in list(range(spwNum)):
     XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
     XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
     plt.show()
-    figXY.savefig(pp, format='pdf')
+    figXY.savefig(pp)
     pp.close()
     del figXY
     plt.close('all')
@@ -332,7 +332,7 @@ for spw_index in list(range(spwNum)):
     plt.xlim([-90.0, 90.0])
     plt.ylim([-1.5* maxP, 1.5*maxP])
     plt.legend(loc = 'best', prop={'size' :6}, numpoints = 1)
-    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refantName), form='pdf')
+    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refantName))
     #-------- Save Results
     np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName), antList[antMap])
     np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refantName), np.array([mjdSec, Az, El, PA]))
@@ -378,7 +378,7 @@ for spw_index in list(range(spwNum)):
         StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         plt.show()
-        figSP.savefig(pp, format='pdf')
+        figSP.savefig(pp)
         pp.close()
     #
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
