@@ -4,7 +4,8 @@ exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Grid.py').read())
 fileNum = len(prefixList)
 QAresult = ['Fail', 'Pass']
-det_thresh, XY_thresh = 100, 0.05   # Determinant > 400, XY cross correlation > 50 mJy
+QAresult = ['Fail', 'Pending QA0+', 'Pass']
+det_thresh, XY_thresh = 20, 0.05   # Determinant > 20, XY cross correlation > 50 mJy
 if 'PHASECAL' not in locals(): PHASECAL = False
 #-------- Check SPWs for polarization
 bpSPWList, bandNames, BandPA = [], [], []
@@ -100,7 +101,7 @@ for band_index in list(range(NumBands)):
     PolPL = figPL.add_subplot( 1, 1, 1 )
     maxP = 0.01
     for src_index in list(range(numPolSource)):
-        QA = 1    # pass QA0
+        QA = 0    # 0:fail, 1:Pending QA0+, 2:pass
         sourceName = polSourceList[src_index]
         PolAZ, PolEL, PolPA, refTime, textPA, textSD = [], [], [], [], [], []
         colorIndex = plt.rcParams['axes.prop_cycle'].by_key()['color'][src_index % 10]
@@ -129,10 +130,10 @@ for band_index in list(range(NumBands)):
         combQCpUS = combQCpUS + QCpUS.tolist()
         combUCmQS = combUCmQS + UCmQS.tolist()
         polDeg, EVPA = np.sqrt( StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2 ) / StokesDic[sourceName][0], 0.5* np.arctan2(StokesDic[sourceName][2],StokesDic[sourceName][1])
-        det_D = np.sum(UCmQS**2)*len(UCmQS) - (np.sum(UCmQS))**2      # Determinant for D-term
+        det_D = (UCmQS.dot(UCmQS)* len(UCmQS) - np.sum(UCmQS)**2) / UCmQS.dot(UCmQS) # Determinant for D-term
         maxUCmQS, minUCmQS, maxXY = np.max(UCmQS), np.min(UCmQS), np.max(abs(UCmQS)) 
-        if det_D < det_thresh: QA = int(QA*0)
-        if maxXY < XY_thresh:  QA = int(QA*0)
+        if det_D > det_thresh: QA += 1
+        if maxXY > XY_thresh:  QA += 1
         print('%s | %6.3f %6.3f %6.3f %4.1f %6.1f | %5.2f %5.2f %6.1f  %s' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], 100.0*polDeg, EVPA*180.0/np.pi, minUCmQS, maxUCmQS, det_D, QAresult[QA]))
         plotPA = np.array(PolPA) - EVPA; plotPA = np.arctan(np.tan(plotPA))
         ThetaPlot = np.array(PolPA) - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
@@ -154,9 +155,11 @@ for band_index in list(range(NumBands)):
     #
     plt.ylim([-1.1* maxP, 1.1*maxP])
     if numPolSource < 10: PolPL.legend(loc = 'best', prop={'size' :8}, numpoints = 1)
+    QA = 0
     combUCmQS = np.array(combUCmQS)
-    det_D = np.sum(combUCmQS**2)*len(combUCmQS) - (np.sum(combUCmQS))**2      # Determinant for D-term
-    if (det_D > det_thresh) & (np.max(abs(combUCmQS)) > XY_thresh) : QA = 1
+    det_D = (combUCmQS.dot(combUCmQS)* len(combUCmQS) - np.sum(combUCmQS)**2) / combUCmQS.dot(combUCmQS) # Determinant for D-term
+    if det_D > det_thresh: QA += 1
+    if np.max(abs(combUCmQS)) > XY_thresh : QA += 1
     print('----------------------------------------------+-------------------------')
     print('Combined solution                             | %5.2f %5.2f %6.1f  %s' % (np.min(combUCmQS), np.max(combUCmQS), det_D, QAresult[QA]))
     PolPL.set_xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); PolPL.set_ylabel('Cross correlations [Jy]'); PolPL.set_title(prefixList); PolPL.grid()
