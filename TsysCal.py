@@ -360,7 +360,7 @@ for ant_index in list(range(useAntNum)):
 #
 #-------- Trx, TantN, and Tau0
 Tau0Max = np.zeros(NumBands)
-sourceList, polList = GetSourceList(msfile)
+sourceList, posList = GetSourceList(msfile)
 SunAngleSourceList = GetSunAngle(msfile)
 for band_index in list(range(NumBands)):
     tsysLog = open(prefix + '-' + UniqBands[band_index] + '-Tsys.log', 'w')

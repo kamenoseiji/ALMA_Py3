@@ -121,6 +121,6 @@ for band_index in list(range(NumBands)):
     msmd.done()
 #
 del msfile, UniqBands
-if 'flagAnt' in locals(): del flagAnt
-if 'BPScans' in locals(): del BPScans
-if 'EQScans' in locals(): del EQScans
+#if 'flagAnt' in locals(): del flagAnt
+#if 'BPScans' in locals(): del BPScans
+#if 'EQScans' in locals(): del EQScans

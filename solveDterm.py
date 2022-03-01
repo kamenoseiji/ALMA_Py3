@@ -205,7 +205,6 @@ for spw_index in list(range(spwNum)):
     ArrayDx, ArrayDy = 0.5* (DtotP - DtotM), 0.5* (DtotP + DtotM)
     text_Dx, text_Dy = 'Array Dx = %+.4f %+.4fi' % (ArrayDx.real, ArrayDx.imag), 'Array Dy = %+.4f %+.4fi' % (ArrayDy.real, ArrayDy.imag)
     print(text_Dx + ' ' + text_Dy)
-    pp = PdfPages('XY_%s-REF%s-SPW%d.pdf' % (prefix, refantName, spw))
     figXY = plt.figure(figsize = (8, 8))
     XYP = figXY.add_subplot( 1, 1, 1 )
     plotY = DtotP + DtotM* QCpUS + UCmQS* np.exp((0.0 + 1.0j)*XYphase)
@@ -215,10 +214,9 @@ for spw_index in list(range(spwNum)):
     XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
     XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
     plt.show()
-    figXY.savefig(pp)
-    pp.close()
-    del figXY
+    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, refantName, spw))
     plt.close('all')
+    del figXY
     XYvis[0] -= (DtotP + DtotM* QCpUS); XYvis[1] -= (DtotP + DtotM* QCpUS).conjugate()
     #-------- Fine estimation of Q and U using XY and YX
     print('  -- XY phase correction')
@@ -351,7 +349,6 @@ for spw_index in list(range(spwNum)):
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        pp = PdfPages('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refantName, sourceName, spw))
         figSP = plt.figure(figsize = (11, 8))
         figSP.suptitle(prefix + ' ' + sourceName)
         figSP.text(0.45, 0.05, 'Frequency [GHz]')
@@ -377,9 +374,8 @@ for spw_index in list(range(spwNum)):
         StokesI_SP.text(min(Freq[chRange]), IMax*1.35, sourceName)
         StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-        plt.show()
-        figSP.savefig(pp)
-        pp.close()
+        figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refantName, sourceName, spw))
+        plt.close('all')
     #
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
     #---- Save Stokes parameters of the calibraors
