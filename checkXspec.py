@@ -24,6 +24,7 @@ timeNum = min(timeNum, len(timeStamp))
 #-------- Prepare Plots
 for spw_index in range(spwNum):
     figSPW, axes = plt.subplots(antNum, antNum, figsize=(max(32, antNum), max(32, antNum)))
+    #figSPW = plt.subplots(antNum, antNum, figsize=(max(32, antNum), max(32, antNum)))
     figSPW.text(0.475, 0.05, 'Frequency [GHz]')
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90)
