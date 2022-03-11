@@ -315,10 +315,20 @@ for scan_index in list(range(scanNum)):
     #-------- Antenna-based Phase Solution
     BPCaledXspec = np.array(BPCaledXspec)   # BPCaledXspec[spw, pol, ch, bl, time]
     chAvgVis = np.mean(np.array(BPCaledXspec)[:,:,chRange], axis=(0,2)) # chAvgVis[pol, bl, time]
+    '''
+    CHECK outliers
+    '''
+    ampThresh = 5.0* np.median(abs(chAvgVis))
+    flagIndex = unique(np.where( abs(chAvgVis) < ampThresh)[2]).tolist()
+    chAvgVis = chAvgVis[:,:,flagIndex]
+    BPCaledXspec = BPCaledXspec[:,:,:,:,flagIndex]
+    PS = PS[:,:,flagIndex]
+    timeNum = len(flagIndex)
+    PAnum = timeNum
     if 'timeBunch' in locals():
-        useTimeNum = timeNum / timeBunch * timeBunch
+        useTimeNum = int(timeNum / timeBunch) * timeBunch
         leapNum = timeNum - useTimeNum
-        timeAvgVis = np.mean(chAvgVis[:,:,list(range(useTimeNum))].reshape(polNum, UseBlNum, timeNum / timeBunch, timeBunch), axis=3)
+        timeAvgVis = np.mean(chAvgVis.reshape(polNum, UseBlNum, timeNum / timeBunch, timeBunch), axis=3)
         GainP = np.array([np.apply_along_axis(clphase_solve, 0, timeAvgVis[0]), np.apply_along_axis(clphase_solve, 0, timeAvgVis[3])]).repeat(timeBunch, axis=2)
         if leapNum > 0: GainP = np.append(GainP,  GainP[:,:,(useTimeNum-1):(useTimeNum)].repeat(leapNum, axis=2), axis=2)
     else:

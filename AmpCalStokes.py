@@ -168,6 +168,16 @@ for scan_index in list(range(scanNum)):
     #-------- Antenna-based Gain
     BPCaledXspec = np.array(BPCaledXspec)   # BPCaledXspec[spw, pol, ch, bl, time]
     chAvgVis = np.mean(BPCaledXspec[:, :, chRange], axis=(0,2))
+    '''
+    CHECK outliers
+    '''
+    ampThresh = 5.0* np.median(abs(chAvgVis))
+    flagIndex = unique(np.where( abs(chAvgVis) < ampThresh)[2]).tolist()
+    chAvgVis = chAvgVis[:,:,flagIndex]
+    BPCaledXspec = BPCaledXspec[:,:,:,:,flagIndex]
+    PS = PS[:,:,flagIndex]
+    timeNum = len(flagIndex)
+    PAnum = timeNum
     if SSO_flag: chAvgVis =(np.mean(BPCaledXspec[:,:, chRange], axis=(0,2)).transpose(0,2,1) / SSOmodelVis[SSO_ID, spw_index, SAblMap]).transpose(0,2,1)
     GainP = np.array([np.apply_along_axis(clphase_solve, 0, chAvgVis[0]), np.apply_along_axis(clphase_solve, 0, chAvgVis[3])])
     if np.count_nonzero(np.isnan(GainP)) > 0:
