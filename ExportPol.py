@@ -49,6 +49,7 @@ prefixList = []
 for UID in UIDList:
     prefix = UID.replace("/", "_").replace(":","_").replace(" ","")
     prefixList = prefixList + [prefix]
+    if os.path.isdir(prefix): continue
     for index in list(range(len(INTList))):
         text_sd = 'python /users/skameno/bin/ScanExporterPlus2.py -u %s -i %s' % (UID, INTList[index])
         print(text_sd)
@@ -59,6 +60,7 @@ print(prefixList)
 fileNum = len(prefixList)
 #-------- asdm2MS and listobs
 for prefix in prefixList:
+    if os.path.isdir(prefix + '.ms'): continue
     importasdm(prefix)
     listobs(prefix+'.ms', spw='', scan='', verbose=True, listfile=prefix+'.listobs')
 #
@@ -73,7 +75,7 @@ comvis = []
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
     #---- split POLcal
-    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[0]).strip('[]'), datacolumn='DATA')
+    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), datacolumn='DATA')
     comvis.append(CATList[0] + prefix + '.ms')
     #
 #
