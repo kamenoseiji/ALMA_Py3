@@ -23,8 +23,7 @@ timeNum = min(timeNum, len(timeStamp))
 #
 #-------- Prepare Plots
 for spw_index in range(spwNum):
-    figSPW, axes = plt.subplots(antNum, antNum, figsize=(max(32, antNum), max(32, antNum)))
-    #figSPW = plt.subplots(antNum, antNum, figsize=(max(32, antNum), max(32, antNum)))
+    figSPW = plt.figure(figsize=(24,24))
     figSPW.text(0.475, 0.05, 'Frequency [GHz]')
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90)
@@ -58,47 +57,50 @@ for spw_index in range(spwNum):
     polColor = ['b', 'g']
     for bl_index in list(range(blNum)):
         ants = Bl2Ant(bl_index)
-        #print('Preparing baseline %s - %s' % (antList[ants[1]], antList[ants[0]]))
+        BLamp = figSPW.add_subplot(antNum, antNum, ants[1]*antNum + ants[0] + 1)
+        BLphs = figSPW.add_subplot(antNum, antNum, ants[0]*antNum + ants[1] + 1)
         for pol_index in list(range(polNum)):
             plotVis = tempVis[pol_index, :, bl_index]
-            axes[ants[1], ants[0]].step(Freq, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
-            axes[ants[0], ants[1]].plot( Freq, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+            BLamp.step(Freq, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
+            BLphs.plot( Freq, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
         #
-        axes[ants[1], ants[0]].axis([np.min(Freq), np.max(Freq), 0.0, 1.25*pMax])
-        axes[ants[1], ants[0]].xaxis.set_major_locator(plt.NullLocator())
-        axes[ants[0], ants[1]].axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
+        BLamp.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*pMax])
+        BLphs.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
+        BLamp.xaxis.set_major_locator(plt.NullLocator())
         if ants[1] == 0:    # Antenna label in the top and leftside
-            axes[ants[1], ants[0]].set_title( antList[ants[0]] )
-            axes[ants[0], ants[1]].set_ylabel( antList[ants[0]] )
+            BLamp.set_title( antList[ants[0]] )
+            BLphs.set_ylabel( antList[ants[0]] )
         else:
-            axes[ants[0], ants[1]].yaxis.set_major_locator(plt.NullLocator())
+            BLphs.yaxis.set_major_locator(plt.NullLocator())
         #
         if ants[0] == antNum - 1:    # Antenna at rightside
-            axes[ants[1], ants[0]].yaxis.tick_right()
+            BLamp.yaxis.tick_right()
         else:
-            axes[ants[1], ants[0]].yaxis.set_major_locator(plt.NullLocator())
+            BLamp.yaxis.set_major_locator(plt.NullLocator())
         if ants[0] < antNum - 1:    # except bottom panel : skip drawing X-axis
-            axes[ants[0], ants[1]].xaxis.set_major_locator(plt.NullLocator())
+            BLphs.xaxis.set_major_locator(plt.NullLocator())
         #
-    #
+    #-------- Plot autocorrelations
     for ant_index in list(range(antNum)):
-        #print('Preparing autocorr %s' % (antList[ant_index]))
-        axes[ant_index, ant_index].patch.set_facecolor('pink')
+        BLamp = figSPW.add_subplot(antNum, antNum, ant_index*antNum + ant_index + 1)
+        BLamp.patch.set_facecolor('pink')
         for pol_index in list(range(polNum)):
-            axes[ant_index, ant_index].step(Freq, abs(tempAC[pol_index, :, ant_index]), color=polColor[pol_index], where='mid', label = polName[pol_index])
+            BLamp.step(Freq, abs(tempAC[pol_index, :, ant_index]), color=polColor[pol_index], where='mid', label = polName[pol_index])
         #
-        axes[ant_index, ant_index].axis([np.min(Freq), np.max(Freq), 0.0, 1.25*aMax])
+        BLamp.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*aMax])
+        if ant_index < antNum-1:
+            BLamp.xaxis.set_major_locator(plt.NullLocator())
+        else:
+            BLamp.yaxis.tick_right()
+        if ant_index > 0:
+            BLamp.yaxis.set_major_locator(plt.NullLocator())
+        else: 
+            BLamp.set_title( antList[0] )
+            BLamp.set_ylabel( antList[0] )
+            BLamp.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
+        #
     #
-    for ant_index in list(range(antNum-1)):
-        axes[ant_index, ant_index].xaxis.set_major_locator(plt.NullLocator())
-    for ant_index in list(range(1,antNum-1)):
-        axes[ant_index, ant_index].yaxis.set_major_locator(plt.NullLocator())
-    #
-    axes[antNum -1, antNum -1].yaxis.tick_right()
-    axes[0, 0].set_title( antList[0] )
-    axes[0, 0].set_ylabel( antList[0] )
-    axes[0, 0].legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-    plt.ioff()
+    plt.show()
     figSPW.savefig('PS_%s_Scan%d_SPW%d.png' % (prefix, BPscan, spwList[spw_index]), format='png', dpi=144)
     plt.close('all')
 #
