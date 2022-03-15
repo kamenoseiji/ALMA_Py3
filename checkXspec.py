@@ -23,10 +23,12 @@ timeNum = min(timeNum, len(timeStamp))
 #
 #-------- Prepare Plots
 for spw_index in range(spwNum):
-    figSPW = plt.figure(figsize=(max(16,antNum), max(16,antNum)))
-    figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=32)
-    figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=32)
-    figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=32)
+    figInch = max(16,antNum)
+    fontSize = min(32, figInch)
+    figSPW = plt.figure(figsize=(figInch, figInch))
+    figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=fontSize)
+    figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=fontSize)
+    figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
     #
     #-------- Plot BP
     print(' Loading SPW = %d' % (spwList[spw_index]))
@@ -40,7 +42,7 @@ for spw_index in range(spwNum):
     timeRange = list(range(st_index, st_index + timeNum))
     text_timerange = qa.time('%fs' % (timeStamp[st_index]), form='fits', prec=6)[0] + ' - ' + qa.time('%fs' % (timeStamp[timeRange[-1]]), form='fits', prec=6)[0]
     print('Integration in %s (%.1f sec)' % (text_timerange, timeNum* integDuration))
-    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)), fontsize=32)
+    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)), fontsize=fontSize)
     #---- polarization format
     polNum = Xspec.shape[0]
     if polNum == 4: pol = [0,3]; polName = ['X', 'Y']         # parallel pol in full-pol correlations
