@@ -23,10 +23,10 @@ timeNum = min(timeNum, len(timeStamp))
 #
 #-------- Prepare Plots
 for spw_index in range(spwNum):
-    figSPW = plt.figure(figsize=(24,24))
-    figSPW.text(0.475, 0.05, 'Frequency [GHz]')
-    figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90)
-    figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90)
+    figSPW = plt.figure(figsize=(max(16,antNum), max(16,antNum)))
+    figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=32)
+    figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=32)
+    figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=32)
     #
     #-------- Plot BP
     print(' Loading SPW = %d' % (spwList[spw_index]))
@@ -40,7 +40,7 @@ for spw_index in range(spwNum):
     timeRange = list(range(st_index, st_index + timeNum))
     text_timerange = qa.time('%fs' % (timeStamp[st_index]), form='fits', prec=6)[0] + ' - ' + qa.time('%fs' % (timeStamp[timeRange[-1]]), form='fits', prec=6)[0]
     print('Integration in %s (%.1f sec)' % (text_timerange, timeNum* integDuration))
-    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)))
+    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)), fontsize=32)
     #---- polarization format
     polNum = Xspec.shape[0]
     if polNum == 4: pol = [0,3]; polName = ['X', 'Y']         # parallel pol in full-pol correlations
@@ -95,12 +95,15 @@ for spw_index in range(spwNum):
         if ant_index > 0:
             BLamp.yaxis.set_major_locator(plt.NullLocator())
         else: 
-            BLamp.set_title( antList[0] )
-            BLamp.set_ylabel( antList[0] )
+            BLamp.set_title( antList[0])
+            BLamp.set_ylabel( antList[0])
             BLamp.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
         #
     #
     plt.show()
-    figSPW.savefig('PS_%s_Scan%d_SPW%d.png' % (prefix, BPscan, spwList[spw_index]), format='png', dpi=144)
+    pngFile = 'PS_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
+    pdfFile = pngFile + '.pdf'
+    figSPW.savefig(pdfFile, format='pdf', dpi=144)
     plt.close('all')
+    os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
 #
