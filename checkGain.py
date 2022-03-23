@@ -6,6 +6,7 @@ exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 3.0
+if 'antFlag' not in locals(): antFlag = []
 msfile = wd + prefix + '.ms'; msmd.open(msfile)
 antList = GetAntName(msfile)
 antNum = len(antList)

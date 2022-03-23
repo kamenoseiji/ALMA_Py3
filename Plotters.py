@@ -305,8 +305,8 @@ def plotGain(prefix, spw):
     figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
     figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')
     figAmp.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d'))); figPhs.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')))
-    figAmp.text(0.03, 0.7, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.55, 'Gain Phase [deg]', rotation=90)
-    plotMin, plotMax = 0.0, 1.1* np.percentile(abs(Gain), 80)
+    figAmp.text(0.03, 0.45, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.45, 'Gain Phase [deg]', rotation=90)
+    plotMin, plotMax = 0.0, 1.1* np.percentile(abs(Gain), 90)
     #-------- Plot Gain
     for ant_index in list(range(antNum)):
         AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
