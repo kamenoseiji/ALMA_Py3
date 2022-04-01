@@ -216,6 +216,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
         AmpList, PhsList = [], []
         for spw_index in list(range(spwNum)):
             Freq = freqList[spw_index]
+            chNum = len(Freq); chRange = list(range(int(0.05*chNum), int(0.95*chNum))); BW = Freq[chRange[-1]] - Freq[chRange[0]]
             AmpPL = figAnt.add_subplot(2, spwNum, spw_index + 1 )
             PhsPL = figAnt.add_subplot(2, spwNum, spwNum + spw_index + 1 )
             AmpList = AmpList + [AmpPL]
@@ -223,8 +224,10 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             ppolNum = BPList[spw_index].shape[1]
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
-                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
-                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+                delayAnt, delaySNR = delay_search(plotBandpass[chRange])
+                text_sd = '%s %s : %+f SNR=%.1f' % (antList[ant_index], polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
+                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
+                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
@@ -264,8 +267,13 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             PhsList = PhsList + [PhsPL]
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
-                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
-                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+                '''
+                delayAnt, delaySNR = delay_search(plotBandpass)
+                text_sd = '%s %s %+f %.1f' % (antList[ant_index], polName[pol_index], 0.5*delayAnt / (chNum*chWid), delaySNR)
+                print(text_sd)
+                '''
+                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-' + polName[pol_index])
+                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-' + polName[pol_index])
             #
             if len(plotMarker[0]) > 0: 
                 for spurIndex in list(range(len(plotMarker[spw_index]))): AmpPL.vlines(x=1.0e-9 * plotMarker[spw_index][spurIndex], ymin=0.0, ymax=1.25*plotMax, color='gray') 
