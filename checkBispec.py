@@ -1,5 +1,5 @@
 ####
-# Script for all-baseline time - visibility amplitue/phase plot
+# Script for Bispectra (closure phase)
 ####
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -29,7 +29,7 @@ for spw_index in range(spwNum):
     #-------- Prepare Plots
     figSPW = plt.figure(figsize=(figInch, figInch))
     figSPW.text(0.475, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')), fontsize=fontSize)
-    figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=fontSize)
+    figSPW.text(0.05, 0.5, 'Closure Phase [rad]', rotation=90, fontsize=fontSize)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
     #
     #-------- Plot VisAmp/Phs
@@ -62,57 +62,45 @@ for spw_index in range(spwNum):
         tempAC  = Pspec[:,0]    # tempVis[pol, ant, time]
     #
     pMax = np.percentile(abs(tempVis), 98) if 'plotMax' not in locals() else plotMax
-    aMax = np.percentile(abs(tempAC), 98)
     polColor = ['b', 'g']
     for bl_index in list(range(blNum)):
         ants = Bl2Ant(bl_index)
-        BLamp = figSPW.add_subplot(antNum, antNum, ants[1]*antNum + ants[0] + 1)
-        BLphs = figSPW.add_subplot(antNum, antNum, ants[0]*antNum + ants[1] + 1)
+        #-------- Plot visibility amplitude
+        BLamp = figSPW.add_subplot(antNum-1, antNum-1, ants[1]*(antNum -1) + ants[0])
         for pol_index in list(range(polNum)):
             plotVis = tempVis[pol_index, bl_index]
             BLamp.step(DT, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
-            BLphs.plot(DT, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
         #
         BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*pMax])
-        BLphs.axis([np.min(DT), np.max(DT), -math.pi, math.pi])
         BLamp.xaxis.set_major_locator(plt.NullLocator())
-        BLphs.tick_params(axis='x', labelsize=int(fontSize*0.125), labelrotation=-90)
+        if bl_index == 0: BLamp.set_ylabel(antList[0])
         if ants[1] == 0:    # Antenna label in the top and leftside
             BLamp.set_title( antList[ants[0]] )
-            BLphs.set_ylabel( antList[ants[0]] )
-        else:
-            BLphs.yaxis.set_major_locator(plt.NullLocator())
-        #
         if ants[0] == antNum - 1:    # Antenna at rightside
             BLamp.yaxis.tick_right()
         else:
             BLamp.yaxis.set_major_locator(plt.NullLocator())
-        if ants[0] < antNum - 1:    # except bottom panel : skip drawing X-axis
-            BLphs.xaxis.set_major_locator(plt.NullLocator())
-        #
-    #-------- Plot autocorrelations
-    for ant_index in list(range(antNum)):
-        BLamp = figSPW.add_subplot(antNum, antNum, ant_index*antNum + ant_index + 1)
-        BLamp.patch.set_facecolor('pink')
-        BLamp.tick_params(axis='x', labelsize=int(fontSize*0.125), labelrotation=-90)
-        for pol_index in list(range(polNum)):
-            BLamp.step(DT, abs(tempAC[pol_index, ant_index]), color=polColor[pol_index], where='mid', label = polName[pol_index])
-        #
-        BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*aMax])
-        if ant_index < antNum-1:
-            BLamp.xaxis.set_major_locator(plt.NullLocator())
-        else:
-            BLamp.yaxis.tick_right()
-        if ant_index > 0:
-            BLamp.yaxis.set_major_locator(plt.NullLocator())
-        else: 
-            BLamp.set_title( antList[0])
-            BLamp.set_ylabel( antList[0])
-            BLamp.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
+        #-------- Plot closure phase
+        if ants[1] > 0:         # plot Closure phase
+            BLphs = figSPW.add_subplot(antNum-1, antNum-1, (ants[0] - 1)*(antNum-1) + ants[1])
+            tri0, tri1, tri2 = Ant2Bl(ants[0], 0), Ant2Bl(ants[1], 0), Ant2Bl(ants[0], ants[1])
+            for pol_index in list(range(polNum)):
+                plotVis = tempVis[pol_index, tri0].conjugate()* tempVis[pol_index, tri1]* tempVis[pol_index, tri2]
+                BLphs.plot(DT, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+            #
+            print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri0, tri1, tri2, antList[0], antList[ants[1]], antList[ants[0]]))
+            BLphs.set_title('%s-%s-%s' % (antList[0], antList[ants[1]], antList[ants[0]] ))
+            BLphs.axis([np.min(DT), np.max(DT), -math.pi, math.pi])
+            BLphs.tick_params(axis='x', labelsize=int(fontSize*0.125), labelrotation=-90)
+            if ants[1] == 1: BLphs.set_ylabel(antList[ants[0]] )
+            if ants[1] > 1: BLphs.yaxis.set_major_locator(plt.NullLocator())
+            if ants[0] < antNum - 1:    # except bottom panel : skip drawing X-axis
+                BLphs.xaxis.set_major_locator(plt.NullLocator())
+            #
         #
     #
     plt.show()
-    pngFile = 'VT_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
+    pngFile = 'BS_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
     pdfFile = pngFile + '.pdf'
     figSPW.savefig(pdfFile, format='pdf', dpi=144)
     plt.close('all')
