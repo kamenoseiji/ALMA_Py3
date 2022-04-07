@@ -125,7 +125,7 @@ for ant_index in list(range(UseAntNum)):
     BLamp.patch.set_facecolor('lavenderblush')
     BLamp.tick_params(axis='x', labelsize=int(fontSize*0.25), labelrotation=-90)
     for pol_index in list(range(polNum)):
-        BLamp.step(DT, abs(chAvgAC[pol_index, ant_index]), color=polColor[pol_index], where='mid', label = polName[pol_index])
+        BLamp.step(DT, abs(scanAC[pol_index, ant_index]), color=polColor[pol_index], where='mid', label = polName[pol_index])
     #
     BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*aMax])
     if ant_index < UseAntNum - 1:
