@@ -43,11 +43,11 @@ if 'bunchNum' not in locals(): bunchNum = 1
 for spw_index in list(range(spwNum)):
     if 'FGprefix' in locals():  # Flag table
         try:
-            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spwList[spw_index])); FG = np.min(FG, axis=0)
+            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spwList[spw_index])); FG = np.median(FG, axis=0)
             TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spwList[spw_index]))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, FG, TS)
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG, TS)
         except:
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv)
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum )
         #
     else:
         BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum)
