@@ -90,6 +90,56 @@ def angFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant anten
     useAntList = [tempRefAntID] + useAntIndex[np.where(useAntIndex < tempRefAntID)[0]].tolist() + (useAntIndex[np.where(useAntIndex >= tempRefAntID)[0]] + 1).tolist()
     return list(set(antFlag) | (set(antList) - set(antList[useAntList])))
 #
+#-------- Generate independent set of Closure Amplitude Matrix 
+# IN  : Number of antennas
+# OUT : [CLamp x BL] matrix
+#
+def recursiveP(antNum):
+    if antNum <= 4:
+        return np.array([[1, -1,  0,  0, -1, 1], [1,  0, -1, -1,  0, 1]])
+    #
+    blNum = int(antNum* (antNum - 1) / 2)
+    clNum = int(antNum* (antNum - 3) / 2)
+    P = np.zeros( blNum* clNum ).reshape([clNum, blNum])
+    P[0:(clNum - antNum + 2), 0:(blNum - antNum + 1)] = recursiveP(antNum - 1)
+    P[:,0] = 1
+    #---- with new antenna
+    newBLList = list(range(blNum - antNum + 3, blNum))
+    newCLList = list(range(clNum - antNum + 2, clNum))
+    newCL = newCLList[0]
+    for newBL in newBLList:
+        ants = Bl2Ant(newBL)
+        P[newCL, newBL] = 1
+        P[newCL, Ant2Bl(0, ants[1])] = -1
+        P[newCL, Ant2Bl(1, ants[0])] = -1
+        newCL = newCL + 1
+    #---- Inverted combination for the last new CL
+    P[newCL, newBL] = 1
+    P[newCL, Ant2Bl(1, ants[1])] = -1
+    P[newCL, Ant2Bl(0, ants[0])] = -1
+    return P.astype(int)
+#
+#-------- Convert [CLamp x BL] matrix into list of closure amplitude
+# [a,b,c,d] indicates ab * cd / ac * bd
+def P2CL(P):
+    clNum, blNum = P.shape
+    antNum = Bl2Ant(blNum)[0]
+    CLList = []
+    for cl_index in list(range(clNum)):
+        clAmp = [0, 1, 0, 0]
+        subP = P[cl_index]
+        BLList = np.where(subP == -1)[0].tolist()
+        if BLList[0] in KERNEL_BL:
+            clAmp[2] = Bl2Ant(BLList[0])[0]
+            clAmp[3] = Bl2Ant(BLList[1])[0]
+        else:
+            clAmp[2] = Bl2Ant(BLList[1])[0]
+            clAmp[3] = Bl2Ant(BLList[0])[0]
+        #
+        CLList = CLList + [clAmp]
+    #
+    return CLList
+#
 #======== Statistical basics
 def linearRegression( x, y, err):
     weight = 1.0 / err**2
