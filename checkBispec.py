@@ -96,8 +96,9 @@ for bl_index in list(range(UseBlNum)):
     BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*pMax])
     BLamp.xaxis.set_major_locator(plt.NullLocator())
     if bl_index == 0:
-        BLamp.set_ylabel(antList[antMap[0]])
         BLamp.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+    if ants[0] - ants[1] == 1:
+        BLamp.set_ylabel(antList[antMap[ants[1]]])
     if ants[1] == 0:    # Antenna label in the top and leftside
         BLamp.set_title( antList[antMap[ants[0]]] )
     if ants[0] == UseAntNum - 1:    # Antenna at rightside
