@@ -1,4 +1,4 @@
-SCR_DIR = '/home/skameno/ALMA_Py3/'
+SCR_DIR = '/users/skameno/ALMA_Py3/'
 wd = './'
 spw = 7
 antFlag = ['CM04','CM05','CM06','CM07']
