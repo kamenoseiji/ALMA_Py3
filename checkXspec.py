@@ -66,6 +66,8 @@ for spw_index in range(spwNum):
             BLamp.step(Freq, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
             BLphs.plot( Freq, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
         #
+        if np.max(abs(plotVis)) > 0.1:
+            print('Out of Range : %s - %s' % (antList[ants[0]], antList[ants[1]]))
         BLamp.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*pMax])
         BLphs.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
         BLamp.xaxis.set_major_locator(plt.NullLocator())

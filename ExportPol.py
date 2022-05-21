@@ -71,11 +71,12 @@ for file_index in list(range(fileNum)):
     bpsSPWList = bpsSPWList + [GetBPcalSPWs(prefix + '.ms')]
 #
 #-------- split and concat for each BB
+if 'chBunch' not in locals(): chBunch = 1
 comvis = []
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
     #---- split POLcal
-    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), datacolumn='DATA')
+    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), width=chBunch, datacolumn='DATA')
     comvis.append(CATList[0] + prefix + '.ms')
     #
 #
