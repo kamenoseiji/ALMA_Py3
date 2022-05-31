@@ -302,7 +302,7 @@ def AzElMatch( refTime, scanTime, AntID, targetAnt, Az, El ):
 def SPW2DATA_DESC_ID(msfile, spwID):
     tb.open(msfile + '/' + 'DATA_DESCRIPTION')
     data_desc_id, spw_index = -1,-1
-    while( spw_index <  spwID ):
+    while( spw_index !=  spwID ):
         data_desc_id += 1
         spw_index = tb.getcell('SPECTRAL_WINDOW_ID', data_desc_id)
     #
@@ -1434,8 +1434,10 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         def bunchN(Spec): return bunchVec(Spec, bunchNum)
         Xspec = np.apply_along_axis(bunchN, 1, Xspec)
     #
-    if len(FG) > 0: flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
-    else: flagIndex = list(range(len(timeStamp)))
+    if len(FG) > 0:
+        flagIndex = np.where( FG > 0.0 )[0].tolist()
+    else:
+        flagIndex = list(range(len(timeStamp)))
     text_sd = 'Use %d integration / flag %d' % (len(flagIndex), len(np.where(FG < 1.0)))
     print(text_sd)
     #
