@@ -149,7 +149,6 @@ def TrxTskySpec(useAnt, tempAmb, tempHot, spwList, scanList, ambSpec, hotSpec, o
     for spw_index in list(range(len(spwList))):
         chNum = ambSpec[spw_index* scanNum].shape[1]
         chRange = list(range(int(0.05*chNum), int(0.95*chNum))); chOut = sort(list(set(range(chNum)) - set(chRange))).tolist()
-        #chRange = range(int(0.02*chNum), int(0.99*chNum)); chOut = sort(list(set(range(chNum)) - set(chRange))).tolist()
         TrxSpec = -np.ones([polNum, chNum, useAntNum, scanNum])
         TskySpec = -np.ones([polNum, chNum, useAntNum, scanNum])
         for pol_index in list(range(polNum)):
@@ -170,7 +169,7 @@ def TrxTskySpec(useAnt, tempAmb, tempHot, spwList, scanList, ambSpec, hotSpec, o
         chAvgTrx = np.mean(TrxSpec[:,chRange], axis=1)
         scanFlag[spw_index] = (np.sign(chAvgTrx - 10.0) + 1.0 )/2       # Flag (Trx < 10.0 K) out, scanFlag[spw, pol, ant, scan]
         chAvgTrx = (np.sum(scanFlag[spw_index]* chAvgTrx, axis=2) / np.sum(scanFlag[spw_index] + 1.0e-9, axis=2)).T # chAvgTrx[ant, pol]
-        TskySpec = np.sum(TskySpec.transpose(1,0,2,3)* scanFlag[spw_index], axis=1) / np.sum(scanFlag[spw_index] + 1.0e-9, axis=0)
+        TskySpec = np.sum(TskySpec.transpose(1,0,2,3)* scanFlag[spw_index], axis=1) / np.sum(scanFlag[spw_index] + 1.0e-9, axis=0)  # Average Tsky along polarizations
         TrxList = TrxList + [TrxSpec]
         TskyList = TskyList + [TskySpec]
     #
@@ -243,7 +242,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
         #-------- Fit for Tau0 (without TantN)
         for ant_index in list(range(useAntNum)):
             scanWeight = scanFlag[spw_index, 0, ant_index] * scanFlag[spw_index, 1, ant_index]
-            if len(np.where(scanWeight > 0)[0]) > 6:    # at least 6 points to fit
+            if len(np.where(scanWeight > 0)[0]) > 5:    # at least 6 points to fit
                 for ch_index in list(range(chNum)):
                     fit = scipy.optimize.leastsq(residTskyTransfer, param, args=(tempAtm, secZ, TskyList[spw_index][ch_index, ant_index], scanWeight))
                     TantN[ant_index, ch_index] = fit[0][0]

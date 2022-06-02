@@ -92,7 +92,7 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
     figAnt = plt.figure(figsize = (8, 11))
     figAnt.suptitle(prefix)
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
-    figAnt.text(0.03, 0.45, 'Tsys (solid) and Trec (dotted) [K]', rotation=90)
+    figAnt.text(0.03, 0.42, 'Tsys (X:blue, Y:green) and Trec (X:magenta, Y:yellow) [K]', rotation=90)
     #-------- Plot BP
     for ant_index in range(antNum):
         if ant_index > 0:
@@ -102,7 +102,6 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
         for spw_index in range(spwNum): TsysMax = TsysMax + [1.7* np.percentile(TrxList[spw_index], 75, axis=(0,1,3))[ant_index] + 1.5* np.median(TskyList[spw_index])]
         plotMax = max(TsysMax)
         for spw_index in range(spwNum):
-            #AntSpwIndex = ant_index* spwNum + spw_index
             chNum = len(freqList[spw_index]); chRange = range(int(0.05*chNum), int(0.95*chNum))
             for scan_index in range(scanNum):
                 currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
@@ -112,7 +111,6 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
                     currentPL.step( freqList[spw_index][chRange], plotTsys, where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
-                    #currentPL.plot( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], ls=':', label = 'Trec Pol ' + polName[pol_index])
                     currentPL.step( freqList[spw_index][chRange], plotTrx,  color=polColor[pol_index+2], where='mid', label = 'Trec Pol ' + polName[pol_index])
                 #
                 currentPL.axis([np.min(freqList[spw_index]), np.max(freqList[spw_index]), 0.0, plotMax])
@@ -125,7 +123,6 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
                 #
             #
         #
-        #plt.show()
         figAnt.savefig(pp, format='pdf')
         #
         #
