@@ -2015,9 +2015,10 @@ def polariGain( XX, YY, QCpUS):
     #
     ScaledXX, ScaledYY = XX * Xscale, YY* Yscale
     return gainComplexVec(ScaledXX), gainComplexVec(ScaledYY)
-def XXYY2QU(PA, XX_YY):       # <XX*>, <YY*> to determine Q and U
+#
+def XXYY2QU(PA, XX_YY):       # <XX*>, <YY*> to determine Q and U --- least square soluitons for (XX - YY)/(XX + YY) ~ Q cos + U sin
     PAnum, SN, CS = len(PA),np.sin(2.0*PA), np.cos(2.0*PA)
-    W = np.ones(PAnum) / (np.var(XX_YY[0].imag) + np.var(XX_YY[1].imag))   # weight
+    W = 1.0 /  sqrt( XX_YY[0].imag**2 + XX_YY[1].imag**2 + np.var(XX_YY[0].imag) + np.var(XX_YY[1].imag) )
     XXmYY = (XX_YY[0].real - XX_YY[1].real) / (XX_YY[0].real + XX_YY[1].real)
     P = np.array(np.c_[np.ones(PAnum), CS, SN]).T
     return scipy.linalg.solve(np.dot(P, np.dot(np.diag(W), P.T)), np.dot(P, W* XXmYY))[[1,2]]

@@ -382,6 +382,15 @@ for spw_index in list(range(spwNum)):
     fileDic = open('Stokes.%s-SPW%d.dic' % (prefix, spw), mode='wb')
     pickle.dump(StokesDic, fileDic)
     fileDic.close()
+    StokesTextFile = open('Stokes.%s-SPW%d.txt' % (prefix, spw), mode='w')
+    text_sd = 'Source       I      Q      U      V      p%    EVPA'
+    print(text_sd); StokesTextFile.write(text_sd + '\n')
+    for sourceName in sourceList:
+        if StokesDic[sourceName] == []: continue
+        text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], StokesDic[sourceName][3], 100.0* sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0], 90.0* np.arctan2(StokesDic[sourceName][2], StokesDic[sourceName][1]) / np.pi)
+        print(text_sd); StokesTextFile.write(text_sd + '\n')
+    #
+    StokesTextFile.close()
 #
 #-------- Plot D-term spectra
 DxList, DyList = np.array(DxList).transpose(1,0,2), np.array(DyList).transpose(1,0,2)
