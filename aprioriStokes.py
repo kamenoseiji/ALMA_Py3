@@ -21,7 +21,7 @@ gainFlag = np.ones([antNum])
 for spw_index in list(range(spwNum)):
     #-------- Checking usable baselines and antennas
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPScan)
-    timeNum, chNum, blNum = Xspec.shape[3], Xspec.shape[1], Xspec.shape[2]; chRange, timeRange = list(range(int(0.05*chNum), int(0.95*chNum))), list(range(timeNum-4, timeNum-1))
+    timeNum, chNum, blNum = Xspec.shape[3], Xspec.shape[1], Xspec.shape[2]; chRange, timeRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum))), list(range(timeNum-4, timeNum-1))
     for polID in pPol:
         blD, blA = np.apply_along_axis(delay_search, 0, np.mean(Xspec[polID][chRange][:,:,timeRange], axis=2))
         blA = blA / np.sqrt(antDia[ANT0[0:blNum]]* antDia[ANT1[0:blNum]])
@@ -158,17 +158,18 @@ for spw_index in list(range(spwNum)):
     TsysEQScan = np.mean(TrxList[spw_index].transpose(2,0,1)[:,:,chRange] + Tcmb*exp_Tau[chRange] + tempAtm* (1.0 - exp_Tau[chRange]), axis=2)[Trx2antMap] # [antMap, pol]
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], EQScan)
-    chNum = Xspec.shape[1]; chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    chNum = Xspec.shape[1]; chRange = list(range(int(chTrim* chNum), int((1.0 - chTrim)*chNum)))
     tempSpec = CrossPolBL(Xspec[:,:,blMap], blInv).transpose(3,2,0,1)[flagIndex]       # Cross Polarization Baseline Mapping : tempSpec[time, blMap, pol, ch]
     BPCaledXspec = (tempSpec / (BPList[spw_index][ant0][:,polYindex]* BPList[spw_index][ant1][:,polXindex].conjugate())).transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
     #-------- Antenna-based Gain correction
     chAvgVis = np.mean(BPCaledXspec[:, chRange], axis=1)[pPol]
-    GainP = np.array([np.apply_along_axis(clphase_solve, 0, chAvgVis[0]), np.apply_along_axis(clphase_solve, 0, chAvgVis[1])])
-    pCaledVis = np.array([chAvgVis[0] / (GainP[0,ant0]* GainP[0,ant1].conjugate()), chAvgVis[1]/(GainP[1,ant0]* GainP[1,ant1].conjugate())])
+    flagTime = np.where(np.max(np.min(abs(chAvgVis), axis=1), axis=0) > 0.0)[0].tolist()
+    GainP = np.array([np.apply_along_axis(clphase_solve, 0, chAvgVis[0][:,flagTime]), np.apply_along_axis(clphase_solve, 0, chAvgVis[1][:,flagTime])])
+    pCaledVis = np.array([chAvgVis[0][:,flagTime] / (GainP[0,ant0]* GainP[0,ant1].conjugate()), chAvgVis[1][:,flagTime]/(GainP[1,ant0]* GainP[1,ant1].conjugate())])
     aprioriSEFD = 2.0* kb* TsysEQScan.T / Ae
     #
-    aprioriVisX = np.mean(pCaledVis[0] / (1.0 + QCpUS), axis=1) * np.sqrt(aprioriSEFD[0, ant0]* aprioriSEFD[0, ant1])
-    aprioriVisY = np.mean(pCaledVis[1] / (1.0 - QCpUS), axis=1) * np.sqrt(aprioriSEFD[1, ant0]* aprioriSEFD[1, ant1])
+    aprioriVisX = np.mean(pCaledVis[0] / (1.0 + QCpUS[flagTime]), axis=1) * np.sqrt(aprioriSEFD[0, ant0]* aprioriSEFD[0, ant1])
+    aprioriVisY = np.mean(pCaledVis[1] / (1.0 - QCpUS[flagTime]), axis=1) * np.sqrt(aprioriSEFD[1, ant0]* aprioriSEFD[1, ant1])
     #-------- Determine Antenna-based Gain
     relGain[spw_index, 0] = abs(gainComplex(aprioriVisX)); relGain[spw_index, 0] /= np.median( abs(relGain[spw_index, 0, refIndex]) ) # X-pol delta gain
     relGain[spw_index, 1] = abs(gainComplex(aprioriVisY)); relGain[spw_index, 1] /= np.median( abs(relGain[spw_index, 1, refIndex]) ) # Y-pol delta gain
@@ -205,7 +206,7 @@ for spw_index in list(range(spwNum)):
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPScan); timeNum = len(timeStamp)
     if 'FG' in locals(): flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
     else : flagIndex = list(range(timeNum))
-    chNum = Xspec.shape[1]; chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    chNum = Xspec.shape[1]; chRange = list(range(int(chTrim* chNum), int((1.0 - chTrim)*chNum)))
     tempSpec = CrossPolBL(Xspec[:,:,blMap], blInv).transpose(3,2,0,1)      # Cross Polarization Baseline Mapping
     BPCaledXspec = (tempSpec * TsysBL/ (BPList[spw_index][ant0][:,polYindex]* BPList[spw_index][ant1][:,polXindex].conjugate())).transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
     chAvgVis = np.mean(BPCaledXspec[:, chRange], axis=1)
@@ -300,7 +301,7 @@ for scan_index in list(range(scanNum)):
     #-------- Baseline-based cross power spectra
     for spw_index in list(range(spwNum)):
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], scanList[scan_index])
-        timeNum, chNum = Xspec.shape[3], Xspec.shape[1]; chRange = list(range(int(0.05*chNum), int(0.95*chNum))); UseChNum = len(chRange)
+        timeNum, chNum = Xspec.shape[3], Xspec.shape[1]; chRange = list(range(int(chTrim* chNum), int((1.0 - chTrim)*chNum)))
         if np.max(abs(Xspec)) < 1.0e-9: continue
         #-------- Position offset phase correction
         if 'offAxis' in locals():
