@@ -1,3 +1,4 @@
+import os
 INTList = ['POLARIZATION']
 CATList = ['POL_']
 #----
@@ -24,10 +25,10 @@ def GetAtmSPWs(msfile):
 #-------- Get Bandpass SPWs
 def GetBPcalSPWs(msfile):
     msmd.open(msfile)
-    bpSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); bpSPWs.sort()
-    if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_POLARIZATION*").tolist(); bpSPWs.sort()
+    bpSPWs  = msmd.spwsforintent("CALIBRATE_POLARIZATION*").tolist(); bpSPWs.sort()
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_FLUX*").tolist(); bpSPWs.sort()
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_BANDPASS*").tolist(); bpSPWs.sort()
+    if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); bpSPWs.sort()
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_DELAY*").tolist(); bpSPWs.sort()
     BPspwList = []
     for spw in bpSPWs:
@@ -84,7 +85,9 @@ concat(vis=comvis, freqtol='0.5MHz', dirtol='0.1arcsec', concatvis= Session + '.
 listobs(Session +'.ms', spw='', scan='', verbose=True, listfile=Session +'.listobs')
 #
 #-------- cleanup temporary files
+'''
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
     os.system('rm -rf *' + prefix+'*.ms*')
 #
+'''

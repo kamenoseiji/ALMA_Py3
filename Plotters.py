@@ -99,7 +99,9 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
             for PL in TsysPL: figAnt.delaxes(PL)
         #
         TsysPL, TsysMax = [], []
-        for spw_index in range(spwNum): TsysMax = TsysMax + [1.7* np.percentile(TrxList[spw_index], 75, axis=(0,1,3))[ant_index] + 1.5* np.median(TskyList[spw_index])]
+        for spw_index in range(spwNum):
+            TsysMax = TsysMax + [1.7* np.percentile(TrxList[spw_index], 75, axis=(0,1,3))[ant_index] + 1.5* np.median(TskyList[spw_index])]
+            #TsysMax = TsysMax + [1.7* np.percentile(TrxList[spw_index], 75, axis=(0,1,3))[ant_index] + np.max(TskyList[spw_index])]
         plotMax = max(TsysMax)
         for spw_index in range(spwNum):
             chNum = len(freqList[spw_index]); chRange = range(int(0.05*chNum), int(0.95*chNum))

@@ -9,6 +9,7 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages
 RADperHzMeterArcsec = 2.0* pi / 299792458 / (180*3600/pi)
 fluxCalText = 'SEFD'
+if 'chTrim' not in locals(): chTrim = 0.05
 #-------- Configure Array
 msmd.open(msfile)
 print('---Checking array configulation')
@@ -53,7 +54,7 @@ for spw_index in list(range(spwNum)):
         Trx2MedianRatio = TrxMed[pol_index] / np.median(TrxMed[pol_index])
         TrxFlag[ np.where(Trx2MedianRatio < 0.1)[0].tolist() ] *= 0.0   # Flagged by negative Trx
         TrxFlag[ np.where(Trx2MedianRatio > 4.0)[0].tolist() ] *= 0.0   # Flagged by too-high Trx 
-    if np.median(Tau0spec[spw_index][chRange]) < 0.0: TrxFlag *= 0.0    # Negative Tau(zenith)
+    if np.median(Tau0spec[spw_index][chRange]) < -0.05: TrxFlag *= 0.0    # Negative Tau(zenith)
 #
 TrxFlag[useAnt] *= np.median(np.min(scanFlag, axis=1), axis=(0,2))
 print('Ant: ', end='')
