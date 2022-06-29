@@ -156,8 +156,9 @@ for band_index in list(range(NumBands)):
     msmd.done()
     if polNum == 4:
         pPol, cPol = [0,3], [1,2];  ppolNum, cpolNum = len(pPol), len(cPol)
-        #exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
+        exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
         #exec(open(SCR_DIR + 'aprioriStokes.py').read())
+        '''
         if Apriori:
             try:
                 exec(open(SCR_DIR + 'aprioriStokes.py').read())
@@ -174,6 +175,7 @@ for band_index in list(range(NumBands)):
                     print('  --A priori flux calibration falied.')
             #
         #
+        '''
     #
     if polNum == 2:
         cPol = [0,1], []; ppolNum, cpolNum = len(pPol), len(cPol)

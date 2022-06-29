@@ -58,7 +58,7 @@ for spw_index in list(range(spwNum)):
         TrxFlag[ np.where(Trx2MedianRatio > 3.0)[0].tolist() ] *= 0.0   # Flagged by too-high Trx 
     if np.median(Tau0spec[spw_index][chRange]) < 0.0: TrxFlag *= 0.0    # Negative Tau(zenith) 
 #
-TrxFlag[useAnt] *= np.median(np.min(scanFlag, axis=1), axis=(0,2))
+#TrxFlag[useAnt] *= np.median(np.min(scanFlag, axis=1), axis=(0,2))
 print('Ant: ', end='')
 for ant_index in list(range(antNum)): print(antList[ant_index], end=' ')
 print(); print('givn', end='')
@@ -239,10 +239,10 @@ for sso_index in list(range(SSONum)):
         FLX_stat, FLY_stat = AeX[index, spw_index, sso_index]/AeNominal[np.array(antMap)[index].tolist()], AeY[index, spw_index, sso_index]/AeNominal[np.array(antMap)[index].tolist()]
         if np.median(FLX_stat) < 0.4: SSO_flag[sso_index] = 0.0 ; print('FLX < 0.4')
         if np.median(FLY_stat) < 0.4: SSO_flag[sso_index] = 0.0 ; print('FLY < 0.4')
-        if np.median(FLX_stat) > 2.0: SSO_flag[sso_index] = 0.0 ; print('FLX > 2.0')
-        if np.median(FLY_stat) > 2.0: SSO_flag[sso_index] = 0.0 ; print('FLY < 2.0')
-        if np.percentile(FLX_stat, 75) / np.median(FLX_stat) > 1.5: SSO_flag[sso_index] = 0.0   ; print('FLX 75%-percentile / median > 1.5')
-        if np.percentile(FLY_stat, 75) / np.median(FLY_stat) > 1.5: SSO_flag[sso_index] = 0.0   ; print('FLY 75%-percentile / median > 1.5')
+        if np.median(FLX_stat) > 2.5: SSO_flag[sso_index] = 0.0 ; print('FLX > 2.5')
+        if np.median(FLY_stat) > 2.5: SSO_flag[sso_index] = 0.0 ; print('FLY > 2.5')
+        if np.percentile(FLX_stat, 75) / np.median(FLX_stat) > 2.0: SSO_flag[sso_index] = 0.0   ; print('FLX 75%-percentile / median > 2.0')
+        if np.percentile(FLY_stat, 75) / np.median(FLY_stat) > 2.0: SSO_flag[sso_index] = 0.0   ; print('FLY 75%-percentile / median > 2.0')
     #
     try:
         if SSO_flag[sso_index] == 0.0: raise END

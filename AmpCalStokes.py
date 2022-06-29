@@ -172,7 +172,7 @@ for scan_index in list(range(scanNum)):
     CHECK outliers
     '''
     ampThresh = 5.0* np.median(abs(chAvgVis))
-    flagIndex = unique(np.where( abs(chAvgVis) < ampThresh)[2]).tolist()
+    flagIndex = unique(np.where( abs(chAvgVis) <= ampThresh)[2]).tolist()
     chAvgVis = chAvgVis[:,:,flagIndex]
     BPCaledXspec = BPCaledXspec[:,:,:,:,flagIndex]
     PS = PS[:,:,flagIndex]
