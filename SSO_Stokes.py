@@ -24,7 +24,7 @@ gainFlag = np.ones([antNum])
 for spw_index in list(range(spwNum)):
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPScan)
-    timeNum, chNum, blNum = Xspec.shape[3], Xspec.shape[1], Xspec.shape[2]; chRange, timeRange = list(range(int(0.05*chNum), int(0.95*chNum))), list(range(timeNum-4, timeNum-1))
+    timeNum, chNum, blNum = Xspec.shape[3], Xspec.shape[1], Xspec.shape[2]; chRange, timeRange = list(range(int(0.07*chNum), int(0.95*chNum))), list(range(timeNum-4, timeNum-1))
     for polID in pPol:
         blD, blA = np.apply_along_axis(delay_search, 0, np.mean(Xspec[polID][chRange][:,:,timeRange], axis=2))
         blA = blA / (antDia[ANT0[0:blNum]]* antDia[ANT1[0:blNum]])
@@ -158,7 +158,7 @@ for spw_index in list(range(spwNum)):
     TsysEQScan = np.median(atmCorrect* (TrxList[spw_index].transpose(2,0,1)[Trx2antMap] + Tcmb*exp_Tau + tempAtm* (1.0 - exp_Tau)), axis=2) # [antMap, pol]
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], EQScan)
-    chNum = Xspec.shape[1]; chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    chNum = Xspec.shape[1]; chRange = list(range(int(0.07*chNum), int(0.95*chNum)))
     tempSpec = CrossPolBL(Xspec[:,:,blMap], blInv).transpose(3,2,0,1)[flagIndex]       # Cross Polarization Baseline Mapping : tempSpec[time, blMap, pol, ch]
     BPCaledXspec = (tempSpec / (BPList[spw_index][ant0][:,polYindex]* BPList[spw_index][ant1][:,polXindex].conjugate())).transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
     #-------- Antenna-based Gain correction
@@ -216,7 +216,7 @@ for sso_index in list(range(SSONum)):
     for spw_index in list(range(spwNum)):
         #-------- Baseline-based cross power spectra
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], SSOscanID[sso_index])
-        chNum = Xspec.shape[1]; chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+        chNum = Xspec.shape[1]; chRange = list(range(int(0.07*chNum), int(0.95*chNum)))
         tempSpec = CrossPolBL(Xspec[:,:,SAblMap], SAblInv).transpose(3,2,0,1)      # Cross Polarization Baseline Mapping
         BPCaledXspec = (tempSpec / (BPList[spw_index][SAant0][:,polYindex]* BPList[spw_index][SAant1][:,polXindex].conjugate())).transpose(2,3,1,0) # Bandpass Cal
         chAvgVis = (np.mean(BPCaledXspec[:, chRange], axis=1)[pPol].transpose(0,2,1)/SSOmodelVis[sso_index,spw_index,SAblMap]).transpose(0,2,1)
