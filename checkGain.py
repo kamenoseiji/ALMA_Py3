@@ -7,10 +7,12 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 3.0
 if 'antFlag' not in locals(): antFlag = []
-msfile = wd + prefix + '.ms'; msmd.open(msfile)
-antList = GetAntName(msfile)
-antNum = len(antList)
-blNum = int(antNum* (antNum - 1) / 2)
+msfile = wd + prefix + '.ms'
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spw, scanList[0])
+UseAntList = CrossCorrAntList(Antenna1, Antenna2)
+antList = GetAntName(msfile)[UseAntList]
+antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
+msmd.open(msfile)
 spwName = msmd.namesforspws(spw)[0]
 BandName = re.findall(r'RB_..', spwName)[0]; BandID = int(BandName[3:5])
 #-------- Array Configuration
@@ -23,7 +25,6 @@ print(text_sd)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-#timeStamp, UVW = GetUVW(msfile, spw, msmd.scansforspw(spw)[0])
 timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
 uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
 if 'refant' in locals():    refantID = indexList(np.array([refant]), antList[UseAnt])[0]

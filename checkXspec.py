@@ -5,7 +5,9 @@ import matplotlib.ticker as ptick
 exec(open(SCR_DIR + 'interferometry.py').read())
 #-------- Definitions
 msfile = wd + prefix + '.ms'
-antList = GetAntName(msfile)
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
+UseAntList = CrossCorrAntList(Antenna1, Antenna2)
+antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 spwNum  = len(spwList)
 if 'chBunch' not in locals(): chBunch = 1

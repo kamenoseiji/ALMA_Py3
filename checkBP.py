@@ -8,7 +8,10 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 #
 #-------- Procedures
 msfile = wd + prefix + '.ms'
-antList = GetAntName(msfile); antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
+UseAntList = CrossCorrAntList(Antenna1, Antenna2)
+antList = GetAntName(msfile)[UseAntList]
+antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 #-------- Configure Array
 print('---Checking array configulation')
 if 'BPPLOT' not in locals(): BPPLOT = False
