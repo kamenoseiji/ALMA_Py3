@@ -529,7 +529,7 @@ def GetDterm(URI, antMap, band, refMJD):
     #
     return Dterm
 #
-def getsourcelist(msfile):              # source list
+def GetSourceList(msfile):              # source list
     tb.open( msfile + '/FIELD')
     SourceID   = tb.getcol('SOURCE_ID')
     SourceName = tb.getcol('NAME')

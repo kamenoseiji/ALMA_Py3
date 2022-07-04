@@ -8,6 +8,12 @@ def indexList( refArray, keyWord ):     # Compare two arrays and return matched 
         if keyWord in refArray[index]: IL = IL + [index]
     return IL
 #
+def GetAntName(msfile):
+    tb.open(msfile+'/'+'ANTENNA')
+    namelist = tb.getcol("NAME")
+    tb.close()
+    return namelist
+#
 def GetAtmSPWs(msfile):
     msmd.open(msfile)
     atmSPWs = list( (set(msmd.tdmspws()) | set(msmd.fdmspws())) & set(msmd.spwsforintent("CALIBRATE_ATMOSPHERE*")) ); atmSPWs.sort()
@@ -76,8 +82,20 @@ if 'chBunch' not in locals(): chBunch = 1
 comvis = []
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
+    #---- Check Flag Antenna
+    if 'antFlag' not in locals():    antFlag = []
+    removeAnt = ''
+    if len(antFlag) > 0:
+        removeAnt = '!'
+        antList = GetAntName(prefix + '.ms').tolist()
+        for antName in antFlag:
+            if antName not in antList: continue
+            removeAnt = removeAnt + antName + ','
+        removeAnt = removeAnt.rstrip(',')
+    #
+    if len(removeAnt) < 2:  removeAnt = ''
     #---- split POLcal
-    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), width=chBunch, datacolumn='DATA')
+    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chBunch, datacolumn='DATA')
     comvis.append(CATList[0] + prefix + '.ms')
     #
 #

@@ -14,6 +14,9 @@ pattern = r'RB_..'
 timeNum = 0
 sourceList = []
 msfile = wd + prefix + '.ms'
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
+UseAntList = CrossCorrAntList(Antenna1, Antenna2)
+antList = GetAntName(msfile)[UseAntList]
 sources, posList = GetSourceList(msfile); sourceList = sourceList + sourceRename(sources)
 sourceList = unique(sourceList).tolist()
 sourceScan = []
@@ -21,10 +24,8 @@ scanDic   = dict(zip(sourceList, [[]]*len(sourceList))) # Scan list index for ea
 timeDic   = dict(zip(sourceList, [[]]*len(sourceList))) # Time index list for each source
 StokesDic = dict(zip(sourceList, [[]]*len(sourceList))) # Stokes parameters for each source
 scanIndex = 0
-msfile = wd + prefix + '.ms'
 print('-- Checking %s ' % (msfile))
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-antList = GetAntName(msfile)
 refAntID  = indexList([refantName], antList)
 flagAntID = indexList(antFlag, antList)
 if len(refAntID) < 1:
@@ -39,6 +40,7 @@ if 'scanList' in locals():
 else:
     scanLS = msmd.scannumbers().tolist()
 #
+
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
 for scan in scanLS:
@@ -70,6 +72,7 @@ scanList = scanLS
 #-------- Check source list and Stokes Parameters
 msmd.done()
 antMap = [refAntID] + list(trkAntSet - set([refAntID]))
+antMap = indexList(np.array(antMap), np.array(UseAntList))
 antNum = len(antMap); blNum = int(antNum * (antNum - 1)/2)
 ant0 = ANT0[0:blNum]; ant1 = ANT1[0:blNum]
 blMap, blInv= list(range(blNum)), [False]* blNum
