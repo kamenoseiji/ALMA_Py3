@@ -364,7 +364,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
     return
 #
 #-------- Plot D-term spectra
-def plotDSpec(pp, prefix, antList, spwList, DxList, DyList):
+def plotDSpec(pp, prefix, antList, spwList, FreqList, DxList, DyList):
     plotMax = 0.12
     antNum, spwNum = len(antList), len(spwList)
     figAnt = plt.figure(figsize = (11, 8))
@@ -383,7 +383,7 @@ def plotDSpec(pp, prefix, antList, spwList, DxList, DyList):
             DxPList = DxPList + [DxPL]
             DyPList = DyPList + [DyPL]
             #
-            plotDx, plotDy = DxList[ant_index, spw_index], DyList[ant_index, spw_index]
+            plotDx, plotDy = DxList[ant_index + antNum* spw_index], DyList[ant_index + antNum* spw_index]
             DxPL.step( FreqList[spw_index], plotDx.real, where='mid', label = 'reDx')
             DxPL.step( FreqList[spw_index], plotDx.imag, where='mid', label = 'imDx')
             DxPL.axis([np.min(FreqList[spw_index]), np.max(FreqList[spw_index]), -plotMax, plotMax])

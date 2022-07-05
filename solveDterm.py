@@ -395,7 +395,3 @@ for spw_index in list(range(spwNum)):
     #
     StokesTextFile.close()
 #
-#-------- Plot D-term spectra
-DxList, DyList = np.array(DxList).transpose(1,0,2), np.array(DyList).transpose(1,0,2)
-pp = PdfPages('D_%s-REF%s-Dspec.pdf' % (prefix, refantName))
-plotDSpec(pp, prefix, antList[antMap], spwList, DxList, DyList)
