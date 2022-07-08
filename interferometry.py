@@ -669,76 +669,6 @@ def GetTimerecord(msfile, ant1, ant2, spwID, PScan):
     tb.close()
     return interval, timeXY
 #
-def GetVisCross(msfile, spwID, scanID):
-    antNum = len(GetAntName(msfile))
-    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
-    blNum  = corrNum - antNum
-    data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
-    Out='DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (data_desc_id, scanID)
-    tb.open(msfile)
-    antXantYspw = tb.query(Out, sortlist='noduplicates ANTENNA1, ANTENNA2, TIME')
-    timeXY = antXantYspw.getcol('TIME')
-    timeNum = len(timeXY) / corrNum
-    try:
-        dataXY = antXantYspw.getcol('DATA')		# dataXY in array[pol, ch, baselinextime]
-    except:
-        dataXY = antXantYspw.getcol('FLOAT_DATA')		# dataXY in array[pol, ch, baselinextime]
-    tb.close()
-    polNum, chNum = dataXY.shape[0], dataXY.shape[1]
-    timeStamp = timeXY.reshape(corrNum, timeNum)[0]
-    for bl_index in range(blNum):
-        ant1, ant0 = Bl2Ant(bl_index)
-        xcorr_index[bl_index] = Ant2Bla_RevLex(ant0, ant1, antNum)
-    Xspec = dataXY.reshape(polNum, chNum, corrNum, timeNum)[:,:,xcorr_index,:]
-    return timeStamp, Xspec
-#
-'''
-def GetVisAllBL(msfile, spwID, scanID, fieldID=-1, AC=True):
-    antNum = len(GetAntName(msfile))
-    corrNum= int(antNum* (antNum + 1)/2)		# Number of correlations (with autocorr)
-    blNum  = corrNum - antNum
-    data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
-    Out = 'DATA_DESC_ID == %d && SCAN_NUMBER == %d' % (data_desc_id, scanID)
-    if fieldID >= 0: Out = '%s && FIELD_ID == %d' % (out, fieldID)
-    tb.open(msfile)
-    antXantYspw = tb.query(Out, sortlist='noduplicates ANTENNA1, ANTENNA2, TIME')
-    timeXY = antXantYspw.getcol('TIME')
-    if AC:
-        timeNum = int(len(timeXY) / corrNum)
-    else:
-        timeNum = int(len(timeXY) / blNum)
-    try:
-        dataXY = antXantYspw.getcol('DATA')		# dataXY in array[pol, ch, baselinextime]
-    except:
-        dataXY = antXantYspw.getcol('FLOAT_DATA')		# dataXY in array[pol, ch, baselinextime]
-    tb.close()
-    polNum, chNum = dataXY.shape[0], dataXY.shape[1]
-    if AC:
-        timeStamp = timeXY.reshape(corrNum, timeNum)[0]
-        acorr_index, xcorr_index = list(range(antNum)), list(range(blNum))
-        for ant_index in list(range(antNum)):
-            acorr_index[ant_index] = Ant2Bla_RevLex(ant_index, ant_index, antNum)
-        for bl_index in list(range(blNum)):
-            ant1, ant0 = Bl2Ant(bl_index)
-            xcorr_index[bl_index] = Ant2Bla_RevLex(ant0, ant1, antNum)
-        #
-        Pspec = dataXY.reshape(polNum, chNum, corrNum, timeNum)[:,:,acorr_index,:]
-        Xspec = dataXY.reshape(polNum, chNum, corrNum, timeNum)[:,:,xcorr_index,:]
-    else: 
-        timeStamp = timeXY.reshape(blNum, timeNum)[0]
-        xcorr_index = range(blNum)
-        for bl_index in range(blNum):
-            ant1, ant0 = Bl2Ant(bl_index)
-            xcorr_index[bl_index] = Ant2Bl_RevLex(ant0, ant1, antNum)
-        #
-        Xspec = dataXY.reshape(polNum, chNum, blNum, timeNum)[:,:,xcorr_index,:]
-        Pspec = np.ones([polNum, chNum, antNum, timeNum])
-    #
-    del(dataXY)
-    return timeStamp, Pspec, Xspec
-#
-'''
-
 def GetPSpec(msfile, ant, spwID):
     data_desc_id = SPW2DATA_DESC_ID(msfile, spwID)
     Out='ANTENNA1 == %d && ANTENNA2 == %d && DATA_DESC_ID == %d' % (ant, ant, data_desc_id)
@@ -1552,13 +1482,12 @@ def gainCal(spec, Gain):   # spec[blNum, chNum, timeNum], Gain[antNum, chNum, ti
     return spec / (Gain0[ant0]* Gain1[ant1].conjugate())
 #
 #-------- SmoothGain
-def smoothGain( timeValue, complexValue ):
-    amp    = np.abs(complexValue); meanAmp = np.mean(amp)
-    meanPhs = np.angle(np.mean(complexValue)); meanTwiddle = np.cos(meanPhs) + (0.0 - 1.0j)*np.sin(meanPhs) 
-    biasedPhs =  np.angle(complexValue * meanTwiddle)
-    ampSP  = UnivariateSpline( timeValue, amp, w=amp/meanAmp, s=0.1)
-    phsSP  = UnivariateSpline( timeValue, biasedPhs + meanPhs, w=amp/meanAmp, s=0.1)
-    return ampSP, phsSP
+def smoothGain( timeValue, complexValue, smooth=0.5 ):
+    amp    = np.abs(complexValue)
+    weight = amp / np.mean(amp)
+    SP_real  = UnivariateSpline( timeValue, complexValue.real, w=weight, s=smooth)
+    SP_imag  = UnivariateSpline( timeValue, complexValue.imag, w=weight, s=smooth)
+    return SP_real, SP_imag
 #
 def gainCalVis(vis, Gain1, Gain0):      # vis[blNum, timeNum], Gain[antNum, timeNum]
     blNum, timeNum = vis.shape[0], vis.shape[1]
@@ -1576,109 +1505,6 @@ def GetBunchedVis(msfile, ant1, ant2, pol, spw, field, chBunch, timeBunch):
 	timeXY, dataXY = GetVisibity(msfile, ant1, ant2, pol, spw, field)
 	return specBunch(dataXY, chBunch, timeBunch)
 
-
-#-------- First baseline to get time index
-'''
-def bandpassCorrection(msfile, antnum, pol, spw, field, chBunch, timeBunch):
-    blnum = antnum* (antnum - 1) / 2
-    timeXY = GetTimerecord(msfile, 0, 1, spw, field)
-    chNum, chWid  = GetChNum(msfile, spw)
-    scanEnd   = np.where(np.diff(timeXY) > 5.0)[0]
-    scanStart = np.append(0, scanEnd + 1)
-    scanEnd   = np.append(scanEnd, 2* max(scanEnd) - scanEnd[len(scanEnd)-2])
-    timeNum = scanEnd.max() + 1
-    XX = np.zeros([blnum, chNum/chBunch, timeNum/timeBunch], dtype=complex)
-    print(' -- Reading Visibility Data for SPW=%d' % (spw))
-    for bl_index in range(blnum):
-    ants = Bl2Ant(bl_index)
-    if ants[1] == 0:
-        print('    Baseline %d' % (ants[0]))
-        if ants[1] == ants[0] - 1 :
-            print('-%d' % (ants[1]))
-        else:
-            print('-%d' % (ants[1]))
-            bl_index = Ant2Bl(ants[1], ants[0])
-            XX[bl_index] = GetBunchedVis(msfile, ants[1], ants[0], pol, spw, field, chBunch, timeBunch)
-        #
-    timeXY  = np.mean(timeXY[range(timeNum)].reshape(timeBunch, timeNum/timeBunch), 0)
-    timeNum /= timeBunch
-    chNum   /= chBunch
-    #-------- Delay Determination for Antenna
-    print(' -- Delay Calibration')
-    delayCalXX = np.zeros([blnum, chNum, timeNum], dtype=complex)
-    delay_bl, delay_ant = np.zeros(blnum), np.zeros([antnum, timeNum])
-    startCH, stopCH = int(0.1* chNum), int(0.9* chNum) 
-    for time_index in range(timeNum):
-        for bl_index in range(blnum):
-            delay_bl[bl_index] = delay_search(XX[bl_index, startCH:stopCH, time_index])
-            delay_ant[:,time_index] = cldelay_solve(delay_bl, [np.std(delay_bl)]*blnum)[0]
-        #
-        #---- Apply Delay Correction for visibilities
-        for bl_index in range(blnum):
-            ants = Bl2Ant(bl_index); ant1, ant2 = ants[1], ants[0]
-            delayCalXX[bl_index, :, time_index] = delay_cal(XX[bl_index, :, time_index], delay_ant[ant2, time_index] - delay_ant[ant1, time_index])
-        #
-    #-------- Overall Bandpass Calibration
-    print(' -- Bandpass Calibration')
-    BP_ant = bpPhsAnt(delayCalXX)
-    bpCalXX = bpCal(delayCalXX, BP_ant)
-    #-------- Gain Calibration
-    print(' -- Gain Calibration')
-    Gain_ant = gainAnt(bpCalXX[:, startCH:stopCH,:])
-    gainCalXX = gainCal(bpCalXX, Gain_ant)
-    #-------- Integrated Spectra
-    print(' -- Time Integration')
-    BP_bl = np.zeros([blnum, chNum], dtype=complex)
-    for bl_index in range(blnum):
-        BP_bl[bl_index] = blBp(gainCalXX[bl_index])
-    #
-    BPAmp_ant = np.zeros([antnum, chNum])
-    BPPhs_ant = np.zeros([antnum, chNum])
-    BP_ant = np.zeros([antnum, chNum], dtype=complex)
-    for ch_index in range(chNum):
-        BPAmp_ant[:,ch_index] = clamp_solve(abs(BP_bl[:,ch_index]), [np.std(abs(BP_bl[:,ch_index]))]*blnum)[0]
-        BPPhs_ant[:,ch_index] = clphase_solve(np.angle(BP_bl[:,ch_index]), [np.std(np.angle(BP_bl[:,ch_index]))]*blnum)[0]
-    #
-    BP_ant = BPAmp_ant* np.exp(1j* BPPhs_ant)
-    bpCalXX = bpCal(gainCalXX, BP_ant)
-    return delay_ant, Gain_ant, BP_ant, bpCalXX
-#
-'''
-'''
-def bandpassStability(bpCalXX, segNum):
-#-------- Segment Spectra
-	blnum   = len(bpCalXX)
-	antnum  = Bl2Ant(blnum)[0]
-	chNum   = len(bpCalXX[0])
-	timeNum = len(bpCalXX[0,0])
-	startCH, stopCH = int(0.1* chNum), int(0.9* chNum) 
-	seg_len = int(timeNum / segNum)					# Number of time in a segment
-	seg_blXX = np.zeros([blnum, chNum], dtype=complex)			# Baseline-based integrated spectrum
-	segAmp_ant = np.zeros([antnum, chNum])						# Amplitude of antenna-based spectrum
-	segPhs_ant = np.zeros([antnum, chNum])						# Phase of antenna-based spectrum
-	segXX = np.zeros([segNum, antnum, chNum], dtype=complex)	# Antenna-based integrated spectrum
-	sd_spec = np.zeros([antnum, segNum]); pp_spec = np.zeros([antnum, segNum]); pe_spec = np.zeros([antnum, segNum])	# For statistics
-	sd_phas = np.zeros([antnum, segNum]); pp_phas = np.zeros([antnum, segNum]); pe_phas = np.zeros([antnum, segNum])	# For statistics
-	#
-	for seg_index in range(segNum):
-		for bl_index in range(blnum):
-			seg_blXX[bl_index] = blBp(bpCalXX[bl_index,:,(seg_index*seg_len):((seg_index + 1)*seg_len)])
-		for ch_index in range(chNum):
-			segAmp_ant[:,ch_index] = clamp_solve(abs(seg_blXX[:,ch_index]), [np.std(abs(seg_blXX[:,ch_index]))]*blnum)[0]
-			segPhs_ant[:,ch_index] = clphase_solve(np.angle(seg_blXX[:,ch_index]), [np.std(np.angle(seg_blXX[:,ch_index]))]*blnum)[0]
-		segXX[seg_index] = segAmp_ant* np.exp(1j* segPhs_ant)
-		#
-		for ant_index in range(antnum):
-			sd_spec[ant_index, seg_index] = np.std(abs(segXX[seg_index,ant_index,startCH:stopCH]))
-			pp_spec[ant_index, seg_index] = P2P(abs(segXX[seg_index,ant_index,startCH:stopCH]))
-			pe_spec[ant_index, seg_index] = PeakExcess(abs(segXX[seg_index,ant_index,startCH:stopCH]))
-			sd_phas[ant_index, seg_index] = np.std(np.angle(segXX[seg_index,ant_index,startCH:stopCH]))
-			pp_phas[ant_index, seg_index] = P2P(np.angle(segXX[seg_index,ant_index,startCH:stopCH]))
-			pe_phas[ant_index, seg_index] = PeakExcess(np.angle(segXX[seg_index,ant_index,startCH:stopCH]))
-		#
-	return sd_spec, pp_spec, pe_spec, sd_phas, pp_phas, pe_phas
-#
-'''
 #-------- Smoothing complex vector
 def splineComplex( samplePoints, vector, smoothWidth=3, Weight=np.array([1.0,1.0]) ):
     node_index = list(range(int(smoothWidth/2), len(samplePoints)-2, int(smoothWidth)) )

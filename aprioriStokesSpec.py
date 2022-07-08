@@ -9,12 +9,81 @@ execfile(SCR_DIR + 'Plotters.py')
 from matplotlib.backends.backend_pdf import PdfPages
 RADperHzMeterArcsec = 2.0* pi / 299792458 / (180*3600/pi)
 if 'chTrim' not in locals(): chTrim = 0.05
+polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
+#-------- Antenna list in MS
+msfile = wd + prefix + '.ms'
+BandName = GetBandNames(msfile, [spw])[0]; bandID = int(BandName[3:5])
+BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
+UseAntList = CrossCorrAntList(Antenna1, Antenna2)
+antList = GetAntName(msfile)[UseAntList]
+refAntID = np.where(antList == refant)[0][0]
+BPantList = np.load('%s-REF%s.Ant.npy' % (prefix, refant))
+antMap = indexList(BPantList,antList)       # BPantList = antList[antMap]
+antNum  = len(BPantList)
+blNum = int(antNum * (antNum - 1)/2)
+ant0 = ANT0[0:blNum]; ant1 = ANT1[0:blNum]
+blMap, blInv= list(range(blNum)), [False]* blNum
+for bl_index in list(range(blNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+#
 #-------- Check calibration files
-antList = np.load('%s-REF%s.Ant.npy' % (prefix, refant))
 BPant   = np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, BPscan, spw))  # Bandpass (w/o XY phase) [ant, pol, ch]
 XYspec  = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spw)) # XY phase [ch]
-Freq    = np.load('%s-SPW%d-Freq.npy' % (prefix, spw))
+BPant[:,1] *= XYspec
+BP_bl   = BPant[ant0][:,polYindex]* BPant[ant1][:,polXindex].conjugate()
+chNum   = BPant.shape[2]; chRange = list(range(int(chTrim* chNum), int((1.0 - chTrim)*chNum)))
+Gain    = np.load('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant))  # Gain [pol, ant, Time]
+GainTS  = np.load('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant))  # Gain Time Stamp [Time]
+XYPH    = np.load('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))# XY phase [Time]
+Dspec   = np.zeros([antNum, 2, chNum], dtype=complex)   # D-term [ant, pol, ch]
+for ant_index in list(range(antNum)):
+    Dterm = np.load('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antList[ant_index]))
+    Freq  = Dterm[0]
+    Dspec[ant_index, 0] = Dterm[1] + (0.0 + 1.0j)*Dterm[2]  # Dx
+    Dspec[ant_index, 1] = Dterm[3] + (0.0 + 1.0j)*Dterm[4]  # Dy
+#
 '''
+#-------- Scan Time Line
+azelTime, AntID, AZ, EL = GetAzEl(msfile)
+mjdSec, Az, El, PA = [], [], [], []
+for scan in scanList:
+    interval, timeStamp = GetTimerecord(msfile, 0, 1, spw, scan)
+    mjdSec = mjdSec + timeStamp.tolist()
+    scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, refAntID, AZ, EL)
+    scanPA = AzEl2PA(scanAz, scanEl, ALMA_lat) + BandPA
+    Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
+#
+#-------- Load visibilities
+timeNum = len(mjdSec)
+chAvgVis = np.zeros([4, blNum, timeNum], dtype=complex)
+VisSpec  = np.zeros([4, chNum, blNum, timeNum], dtype=complex)
+timeIndex  = 0
+for scan in scanList:
+    #-------- Load Visibilities
+    print('-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan))
+    timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)  # Xspec[POL, CH, BL, TIME]
+    scanTimeSize = len(timeStamp)
+    del Pspec
+    print('  -- Apply bandpass cal')
+    tempSpec = CrossPolBL(Xspec[:,:,blMap], blInv).transpose(3, 2, 0, 1)
+    del Xspec
+    VisSpec[:,:,:,timeIndex:timeIndex + scanTimeSize] = (tempSpec / BP_bl).transpose(2,3,1,0)
+    del tempSpec
+    timeIndex += scanTimeSize
+#
+#-------- Phase corrections
+chAvgVis = np.mean(VisSpec[:,chRange], axis=1)
+print('---- Antenna-based gain solution using tracking antennas')
+Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[3]) ])   # Parallel-pol gain
+Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))
+Gain = Gamp* Gain/abs(Gain)
+
+
+
+
+
+
+
 #-------- Configure Array
 print('---Checking array configulation')
 if 'antFlag' not in locals():   antFlag = []
