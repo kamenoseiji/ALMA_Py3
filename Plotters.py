@@ -203,7 +203,8 @@ def plotAC(prefix, antList, spwList, freqList, AC):
 def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.2):
     antNum, spwNum = len(antList), len(spwList)
     figAnt = plt.figure(figsize = (11, 8))
-    figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
+    #figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
+    figAnt.suptitle(prefix + ' Bandpass')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
     #-------- Plot BP
