@@ -40,9 +40,9 @@ if 'BPprefix' in locals():
     BP_ant = np.load(BPfileName)
 #
 #-------- Loop for Scan
-GainAP0, GainAP1, timeList, SNRList, flagList, fieldList = [], [], [], [], [], []
-scan_index = 0
-for scan in scanList:
+GainList, timeList, flagList, fieldList = [], [], [], []
+for scan_index in list(range(len(scanList))):
+    scan = scanList[scan_index]
     field_names = msmd.fieldsforscan(scan, True); fieldList = fieldList + [field_names[0]]
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
@@ -56,7 +56,7 @@ for scan in scanList:
     chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
     tempSpec = ParaPolBL(Xspec[polIndex][:,:,blMap], blInv).transpose(3,2,0,1)  # Parallel Polarization Baseline Mapping : tempSpec[time, blMap, pol, ch]
     if 'BP_ant' in locals():
-        #print('Applying bandpass calibration...')
+        print('Applying bandpass calibration...')
         BPCaledXspec = (tempSpec / (BP_ant[ant0]* BP_ant[ant1].conjugate())).transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
     else:
         BPCaledXspec = tempSpec.transpose(2,3,1,0) # Bandpass Cal ; BPCaledXspec[pol, ch, bl, time]
@@ -67,36 +67,29 @@ for scan in scanList:
         chAvgVis = np.array([specBunch(chAvgVis[0], 1, timeBunch), specBunch(chAvgVis[1], 1, timeBunch)])
         timeNum = chAvgVis.shape[2]
         timeStamp = bunchVec(timeStamp, timeBunch)
-    for time_index in list(range(timeNum)):
-        #------ Progress bar
-        progress = (time_index + 1.0) / timeNum
-        sys.stderr.write('\r\033[K' + get_progressbar_str(progress)); sys.stderr.flush()
-        #------
-        gainFlag = np.ones(UseAntNum)
-        tempGain, tempErr = gainComplexErr(chAvgVis[0, :, time_index]); GainAP0 = GainAP0 + [tempGain]; tempSNR = abs(tempGain) / tempErr
-        SNRList = SNRList + [tempSNR]; gainFlag[np.where(tempSNR  < SNR_THRESH)[0]] = 0.0
-        #------
-        if polNum == 2:
-            tempGain, tempErr = gainComplexErr(chAvgVis[1, :, time_index]); GainAP1 = GainAP1 + [tempGain]; tempSNR = abs(tempGain) / tempErr
-            SNRList = SNRList + [tempSNR]; gainFlag[np.where(tempSNR  < SNR_THRESH)[0]] = 0.0
-        #
-        flagList = flagList + [gainFlag]
+    Gain, antSNR, gainFlag = np.ones([UseAntNum, polNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, polNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
+    for pol_index in list(range(polNum)):
+        Gain[:, pol_index], tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[pol_index])
+        antSNR[:, pol_index] = abs(Gain[:, pol_index]) / abs(tempErr)
+        gainFlag = gainFlag* ((np.sign( antSNR[:, pol_index] - SNR_THRESH ) + 1.0)/2)
     #
-    print('')
-    timeList.extend(timeStamp.tolist())
-    scan_index += 1
+    timeList = timeList + timeStamp.tolist()
+    GainList = GainList + [Gain]
+    flagList = flagList + [gainFlag]
 #
 msmd.done(); msmd.close()
 timeNum = len(timeList)
-antFG  = np.array(flagList).T                          # [ant, time]
-antSNR = np.array(SNRList).reshape(timeNum, polNum, UseAntNum).transpose(2,1,0)  # [ant, pol, time]
-if polNum == 2:
-    Gain = np.array([GainAP0, GainAP1]).transpose(2,0,1)    # [ant, pol, time]
-else:
-    Gain = np.array([GainAP0]).transpose(2,0,1)    # [ant, pol, time]
+GAarray, FGarray = np.ones([UseAntNum, polNum, timeNum], dtype=complex), np.ones([UseAntNum, timeNum])
+time_index = 0
+for scan_index in list(range(len(scanList))):
+    timeNum = GainList[scan_index].shape[2]
+    GAarray[:,:,time_index:(time_index + timeNum)] = GainList[scan_index]
+    FGarray[:,time_index:(time_index   + timeNum)] = flagList[scan_index]
+    time_index += timeNum
+#
 np.save(prefix + '.Ant.npy', antList[antMap]) 
 np.save(prefix + '.Field.npy', np.array(fieldList))
 np.save('%s-SPW%d.TS.npy' % (prefix, spw), np.array(timeList)) 
-np.save('%s-SPW%d.GA.npy' % (prefix, spw), Gain) 
-np.save('%s-SPW%d.FG.npy' % (prefix, spw), antFG) 
+np.save('%s-SPW%d.GA.npy' % (prefix, spw), GAarray)
+np.save('%s-SPW%d.FG.npy' % (prefix, spw), FGarray) 
 plotGain(prefix, spw)

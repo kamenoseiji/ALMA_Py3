@@ -1376,10 +1376,10 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         Xspec = np.apply_along_axis(bunchN, 1, Xspec)
     #
     if len(FG) > 0:
-        flagIndex = np.where( FG > 0.0 )[0].tolist()
+        flagIndex = np.where( np.median(FG, axis=0)[indexList(timeStamp,TS)] > 0.001 )[0].tolist()
     else:
         flagIndex = list(range(len(timeStamp)))
-    text_sd = 'Use %d integration / flag %d' % (len(flagIndex), len(np.where(FG < 1.0)))
+    text_sd = 'Use %d / %d integration' % (len(flagIndex), len(timeStamp))
     print(text_sd)
     #
     ant0, ant1, polNum, chNum, timeNum = ANT0[0:blNum], ANT1[0:blNum], Pspec.shape[0], Xspec.shape[1], Xspec.shape[3]
@@ -1793,7 +1793,7 @@ def gainComplexErr( bl_vis, niter=2 ):
         correction = np.linalg.solve(L.T, t)
         CompSol    = CompSol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
     #
-    return CompSol, logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate()))
+    return CompSol, abs(logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate())))
 #
 #-------- Function to calculate visibilities
 def polariVis( Xspec ):     # Xspec[polNum, blNum, chNum, timeNum]

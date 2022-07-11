@@ -1,13 +1,33 @@
 #---- Script for Band-3 Astroholograpy Data
 import sys
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ptick
-from matplotlib.backends.backend_pdf import PdfPages
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 #
 #-------- Procedures
-msfile = wd + prefix + '.ms'
+for spw in spwList:
+    BPList, XYList = [], []
+    for scan in scanList:
+        BPList = BPList + [np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, scan, spw))]
+        XYList = XYList + [np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, scan, spw))]
+    #
+    BPant  = np.array(BPList)
+    XYspec = np.array(XYList)
+    #---- Reference scan
+    if 'BPscan' in locals():
+        bpScanIndex = scanList.index(BPscan)
+    else:
+        bpScanIndex = np.argmax(abs(np.mean(XYspec, axis=1)))
+    #
+    Bpweight = 1.0 / np.var(BPant, axis=3)  # BPweight[scan, ant, pol]
+    BPmean = (np.sum(BPant.transpose(3,0,1,2)* Bpweight, axis=1) / np.sum(Bpweight, axis=0)).transpose(1,2,0)
+    XYcorr = XYspec.dot(XYspec[bpScanIndex].conjugate()) / len(XYspec[bpScanIndex])
+    XYsign = np.sign(XYcorr.real)
+    XYvar  = -np.log(abs(XYcorr))
+    XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/len(scanList)))
+    XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
+#
+'''
+
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
@@ -46,10 +66,10 @@ if 'bunchNum' not in locals(): bunchNum = 1
 for spw_index in list(range(spwNum)):
     if 'FGprefix' in locals():  # Flag table
         try:
-            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spwList[spw_index]))
-            TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spwList[spw_index]))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG, TS)
-            #BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG)
+            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spwList[spw_index])); FG = np.median(FG, axis=0)
+            #TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spwList[spw_index]))
+            #BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG, TS)
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG)
         except:
             BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum )
         #
@@ -90,3 +110,4 @@ if BPPLOT:
         if 'plotMax' not in locals(): plotMax = 1.2
         plotSP(pp, prefix, antList[antMap], spwList, FreqList, BPList, plotMin, plotMax) 
 #
+'''

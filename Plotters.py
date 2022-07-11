@@ -303,9 +303,10 @@ def plotGain(prefix, spw):
     #-------- Load tables
     antFile = prefix + '.Ant.npy'; antList = np.load(antFile); antNum = len(antList)
     timeFile = '%s-SPW%d.TS.npy' % (prefix, spw)
-    GainFile = '%s-SPW%d.GA.npy' % (prefix, spw)
+    GainFile = '%s-SPW%d.GA.npy' % (prefix, spw)    # Gain[ant, pol, time]
+    FlagFile = '%s-SPW%d.FG.npy' % (prefix, spw)    # Flag[ant, time] 
     pp = PdfPages('GA_%s-SPW%d.pdf' %  (prefix, spw))
-    DT, timeStamp, Gain = [], np.load(timeFile), np.load(GainFile)
+    DT, timeStamp, Gain, FG = [], np.load(timeFile), np.load(GainFile), np.load(FlagFile)
     polNum = Gain.shape[1]
     for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
     #-------- Prepare Plots
@@ -313,14 +314,15 @@ def plotGain(prefix, spw):
     figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')
     figAmp.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d'))); figPhs.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')))
     figAmp.text(0.03, 0.45, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.45, 'Gain Phase [deg]', rotation=90)
-    plotMin, plotMax = 0.0, 1.1* np.percentile(abs(Gain), 90)
+    plotMin, plotMax = 0.0, 1.1* np.percentile(np.max(abs(Gain), axis=1)* FG, 90)
     #-------- Plot Gain
     for ant_index in list(range(antNum)):
+        flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
         AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
-        for pol_index in list(range(polNum)): AmpPL.plot( DT, abs(Gain[ant_index, pol_index]), '.', markersize=3, color=polColor[pol_index])
-        for pol_index in list(range(polNum)): PhsPL.plot( DT, np.angle(Gain[ant_index, pol_index])*180.0/pi, '.', markersize=3, color=polColor[pol_index])
-        ampMed = np.median(abs(Gain[ant_index]), axis=1)
+        for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
+        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/pi, '.', markersize=3, color=polColor[pol_index])
+        ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
         AmpPL.yaxis.offsetText.set_fontsize(3)
         PhsPL.yaxis.offsetText.set_fontsize(3)
