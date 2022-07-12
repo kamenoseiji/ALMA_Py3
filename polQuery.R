@@ -1,7 +1,7 @@
 Arguments <- commandArgs(trailingOnly = T)
 #Arguments <- c('-D2014/01/13/18:04:06', '-F97.500000', 'J2056-4714')
 #timeWindow <- 180	# Days
-timeWindow <- 360	# Days
+timeWindow <- 720	# Days
 #-------- Function to return residuals in RM fit
 residEVPA <- function(x, y, w){	# Optimization function for RM fit
 	return(function(para){
@@ -30,17 +30,16 @@ srcList <- argList$srcList
 #-------- Load Flux.Rdata from web
 load(url("http://www.alma.cl/~skameno/Grid/Stokes/Flux.Rdata")) 
 FLDF$timeDiff <- as.numeric(difftime(FLDF$Date, refDate, units='days'))
-
 #-------- For each source
 IatRef <- QatRef <- UatRef <- numeric(0)
 for(sourceName in srcList){
 	srcDF <- FLDF[((FLDF$Src == sourceName) & (abs(FLDF$timeDiff) < timeWindow)),]
 	if(nrow(srcDF) < 6){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
-	# if(min(abs(srcDF$timeDiff)) > timeWindow){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
+	if(min(abs(srcDF$timeDiff)) > timeWindow){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
 	freqList <- as.numeric(unique(srcDF$Freq))
-    for( freq in freqList ){
-        if( nrow(srcDF[srcDF$Freq == freq,]) < 2 ){ srcDF <- srcDF[srcDF$Freq != freq,]}
-    }
+    #for( freq in freqList ){
+    #    if( nrow(srcDF[srcDF$Freq == freq,]) < 2 ){ srcDF <- srcDF[srcDF$Freq != freq,]}
+    #}
 	freqList <- as.numeric(unique(srcDF$Freq))
     freqNum <- length(freqList)
 	if(freqNum < 2){ srcList <- srcList[-which(srcList %in% sourceName)]; next }

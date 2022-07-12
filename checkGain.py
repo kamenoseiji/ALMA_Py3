@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 #-------- Initial Settings
-if 'SNR_THRESH' not in locals(): SNR_THRESH = 3.0
+if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []
 msfile = wd + prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spw, scanList[0])
@@ -52,8 +52,11 @@ for scan_index in list(range(len(scanList))):
     if polNum == 2: polIndex = [0, 1]
     if polNum == 1: polIndex = [0]
     polNum = len(polIndex)
-    if chNum == 1:  chRange = [0]
-    chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    if chNum == 1:
+        chRange = [0]
+    else:
+        chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    #
     tempSpec = ParaPolBL(Xspec[polIndex][:,:,blMap], blInv).transpose(3,2,0,1)  # Parallel Polarization Baseline Mapping : tempSpec[time, blMap, pol, ch]
     if 'BP_ant' in locals():
         print('Applying bandpass calibration...')

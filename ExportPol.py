@@ -1,4 +1,5 @@
 import os
+#INTList = ['POLARIZATION']
 INTList = ['POLARIZATION']
 CATList = ['POL_']
 #----
