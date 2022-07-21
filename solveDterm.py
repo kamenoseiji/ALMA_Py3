@@ -14,7 +14,7 @@ pattern = r'RB_..'
 timeNum = 0
 sourceList = []
 msfile = wd + prefix + '.ms'
-Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
+Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 sources, posList = GetSourceList(msfile); sourceList = sourceList + sourceRename(sources)
@@ -40,12 +40,10 @@ if 'scanList' in locals():
 else:
     scanLS = msmd.scannumbers().tolist()
 #
-
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
 for scan in scanLS:
     interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], scan)
-    timeNum += len(timeStamp)
     trkAnt, scanAnt, Time, Offset = antRefScan( msfile, [timeStamp[0], timeStamp[-1]], antFlag )
     trkAnt = list(set(trkAnt) - set(flagAntID))
     if refAntID in trkAnt:
@@ -81,18 +79,20 @@ for bl_index in list(range(blNum)):
 #
 if not 'bunchNum' in locals(): bunchNum = 1
 def bunchVecCH(spec): return bunchVec(spec, bunchNum)
-print('Total %d integration periods.' % (timeNum))
+#-------- AZ, EL, PA
+azelTime, AntID, AZ, EL = GetAzEl(msfile)
+azelTime_index = np.where( AntID == refAntID )[0].tolist()
+if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
+timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 #-------- Loop for SPW
 DxList, DyList, FreqList = [], [], []
 for spw_index in list(range(spwNum)):
+    mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
+    #-------- time-independent spectral setups
     spw = spwList[spw_index]
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
     DxSpec, DySpec = np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex), np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex)
     caledVis = np.ones([4,blNum, 0], dtype=complex)
-    if 'FGprefix' in locals():  # Flag table
-        FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw)); FG = np.min(FG, axis=0)
-        TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw))
-    #
     if 'BPprefix' in locals():  # Bandpass file
         BPantList, BP_ant = np.load(BPprefix + '-REF' + refantName + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refantName, BPscan, spw))
         BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
@@ -100,50 +100,54 @@ for spw_index in list(range(spwNum)):
         XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refantName, BPscan, spw))
         print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
     #
-    BP_ant = np.apply_along_axis(bunchVecCH, 2, BP_ant)
+    BP_ant = np.apply_along_axis(bunchVecCH, 2, BP_ant)                         # Channel binning
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
     #
-    chAvgVis = np.zeros([4, blNum, timeNum], dtype=complex)
-    VisSpec  = np.zeros([4, int(ceil(chNum/bunchNum)), blNum, timeNum], dtype=complex)
-    mjdSec, scanST, scanET, Az, El, PA = [], [], [], [], [], []
-    #-------- AZ, EL, PA
-    azelTime, AntID, AZ, EL = GetAzEl(msfile)
-    azelTime_index = np.where( AntID == refAntID )[0].tolist()
-    if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
-    timeThresh = np.median( np.diff( azelTime[azelTime_index]))
-    scanNum = len(scanList)
-    timeIndex  = 0
+    #-------- time-dependent setups
+    if 'FGprefix' in locals():  # Flag table
+        FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw)); FG = np.min(FG, axis=0)
+        TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw))
+    #
+    #-------- For visibilities in each scan
+    scanST = scanST + [0]
     for scan_index in list(range(len(scanList))):
         scan = scanList[scan_index]
-        #-------- Load Visibilities
         print('-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan))
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)  # Xspec[POL, CH, BL, TIME]
         del Pspec
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
+        #---- remove flagged records
+        flagIndex = list(range(len(timeStamp)))
         if 'FG' in locals():
             flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
-        else:
-            flagIndex = list(range(len(timeStamp)))
-        if chNum == 1:
-            print('  -- Channel-averaged data: no BP and delay cal')
-            chAvgVis[:, :, timeIndex:timeIndex + len(timeStamp)] =  CrossPolBL(Xspec[:,:,blMap], blInv)[:,0]
-        else:
-            print('  -- Apply bandpass cal')
-            tempSpec = CrossPolBL(Xspec[:,:,blMap], blInv).transpose(3, 2, 0, 1)[flagIndex]
-            del Xspec
-            VisSpec[:,:,:,timeIndex:timeIndex + len(timeStamp)] = (tempSpec / BP_bl).transpose(2,3,1,0) 
-            del tempSpec
-        #
-        scanST = scanST + [timeIndex]
-        timeIndex += len(timeStamp)
-        scanET = scanET + [timeIndex]
+        timeNum = timeNum + [len(flagIndex)]
+        if scan_index != 0: scanST = scanST + [scanST[scan_index - 1] + timeNum[scan_index - 1]]
+        XspecList = XspecList + [Xspec[:,:,:,flagIndex]]
+        del Xspec
         #-------- Expected polarization responses
         scanAz, scanEl = AzElMatch(timeStamp[flagIndex], azelTime, AntID, refAntID, AZ, EL)
         mjdSec, scanPA = mjdSec + timeStamp[flagIndex].tolist(), AzEl2PA(scanAz, scanEl, ALMA_lat) + BandPA
         Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
     #
-    if chNum > 1: chAvgVis = np.mean(VisSpec[:,chRange], axis=1)
-    mjdSec, Az, El = np.array(mjdSec), np.array(Az), np.array(El)
+    #-------- Combine scans
+    VisSpec, chAvgVis = np.zeros([4, chNum, blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
+    timeIndex = 0
+    if chNum == 1:
+        print('  -- Channel-averaged data: no BP and delay cal')
+        for scan_index in list(range(len(scanList))):
+            chAvgVis[:, :, timeIndex:timeIndex + timeNum[scan_index]] =  CrossPolBL(XspecList[scan_index][:,:,blMap], blInv)[:,0]
+            timeIndex = timeIndex + timeNum[scan_index]
+    else:
+        print('  -- Apply bandpass cal')
+        for scan_index in list(range(len(scanList))):
+            VisSpec[:,:,:,timeIndex:timeIndex + timeNum[scan_index]] = (CrossPolBL(XspecList[scan_index][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0)
+            timeIndex = timeIndex + timeNum[scan_index]
+        #
+        chAvgVis = np.mean(VisSpec[:,chRange], axis=1)
+    #
+    del XspecList
+    #-------- Gain solutions
+    mjdSec, Az, El, PA, PAnum = np.array(mjdSec), np.array(Az), np.array(El), np.array(PA), len(PA)
     print('---- Antenna-based gain solution using tracking antennas')
     Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[3]) ])   # Parallel-pol gain
     Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))
@@ -151,18 +155,19 @@ for spw_index in list(range(spwNum)):
     #-------- Gain-calibrated visibilities
     print('  -- Apply parallel-hand gain calibration')
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    Vis    = np.mean(caledVis, axis=1)
-    PAnum = len(PA); PA = np.array(PA)
-    QCpUS, UCmQS =  np.zeros(PAnum), np.zeros(PAnum)
-    print('  -- Solution for Q and U')
+    blWeight = np.mean(caledVis[[0,3]].real, axis=(0,2))**2 / (np.var(caledVis[0].real, axis=1) + np.var(caledVis[3].real, axis=1))
+    blWeight = blWeight / np.sum(blWeight)
+    Vis = caledVis.transpose(0,2,1).dot(blWeight)
     #-------- Coarse estimation of Q and U using XX and YY
+    print('  -- Solution for Q and U')
+    QCpUS, UCmQS =  np.zeros(PAnum), np.zeros(PAnum)
     if 'QUmodel' not in locals(): QUmodel = False
     CS, SN = np.cos(2.0* PA), np.sin(2.0* PA)
     for sourceName in sourceList:
         scanLS = scanDic[sourceName]
         if len(scanLS) < 1 : continue
         timeIndex = []
-        for scanIndex in scanLS: timeIndex = timeIndex + list(range(scanST[scanIndex], scanET[scanIndex]))
+        for scanIndex in scanLS: timeIndex = timeIndex + list(range(scanST[scanIndex], scanST[scanIndex] + timeNum[scanIndex]))
         timeDic[sourceName] = timeIndex
         if QUmodel:
             QUsol = np.array(StokesDic[sourceName])[[1,2]]/StokesDic[sourceName][0]
@@ -183,7 +188,7 @@ for spw_index in list(range(spwNum)):
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY* XYsign])
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    Vis    = np.mean(caledVis, axis=1)
+    Vis = caledVis.transpose(0,2,1).dot(blWeight)
     #-------- Fine estimation of Q and U using XY and YX
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
@@ -196,7 +201,7 @@ for spw_index in list(range(spwNum)):
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    Vis    = np.mean(caledVis, axis=1)
+    Vis = caledVis.transpose(0,2,1).dot(blWeight)
     #-------- XY phase correction
     XYphase, DtotP, DtotM = XY2PhaseVec(mjdSec - np.median(mjdSec), Vis[[1,2]], UCmQS, QCpUS, 1000)
     twiddle = np.exp((1.0j)* XYphase)
@@ -292,6 +297,7 @@ for spw_index in list(range(spwNum)):
     M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
     StokesVis = np.zeros([4, int(chNum/bunchNum), PAnum], dtype=complex )
     for time_index in list(range(PAnum)): StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
+    del GainCaledVisSpec
     chAvgVis = np.mean(StokesVis[:,chRange], axis=1)
     XYC = chAvgVis[[1,2]]
     PS = InvPAVector(PA, np.ones(PAnum))
