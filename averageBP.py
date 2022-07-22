@@ -21,16 +21,16 @@ for spw in spwList:
         bpScanIndex = scanList.index(BPscan)
     else:
         bpScanIndex = np.argmax(abs(np.mean(XYspec, axis=1)))
-    #
-    #Bpweight = 1.0 / np.var(BPant, axis=3)  # BPweight[scan, ant, pol]
-    #BPmean = (np.sum(BPant.transpose(3,0,1,2)* Bpweight, axis=1) / np.sum(Bpweight, axis=0)).transpose(1,2,0)
     BPmean = np.mean(BPant, axis=0)
     XYmean = XYspec[bpScanIndex]; chNum = len(XYmean)
     for iter in list(range(10)):
         #-------- BP table 
         for ant_index in list(range(antNum)):
             for pol_index in list(range(polNum)):
-                BPweight[:, ant_index, pol_index]  = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate())
+                BPpower = np.sum(BPant[:, ant_index, pol_index]* BPant[:, ant_index, pol_index].conjugate(), axis=1).real
+                BPcorr = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()) / sqrt(BPpower* (BPmean[ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()).real))
+                BPvar  = -np.log(abs(BPcorr))
+                BPweight[:, ant_index, pol_index]  = 1.0 / (BPvar + np.percentile(BPvar, 100/scanNum))
                 BPweight[:, ant_index, pol_index] = BPweight[:, ant_index, pol_index] / np.sum(abs(BPweight[:, ant_index, pol_index]))
             #
         #
@@ -46,7 +46,7 @@ for spw in spwList:
         #print(text_phs )
         XYsign = np.sign(XYcorr.real)
         XYvar  = -np.log(abs(XYcorr))
-        XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/len(scanList)))
+        XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
         XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
     #
     text_BPwgt, text_XYwgt, text_scan = 'BP wgt:', 'XY wgt:', 'Scan  :'
