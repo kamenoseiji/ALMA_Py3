@@ -30,7 +30,7 @@ for spw in spwList:
                 BPpower = np.sum(BPant[:, ant_index, pol_index]* BPant[:, ant_index, pol_index].conjugate(), axis=1).real
                 BPcorr = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()) / sqrt(BPpower* (BPmean[ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()).real))
                 BPvar  = -np.log(abs(BPcorr))
-                BPweight[:, ant_index, pol_index]  = 1.0 / (BPvar + np.percentile(BPvar, 100/scanNum))
+                BPweight[:, ant_index, pol_index]  = BPcorr.conjugate() / (BPvar + np.percentile(BPvar, 100/scanNum))
                 BPweight[:, ant_index, pol_index] = BPweight[:, ant_index, pol_index] / np.sum(abs(BPweight[:, ant_index, pol_index]))
             #
         #
