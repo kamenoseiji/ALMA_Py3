@@ -6,6 +6,7 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 XYSPW, BPSPW = [], []
 #-------- Procedures
 for spw in spwList:
+    print('SPW %2d:---------------------------------------------------------------' % (spw))
     BPList, XYList = [], []
     for scan in scanList:
         BPList = BPList + [np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, scan, spw))]
@@ -13,16 +14,28 @@ for spw in spwList:
     #
     BPant  = np.array(BPList)
     XYspec = np.array(XYList)
+    scanNum, antNum, polNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
+    BPweight = np.zeros([scanNum, antNum, polNum], dtype=complex)
     #---- Reference scan
     if 'BPscan' in locals():
         bpScanIndex = scanList.index(BPscan)
     else:
         bpScanIndex = np.argmax(abs(np.mean(XYspec, axis=1)))
     #
-    Bpweight = 1.0 / np.var(BPant, axis=3)  # BPweight[scan, ant, pol]
-    BPmean = (np.sum(BPant.transpose(3,0,1,2)* Bpweight, axis=1) / np.sum(Bpweight, axis=0)).transpose(1,2,0)
+    #Bpweight = 1.0 / np.var(BPant, axis=3)  # BPweight[scan, ant, pol]
+    #BPmean = (np.sum(BPant.transpose(3,0,1,2)* Bpweight, axis=1) / np.sum(Bpweight, axis=0)).transpose(1,2,0)
+    BPmean = np.mean(BPant, axis=0)
     XYmean = XYspec[bpScanIndex]; chNum = len(XYmean)
     for iter in list(range(10)):
+        #-------- BP table 
+        for ant_index in list(range(antNum)):
+            for pol_index in list(range(polNum)):
+                BPweight[:, ant_index, pol_index]  = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate())
+                BPweight[:, ant_index, pol_index] = BPweight[:, ant_index, pol_index] / np.sum(abs(BPweight[:, ant_index, pol_index]))
+            #
+        #
+        BPmean = np.sum(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
+        #-------- XY phase 
         XYcorr = XYspec.dot(XYmean.conjugate()) / chNum
         #text_amp, text_phs = '',''
         #for index in list(range(len(XYcorr))):
@@ -36,6 +49,15 @@ for spw in spwList:
         XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/len(scanList)))
         XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
     #
+    text_BPwgt, text_XYwgt, text_scan = 'BP wgt:', 'XY wgt:', 'Scan  :'
+    for scan_index, scan in enumerate(scanList):
+        text_scan   = text_scan   + '    %3d ' % (scan)
+        text_BPwgt  = text_BPwgt + '%7.3f ' % (np.median(abs(BPweight), axis=(1,2))[scan_index])
+        text_XYwgt  = text_XYwgt + '%7.1f ' % (XYweight[scan_index])
+    #
+    print(text_scan)
+    print(text_BPwgt)
+    print(text_XYwgt)
     XYSPW = XYSPW + [XYmean]
     BPSPW = BPSPW + [BPmean]
     np.save('%s-REF%s-SC0-SPW%d-BPant.npy'  % (prefix, refant, spw), BPmean) 
