@@ -75,7 +75,8 @@ for band_index in list(range(NumBands)):
             if QUMODEL:
                 BPquality = BPquality + [1000.0* abs(UCmQS)* np.sin(OnEL[scan_index]) ] # / np.sqrt(StokesDic[sourceName][0])]
             else:
-                BPquality = BPquality + [1000.0* abs(UCmQS)* dPA* np.sin(OnEL[scan_index] - 0.5*ELshadow) / np.sqrt(StokesDic[sourceName][0])]
+                #BPquality = BPquality + [1000.0* abs(UCmQS)* dPA* np.sin(OnEL[scan_index] - 0.5*ELshadow) / np.sqrt(StokesDic[sourceName][0])]
+                BPquality = BPquality + [1000.0* abs(UCmQS)* np.sin(OnEL[scan_index] - 0.5*ELshadow) / np.sqrt(StokesDic[sourceName][0])]
             #
             EQquality = EQquality + [StokesDic[sourceName][0]**2 * np.sin(OnEL[scan_index] - ELshadow) / (1.0e-4 + abs(QCpUS))]
         else:
