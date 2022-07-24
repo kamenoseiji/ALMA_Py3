@@ -140,6 +140,7 @@ for spw_index in list(range(spwNum)):
     else:
         print('  -- Apply bandpass cal')
         for scan_index in list(range(len(scanList))):
+            print('   Scan %d : %d records' % (scanList[scan_index], timeNum[scan_index]))
             VisSpec[:,:,:,timeIndex:timeIndex + timeNum[scan_index]] = (CrossPolBL(XspecList[scan_index][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0)
             timeIndex = timeIndex + timeNum[scan_index]
         #
