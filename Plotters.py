@@ -318,12 +318,13 @@ def plotGain(prefix, spw):
     plotMin, plotMax = 0.0, 1.1* np.percentile(np.max(abs(Gain), axis=1)* FG, 90)
     #-------- Plot Gain
     for ant_index in list(range(antNum)):
+        ampMed = [0.0, 0.0]
         flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
         AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
         for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/pi, '.', markersize=3, color=polColor[pol_index])
-        ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
+        if len(flag_index) > 0: ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
         AmpPL.yaxis.offsetText.set_fontsize(3)
         PhsPL.yaxis.offsetText.set_fontsize(3)
