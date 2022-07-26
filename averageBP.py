@@ -16,6 +16,12 @@ for spw in spwList:
     XYspec = np.array(XYList)
     scanNum, antNum, polNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
     BPweight = np.zeros([scanNum, antNum, polNum], dtype=complex)
+    #-------- Channel binning
+    if 'bunchNum' not in locals(): bunchNum = 1
+    if bunchNum > 1:
+        def bunchVecCH(spec): return bunchVec(spec, bunchNum)
+        BPant  = np.apply_along_axis(bunchVecCH, 3, BPant)
+        XYspec = np.apply_along_axis(bunchVecCH, 1, XYspec)
     #---- Reference scan
     if 'BPscan' in locals():
         bpScanIndex = scanList.index(BPscan)
@@ -67,12 +73,12 @@ for spw in spwList:
 if 'BPPLOT' not in locals(): BPPLOT = False
 if BPPLOT:
     pp = PdfPages('XYP_%s_REF%s_Scan0.pdf' % (prefix, refant))
-    plotXYP(pp, prefix, spwList, XYSPW) 
+    plotXYP(pp, prefix, spwList, XYSPW, bunchNum) 
     pp = PdfPages('BP_%s_REF%s_Scan0.pdf'  % (prefix, refant))
     if 'plotMin' not in locals(): plotMin = 0.0
     if 'plotMax' not in locals(): plotMax = 1.2
     antList = np.load('%s-REF%s.Ant.npy' % (prefix, refant))
     FreqList = []
-    for spw in spwList: FreqList = FreqList + [np.load('%s-SPW%d-Freq.npy' % (prefix, spw))]
+    for spw in spwList: FreqList = FreqList + [bunchVecCH(np.load('%s-SPW%d-Freq.npy' % (prefix, spw)))]
     plotSP(pp, prefix, antList, spwList, FreqList, BPSPW, plotMin, plotMax) 
 #

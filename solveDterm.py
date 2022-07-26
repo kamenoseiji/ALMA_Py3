@@ -100,7 +100,7 @@ for spw_index in list(range(spwNum)):
         XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refantName, BPscan, spw))
         print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
     #
-    BP_ant = np.apply_along_axis(bunchVecCH, 2, BP_ant)                         # Channel binning
+    #BP_ant = np.apply_along_axis(bunchVecCH, 2, BP_ant)                         # Channel binning
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
     #
     #-------- time-dependent setups
@@ -130,7 +130,7 @@ for spw_index in list(range(spwNum)):
         Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
     #
     #-------- Combine scans
-    VisSpec, chAvgVis = np.zeros([4, chNum, blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
+    VisSpec, chAvgVis = np.zeros([4, int(ceil(chNum/bunchNum)), blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
     timeIndex = 0
     if chNum == 1:
         print('  -- Channel-averaged data: no BP and delay cal')
