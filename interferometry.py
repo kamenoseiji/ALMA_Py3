@@ -1081,6 +1081,8 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
     # UCmQS  (input) : U cos(2PA) - Q sin(2PA)
     PAnum, blNum = len(QCpUS), Vis.shape[1]; antNum = Bl2Ant(blNum)[0]; PABLnum = PAnum* blNum
     ant0, ant1 = np.array(ANT0[0:blNum]), np.array(ANT1[0:blNum])
+    #-------- Residual Vector
+    residXX, residXY, residYX, residYY = Vis[0] - (I + QCpUS), Vis[1] - UCmQS, Vis[2] - UCmQS, Vis[3] - (I - QCpUS)
     ssqUCmQS = UCmQS.dot(UCmQS)     # sum( UCmQS^2 )
     ImmQCpUS = (I - QCpUS).dot(I - QCpUS)  # sum (I - QCpUS)^2)
     IppQCpUS = (I + QCpUS).dot(I + QCpUS)  # sum (I + QCpUS)^2)
@@ -1095,19 +1097,18 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
         resid = Vis[0] - (I + QCpUS)
         for ant_index in range(1, antNum):
             index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
-            PTY[ant_index] = np.sum((resid[index0].real).dot(QCpUS)) + np.sum((resid[index1].real).dot(QCpUS))
-            PTY[antNum + ant_index - 1] = np.sum((resid[index0].imag).dot(QCpUS)) - np.sum((resid[index1].imag).dot(QCpUS))
+            PTY[ant_index] = np.sum((residXX[index0].real).dot(QCpUS)) + np.sum((residXX[index1].real).dot(QCpUS))
+            PTY[antNum + ant_index - 1] = np.sum((residXX[index0].imag).dot(QCpUS)) - np.sum((residXX[index1].imag).dot(QCpUS))
         #
-        index1 = np.where(ant1 == 0)[0].tolist(); PTY[0] = np.sum((resid[index1].real).dot(QCpUS))
+        index1 = np.where(ant1 == 0)[0].tolist(); PTY[0] = np.sum((residXX[index1].real).dot(QCpUS))
         Solution = PTP_inv.dot(PTY); newDx = Solution[0:antNum] + (1.0j)* np.append(0.0, Solution[antNum:(2*antNum-1)])
         #-------- <YY*> to determine Dy (initial value)
-        resid = Vis[3] - (I - QCpUS)
         for ant_index in range(antNum):
             index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
-            PTY[ant_index] = np.sum((resid[index0].real).dot(QCpUS)) + np.sum((resid[index1].real).dot(QCpUS))
-            PTY[antNum + ant_index - 1] = np.sum((resid[index0].imag).dot(QCpUS)) - np.sum((resid[index1].imag).dot(QCpUS))
+            PTY[ant_index] = np.sum((residYY[index0].real).dot(QCpUS)) + np.sum((residYY[index1].real).dot(QCpUS))
+            PTY[antNum + ant_index - 1] = np.sum((residYY[index0].imag).dot(QCpUS)) - np.sum((residYY[index1].imag).dot(QCpUS))
         #
-        index1 = np.where(ant1 == 0)[0].tolist(); PTY[0] = np.sum((resid[index1].real).dot(QCpUS))
+        index1 = np.where(ant1 == 0)[0].tolist(); PTY[0] = np.sum((residYY[index1].real).dot(QCpUS))
         Solution = PTP_inv.dot(PTY); newDy = Solution[0:antNum] + (1.0j)* np.append(0.0, Solution[antNum:(2*antNum-1)])
     else:
         newDx, newDy = Dx.copy(), Dy.copy()
@@ -1121,8 +1122,6 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
     PTP[0:antNum][:,2*antNum:3*antNum] = PTP[2*antNum:3*antNum][:,0:antNum]            # P20
     PTP[antNum:2*antNum][:,3*antNum:4*antNum] = -PTP[2*antNum:3*antNum][:,0:antNum]    # P31
     PTY = np.zeros(4* antNum)
-    #-------- Residual Vector
-    residXY, residYX = Vis[1] - UCmQS, Vis[2] - UCmQS
     for ant_index in range(antNum):
         index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
         residXY[index0] -= newDx[ant_index]* (I - QCpUS)

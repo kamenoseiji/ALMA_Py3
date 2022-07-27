@@ -79,6 +79,9 @@ if BPPLOT:
     if 'plotMax' not in locals(): plotMax = 1.2
     antList = np.load('%s-REF%s.Ant.npy' % (prefix, refant))
     FreqList = []
-    for spw in spwList: FreqList = FreqList + [bunchVecCH(np.load('%s-SPW%d-Freq.npy' % (prefix, spw)))]
+    if bunchNum > 1:
+        for spw in spwList: FreqList = FreqList + [bunchVecCH(np.load('%s-SPW%d-Freq.npy' % (prefix, spw)))]
+    else:
+        for spw in spwList: FreqList = FreqList + [np.load('%s-SPW%d-Freq.npy' % (prefix, spw))]
     plotSP(pp, prefix, antList, spwList, FreqList, BPSPW, plotMin, plotMax) 
 #

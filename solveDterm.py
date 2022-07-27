@@ -255,7 +255,8 @@ for spw_index in list(range(spwNum)):
         UCmQS[timeIndex] *= StokesDic[sourceName][0]
         StokesI[timeIndex] *= StokesDic[sourceName][0]
     #
-    Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, [], [], StokesI)
+    #Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, [], [], StokesI)
+    Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, antNum), np.repeat(ArrayDy, antNum), StokesI)
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(blNum, dtype=complex))
     print('  -- D-term-corrected visibilities')
@@ -272,7 +273,8 @@ for spw_index in list(range(spwNum)):
         StokesI[timeIndex] = Isol
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
-        for index in timeIndex: GainCaledVisSpec[:,:,:,index] *= Isol
+        #for index in timeIndex: GainCaledVisSpec[:,:,:,index] *= Isol
+        GainCaledVisSpec *= StokesI
     #
     #-------- get D-term spectra
     print('  -- Determining D-term spectra')
