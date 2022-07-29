@@ -102,7 +102,10 @@ for file_index in list(range(fileNum)):
     chanbin = [1] * spwNum
     if 'chBunch' in locals():
         for spw_index in list(range(spwNum)):
-            chanbin[spw_index] = int(chNumList[file_index][spw_index] / chBunch)
+            if chBunch < chNumList[file_index][spw_index]: 
+                outChNum = int(chNumList[file_index][spw_index] / int(chNumList[file_index][spw_index] / chBunch))
+                chanbin[spw_index] = int(chNumList[file_index][spw_index] / outChNum)
+            #
         #
     #---- split POLcal
     split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chanbin, datacolumn='DATA')
