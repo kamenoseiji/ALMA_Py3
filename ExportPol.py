@@ -36,12 +36,14 @@ def GetBPcalSPWs(msfile):
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_BANDPASS*").tolist(); bpSPWs.sort()
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); bpSPWs.sort()
     if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_DELAY*").tolist(); bpSPWs.sort()
-    BPspwList = []
+    BPspwList, chNumList = [], []
     for spw in bpSPWs:
         chNum, chWid, freq = GetChNum(msfile, spw)
-        if chNum > 4:   BPspwList = BPspwList + [spw]   # Filter out WVR and CHAVG spectral windows
+        if chNum > 4:               # Filter out WVR and CHAVG spectral windows
+            BPspwList = BPspwList + [spw]   # Filter out WVR and CHAVG spectral windows
+            chNumList = chNumList + [chNum]
     msmd.close()
-    return BPspwList
+    return BPspwList, chNumList
 #
 def GetChNum(msfile, spwID):
     tb.open(msfile + '/' + 'SPECTRAL_WINDOW')
@@ -72,16 +74,18 @@ for prefix in prefixList:
     listobs(prefix+'.ms', spw='', scan='', verbose=True, listfile=prefix+'.listobs')
 #
 #-------- Check SPW list
-bpsSPWList = []
+bpsSPWList, chNumList = [], []
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
-    bpsSPWList = bpsSPWList + [GetBPcalSPWs(prefix + '.ms')]
+    bpSPWs, chNums = GetBPcalSPWs(prefix + '.ms')
+    bpsSPWList = bpsSPWList + [bpSPWs]
+    chNumList  = chNumList  + [chNums]
 #
 #-------- split and concat for each BB
-if 'chBunch' not in locals(): chBunch = 1
 comvis = []
 for file_index in list(range(fileNum)):
     prefix = prefixList[file_index]
+    spwNum = len(bpsSPWList[file_index])
     #---- Check Flag Antenna
     if 'antFlag' not in locals():    antFlag = []
     removeAnt = ''
@@ -94,8 +98,14 @@ for file_index in list(range(fileNum)):
         removeAnt = removeAnt.rstrip(',')
     #
     if len(removeAnt) < 2:  removeAnt = ''
+    #---- Channel binning
+    chanbin = [1] * spwNum
+    if 'chBunch' in locals():
+        for spw_index in list(range(spwNum)):
+            chanbin[spw_index] = int(chNumList[file_index][spw_index] / chBunch)
+        #
     #---- split POLcal
-    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chBunch, datacolumn='DATA')
+    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chanbin, datacolumn='DATA')
     comvis.append(CATList[0] + prefix + '.ms')
     #
 #
