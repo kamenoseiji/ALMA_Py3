@@ -255,7 +255,6 @@ for spw_index in list(range(spwNum)):
         UCmQS[timeIndex] *= StokesDic[sourceName][0]
         StokesI[timeIndex] *= StokesDic[sourceName][0]
     #
-    #Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, [], [], StokesI)
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, antNum), np.repeat(ArrayDy, antNum), StokesI)
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(blNum, dtype=complex))

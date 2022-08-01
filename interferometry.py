@@ -1005,7 +1005,7 @@ def VisPA_solveD(Vis, PA, Stokes, Dx=[], Dy=[]):
     # Vis (input) : full-polarization visibilities [pol, bl, PA]
     # PA  (input) : parallactic angle + BandPA
     # Stokes (input): Stokes parameters of the source
-    PAnum, blNum = len(PA), Vis.shape[1]; antNum = Bl2Ant(blNum)[0]; PABLnum = PAnum* blNum
+    PAnum, blNum = len(PA), Vis.shape[1]; antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = np.array(ANT0[0:blNum]), np.array(ANT1[0:blNum])
     CS, SN = np.cos(2.0* PA), np.sin(2.0*PA)
     QCpUS = Stokes[1]*CS + Stokes[2]*SN
@@ -1079,7 +1079,7 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
     # Vis (input) : full-polarization visibilities [pol, bl, PA]
     # QCpUS  (input) : Q cos(2PA) + U sin(2PA)
     # UCmQS  (input) : U cos(2PA) - Q sin(2PA)
-    PAnum, blNum = len(QCpUS), Vis.shape[1]; antNum = Bl2Ant(blNum)[0]; PABLnum = PAnum* blNum
+    PAnum, blNum = len(QCpUS), Vis.shape[1]; antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = np.array(ANT0[0:blNum]), np.array(ANT1[0:blNum])
     #-------- Residual Vector
     residXX, residXY, residYX, residYY = Vis[0] - (I + QCpUS), Vis[1] - UCmQS, Vis[2] - UCmQS, Vis[3] - (I - QCpUS)

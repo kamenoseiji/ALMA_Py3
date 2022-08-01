@@ -46,7 +46,7 @@ for scan_index in list(range(len(scanList))):
     field_names = msmd.fieldsforscan(scan, True); fieldList = fieldList + [field_names[0]]
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
-    timeNum, polNum, chNum = Xspec.shape[3], Xspec.shape[0], Xspec.shape[1]; print
+    timeNum, polNum, chNum = Xspec.shape[3], Xspec.shape[0], Xspec.shape[1]
     print('Loading Visibilities: Scan %d : %s : %d records' % (scan, field_names[0], timeNum))
     if polNum == 4: polIndex = [0, 3]
     if polNum == 2: polIndex = [0, 1]
