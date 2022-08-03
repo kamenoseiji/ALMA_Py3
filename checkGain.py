@@ -73,7 +73,7 @@ for scan_index in list(range(len(scanList))):
     Gain, antSNR, gainFlag = np.ones([UseAntNum, polNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, polNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
     for pol_index in list(range(polNum)):
         Gain[:, pol_index], tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[pol_index])
-        antSNR[:, pol_index] = abs(Gain[:, pol_index]) / abs(tempErr)
+        antSNR[:, pol_index] = abs(Gain[:, pol_index])**2 / tempErr**2
         gainFlag = gainFlag* ((np.sign( antSNR[:, pol_index] - SNR_THRESH ) + 1.0)/2)
     #
     timeList = timeList + timeStamp.tolist()
@@ -90,6 +90,9 @@ for scan_index in list(range(len(scanList))):
     FGarray[:,time_index:(time_index   + timeNum)] = flagList[scan_index]
     time_index += timeNum
 #
+newFlagIndex = np.where( np.median(FGarray, axis=1) == 0)[0].tolist()
+newAntFlag = antList[newFlagIndex].tolist()
+if len(newAntFlag) > 0: print('Flagged by SNR : %s' % (str(newAntFlag)))
 np.save(prefix + '.Ant.npy', antList[antMap]) 
 np.save(prefix + '.Field.npy', np.array(fieldList))
 np.save('%s-SPW%d.TS.npy' % (prefix, spw), np.array(timeList)) 

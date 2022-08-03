@@ -829,7 +829,7 @@ def logamp_solve(bl_amp):
         index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
         PTV[ant_index] += np.sum(log_bl[index0]) + np.sum(log_bl[index1])
     #
-    return np.exp(PTP_inv.dot(PTV))
+    return abs(np.exp(PTP_inv.dot(PTV)))
 #
 def ATAmatrix(Gain):  # Gain is a vector of antenna-based gain amplitude (real)
     antNum = len(Gain); normG = Gain.dot(Gain)
@@ -1761,7 +1761,7 @@ def gainComplexErr( bl_vis, niter=2 ):
         correction = np.linalg.solve(L.T, t)
         CompSol    = CompSol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
     #
-    return CompSol, abs(logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate())))
+    return CompSol, abs(logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate())).real)
 #
 #-------- Function to calculate visibilities
 def polariVis( Xspec ):     # Xspec[polNum, blNum, chNum, timeNum]
