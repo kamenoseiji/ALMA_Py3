@@ -73,7 +73,7 @@ for scan_index in list(range(len(scanList))):
     Gain, antSNR, gainFlag = np.ones([UseAntNum, polNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, polNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
     for pol_index in list(range(polNum)):
         Gain[:, pol_index], tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[pol_index])
-        antSNR[:, pol_index] = abs(Gain[:, pol_index])**2 / tempErr**2
+        antSNR[:, pol_index] = abs(Gain[:, pol_index])**2 / abs(tempErr)**2
         gainFlag = gainFlag* ((np.sign( antSNR[:, pol_index] - SNR_THRESH ) + 1.0)/2)
     #
     timeList = timeList + timeStamp.tolist()
