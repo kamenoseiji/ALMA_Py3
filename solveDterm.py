@@ -25,6 +25,25 @@ timeDic   = dict(zip(sourceList, [[]]*len(sourceList))) # Time index list for ea
 StokesDic = dict(zip(sourceList, [[]]*len(sourceList))) # Stokes parameters for each source
 scanIndex = 0
 print('-- Checking %s ' % (msfile))
+#-------- Flagging status of antennas
+flagTimeIndex = []
+if 'FGprefix' in locals():  # Flag table
+    antSPWFlag  = []
+    for spw_index in list(range(spwNum)):
+        spw = spwList[spw_index]
+        TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
+        FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
+        newFlagIndex = np.where( np.percentile(FG, 0.25, axis=1) == 0)[0].tolist()
+        useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
+        antSPWFlag = antSPWFlag + [antFlag + antList[newFlagIndex].tolist()]
+        flagTimeIndex = flagTimeIndex + np.where(np.min(FG[useAntIndex], axis=0) == 0.0)[0].tolist()
+    #
+    newAntFlag = antList[newFlagIndex].tolist()
+    antFlag = list(set([ant for row in antSPWFlag for ant in row])); antFlag.sort()
+    useTimeIndex = list(set(range(len(TS))) - set(flagTimeIndex)); useTimeIndex.sort()
+    useTimeStamp = TS[useTimeIndex]
+    if len(antFlag) > 0: print('Flagged antennas : %s' % (str(antFlag)))
+#
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
 refAntID  = indexList([refantName], antList)
 flagAntID = indexList(antFlag, antList)
@@ -43,10 +62,12 @@ else:
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
 for scan in scanLS:
+    #-------- Check if the scan contains tracking antennas
     interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], scan)
     trkAnt, scanAnt, Time, Offset = antRefScan( msfile, [timeStamp[0], timeStamp[-1]], antFlag )
     trkAnt = list(set(trkAnt) - set(flagAntID))
-    if refAntID in trkAnt:
+    unflaggedNum = len(indexList(timeStamp, useTimeStamp))
+    if (refAntID in trkAnt) and (unflaggedNum > 0):
         trkAntSet = set(trkAnt) & trkAntSet
     else:
         scanLS = list( set(scanLS) - set([scan]) )
@@ -63,7 +84,7 @@ for scan in scanLS:
         else:
             StokesDic[sourceName] = [0.01, 0.0, 0.0, 0.0]
         #
-    print('---- Scan%3d : %d tracking antennas : %s, %d records, expected I=%.1f p=%.1f%%' % (scan, len(trkAnt), sourceName, len(timeStamp), StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+    print('---- Scan%3d : %d tracking antennas : %s, %d records, expected I=%.1f p=%.1f%%' % (scan, len(trkAnt), sourceName, unflaggedNum, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
     scanIndex += 1
 #
 scanList = scanLS
@@ -100,14 +121,7 @@ for spw_index in list(range(spwNum)):
         XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refantName, BPscan, spw))
         print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
     #
-    #BP_ant = np.apply_along_axis(bunchVecCH, 2, BP_ant)                         # Channel binning
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
-    #
-    #-------- time-dependent setups
-    if 'FGprefix' in locals():  # Flag table
-        FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw)); FG = np.min(FG, axis=0)
-        TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw))
-    #
     #-------- For visibilities in each scan
     scanST = scanST + [0]
     for scan_index in list(range(len(scanList))):
@@ -117,9 +131,7 @@ for spw_index in list(range(spwNum)):
         del Pspec
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
         #---- remove flagged records
-        flagIndex = list(range(len(timeStamp)))
-        if 'FG' in locals():
-            flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
+        flagIndex = indexList(useTimeStamp, timeStamp)
         timeNum = timeNum + [len(flagIndex)]
         if scan_index != 0: scanST = scanST + [scanST[scan_index - 1] + timeNum[scan_index - 1]]
         XspecList = XspecList + [Xspec[:,:,:,flagIndex]]
