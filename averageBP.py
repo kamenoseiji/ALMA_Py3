@@ -4,6 +4,8 @@ exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 #
 XYSPW, BPSPW = [], []
+if 'chTrim' not in locals(): chTrim = 0.06
+chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
 #-------- Procedures
 for spw in spwList:
     print('SPW %2d:---------------------------------------------------------------' % (spw))
@@ -14,8 +16,8 @@ for spw in spwList:
     #
     BPant  = np.array(BPList)
     XYspec = np.array(XYList)
-    scanNum, antNum, polNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
-    BPweight = np.zeros([scanNum, antNum, polNum], dtype=complex)
+    scanNum, antNum, parapolNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
+    BPweight = np.zeros([scanNum, antNum, parapolNum], dtype=complex)
     #-------- Channel binning
     if 'bunchNum' not in locals(): bunchNum = 1
     if bunchNum > 1:
@@ -32,7 +34,7 @@ for spw in spwList:
     for iter in list(range(10)):
         #-------- BP table 
         for ant_index in list(range(antNum)):
-            for pol_index in list(range(polNum)):
+            for pol_index in list(range(parapolNum)):
                 BPpower = np.sum(BPant[:, ant_index, pol_index]* BPant[:, ant_index, pol_index].conjugate(), axis=1).real
                 BPcorr = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()) / sqrt(BPpower* (BPmean[ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()).real))
                 BPvar  = -np.log(abs(BPcorr))
@@ -41,6 +43,8 @@ for spw in spwList:
             #
         #
         BPmean = np.sum(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
+        BPscale = np.mean(abs(BPmean[:,:,chRange]), axis=2)
+        BPmean = (BPmean.transpose(2,0,1) / BPscale).transpose(1,2,0)
         #-------- XY phase 
         XYcorr = XYspec.dot(XYmean.conjugate()) / chNum
         #text_amp, text_phs = '',''
@@ -51,8 +55,12 @@ for spw in spwList:
         #print(text_amp )
         #print(text_phs )
         XYsign = np.sign(XYcorr.real)
-        XYvar  = -np.log(abs(XYcorr))
-        XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
+        if 'XYwgt' in locals():
+            XYweight = XYsign* np.array(XYwgt)
+        else:
+            XYvar  = -np.log(abs(XYcorr))
+            XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
+        #
         XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
     #
     text_BPwgt, text_XYwgt, text_scan = 'BP wgt:', 'XY wgt:', 'Scan  :'
@@ -85,3 +93,4 @@ if BPPLOT:
         for spw in spwList: FreqList = FreqList + [np.load('%s-SPW%d-Freq.npy' % (prefix, spw))]
     plotSP(pp, prefix, antList, spwList, FreqList, BPSPW, plotMin, plotMax) 
 #
+del chRange

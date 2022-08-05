@@ -51,7 +51,7 @@ for scan_index in list(range(len(scanList))):
     if polNum == 4: polIndex = [0, 3]
     if polNum == 2: polIndex = [0, 1]
     if polNum == 1: polIndex = [0]
-    polNum = len(polIndex)
+    parapolNum = len(polIndex)
     if chNum == 1:
         chRange = [0]
     else:
@@ -70,8 +70,8 @@ for scan_index in list(range(len(scanList))):
         chAvgVis = np.array([specBunch(chAvgVis[0], 1, timeBunch), specBunch(chAvgVis[1], 1, timeBunch)])
         timeNum = chAvgVis.shape[2]
         timeStamp = bunchVec(timeStamp, timeBunch)
-    Gain, antSNR, gainFlag = np.ones([UseAntNum, polNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, polNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
-    for pol_index in list(range(polNum)):
+    Gain, antSNR, gainFlag = np.ones([UseAntNum, parapolNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, parapolNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
+    for pol_index in list(range(parapolNum)):
         Gain[:, pol_index], tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[pol_index])
         antSNR[:, pol_index] = abs(Gain[:, pol_index])**2 / abs(tempErr)**2
         gainFlag = gainFlag* ((np.sign( antSNR[:, pol_index] - SNR_THRESH ) + 1.0)/2)
@@ -82,7 +82,7 @@ for scan_index in list(range(len(scanList))):
 #
 msmd.done(); msmd.close()
 timeNum = len(timeList)
-GAarray, FGarray = np.ones([UseAntNum, polNum, timeNum], dtype=complex), np.ones([UseAntNum, timeNum])
+GAarray, FGarray = np.ones([UseAntNum, parapolNum, timeNum], dtype=complex), np.ones([UseAntNum, timeNum])
 time_index = 0
 for scan_index in list(range(len(scanList))):
     timeNum = GainList[scan_index].shape[2]

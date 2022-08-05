@@ -122,7 +122,9 @@ Trx2antMap = indexList( antList[antMap], antList[TrxMap] )
 BPList = []
 print('---Generating antenna-based bandpass table')
 for spw_index in list(range(spwNum)):
-    BP_ant, XY_BP, XYdelay, Gain, XYxnr = BPtable(msfile, spwList[spw_index], BPScan, blMap, blInv)
+    #BP_ant, XY_BP, XYdelay, Gain, XYxnr = BPtable(msfile, spwList[spw_index], BPScan, blMap, blInv)
+    BP_ant = np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, antList[refantID], BPscan, spwList[spw_index]))
+    XY_BP = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, antList[refantID], BPscan, spwList[spw_index]))
     BP_ant[:,1] *= XY_BP
     exp_Tau = np.exp(-Tau0spec[spw_index] / np.sin(BPEL))
     atmCorrect = 1.0 / exp_Tau
@@ -131,8 +133,8 @@ for spw_index in list(range(spwNum)):
     BPList = BPList + [BP_ant* np.sqrt(TsysBPShape)]
 #
 if PLOTBP:
-    pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[refantID], BPScan))
-    plotBP(pp, prefix, antList[antMap], spwList, BPScan, BPList)
+    pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[refantID], BPscan))
+    plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList)
 #
 BPDone = True
 ##-------- Equalization using EQ scan
@@ -246,6 +248,7 @@ for spw_index in list(range(spwNum)):
 #    if PolEQ: execfile(SCR_DIR + 'PolEqualize.py')
 #
 #-------- Flux Density
+scanNum = len(scanList)
 ScanFlux, ScanSlope, ErrFlux, centerFreqList, FreqList = np.zeros([scanNum, spwNum, 4]), np.zeros([scanNum, spwNum, 4]), np.zeros([scanNum, spwNum, 4]), [], []
 for spw_index in list(range(spwNum)):
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])

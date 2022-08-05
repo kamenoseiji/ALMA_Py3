@@ -84,6 +84,7 @@ for band_index in list(range(NumBands)):
             StokesDic[sourceName] = [float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
         #
     #
+    scanList = []
     for scan_index in range(scanNum):
         sourceID = msmd.sourceidforfield(msmd.fieldsforscan(onsourceScans[scan_index])[0])
         #sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(onsourceScans[scan_index])[0]))
@@ -131,6 +132,28 @@ for band_index in list(range(NumBands)):
     #
     BPScan = onsourceScans[BPscanIndex]; BPcal = sourceList[sourceIDscan[BPscanIndex]]; timeLabelBP = qa.time('%fs' % (refTime[BPscanIndex]), form='ymd')[0]
     BPEL = OnEL[onsourceScans.index(BPScan)]
+    #---- Bandpass table
+    scanList = np.array(onsourceScans)[np.where(np.array(BPquality) > 10.0)[0].tolist()].tolist()
+    if len(scanList) > 1:
+        BPPLOT = True
+        spwList = bpspwLists[band_index]
+        XYwgt = []
+        '''
+        SNR_THRESH = 3
+        for spw in spwList:
+            exec(open(SCR_DIR + 'checkGain.py').read())
+        '''
+        for BPscan in scanList:
+            exec(open(SCR_DIR + 'checkBP.py').read())
+            refant = antList[UseAnt[refantID]]
+            XYwgt = XYwgt + [BPquality[onsourceScans.index(BPscan)]]
+        #
+        BPscan = onsourceScans[np.argmax(BPquality)]
+        exec(open(SCR_DIR + 'averageBP.py').read())
+        BPscan = 0
+    else:
+        exec(open(SCR_DIR + 'checkBP.py').read())
+    #
     #-------- Select Equalization Calibrator
     if 'EQScans' not in locals():
         EQscanIndex = np.argmax(EQquality)
@@ -152,13 +175,15 @@ for band_index in list(range(NumBands)):
     #-------- Polarization setup
     atmspw = atmspwLists[band_index]; spwNum = len(atmspw)
     scnspw = bpspwLists[band_index]; scnspwNum = len(scnspw)
-    polNum = msmd.ncorrforpol(msmd.polidfordatadesc(scnspw[0]))
+    #polNum = msmd.ncorrforpol(msmd.polidfordatadesc(scnspw[0]))
+    polNum = 4
     PolList = ['X', 'Y']
     msmd.done()
     if polNum == 4:
         pPol, cPol = [0,3], [1,2];  ppolNum, cpolNum = len(pPol), len(cPol)
-        #exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
+        exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
         #exec(open(SCR_DIR + 'aprioriStokes.py').read())
+        '''
         if Apriori:
             try:
                 exec(open(SCR_DIR + 'aprioriStokes.py').read())
@@ -175,6 +200,7 @@ for band_index in list(range(NumBands)):
                     print('  --A priori flux calibration falied.')
             #
         #
+        '''
     #
     if polNum == 2:
         cPol = [0,1], []; ppolNum, cpolNum = len(pPol), len(cPol)

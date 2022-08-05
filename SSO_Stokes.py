@@ -82,6 +82,7 @@ scanList = onsourceScans
 msmd.close()
 msmd.done()
 #-------- Array Configuration
+'''
 print('---Determining refant')
 if 'refant' in locals(): refantID = np.where(antList == refant)[0][0]
 if 'refantID' not in locals():
@@ -95,6 +96,7 @@ antMap = [refantID] + UseAnt[np.where(UseAnt != refantID)].tolist()
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+'''
 print('  %d baselines are inverted' % (len(np.where( blInv )[0])))
 AeNominal = 0.7* 0.25* np.pi* antDia**2      # Nominal Collecting Area
 #-------- Flag table
@@ -117,9 +119,11 @@ print('---Generating antenna-based bandpass table')
 BPList = []
 secZ = 1.0 / np.mean(np.sin(BPEL))
 for spw_index in list(range(spwNum)):
-    BP_ant, XY_BP, XYdelay, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPScan, blMap, blInv)     # BP_ant[antMap, pol, ch]
+    #BP_ant, XY_BP, XYdelay, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPScan, blMap, blInv)     # BP_ant[antMap, pol, ch]
+    #print('BPscan = %d' % BPscan)
+    BP_ant = np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, BPscan, spwList[spw_index]))
+    XY_BP = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spwList[spw_index]))
     BP_ant[:,1] *= XY_BP
-    #exp_Tau = np.exp(-Tau0spec[spw_index] / np.sin(BPEL))
     zenithTau = Tau0spec[spw_index] + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ
     exp_Tau = np.exp(-zenithTau * secZ )
     atmCorrect = 1.0 / exp_Tau
@@ -128,8 +132,8 @@ for spw_index in list(range(spwNum)):
     BPList = BPList + [BP_ant* np.sqrt(TsysBPShape)]
 #
 if PLOTBP:
-    pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[refantID], BPScan))
-    plotBP(pp, prefix, antList[antMap], spwList, BPScan, BPList)
+    pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[refantID], BPscan))
+    plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList)
 #
 BPDone = True
 ##-------- Equalization using EQ scan

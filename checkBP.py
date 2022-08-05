@@ -13,7 +13,7 @@ UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 #-------- Configure Array
-print('---Checking array configulation')
+print('---Checking array configulation in scan %d' % (BPscan))
 if 'BPPLOT' not in locals(): BPPLOT = False
 if 'antFlag' not in locals(): antFlag = []
 flagAnt = indexList(antFlag, antList)
@@ -78,7 +78,7 @@ for spw_index in list(range(spwNum)):
 #
 #-------- Plots
 if BPPLOT:
-    if XYsnr > 3.0:
+    if XYsnr > 0.0:
         pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
         plotXYP(pp, prefix, spwList, XYList, bunchNum) 
     #

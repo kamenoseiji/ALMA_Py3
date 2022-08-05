@@ -97,6 +97,7 @@ for spw_index in list(range(spwNum)):
     BPList[spw_index][:,1] *= XYsign
     print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spwList[spw_index], 180.0*XYphase/pi, XYsign))
 #
+scanNum = len(scanList)
 #-------- Flux Density
 ScanFlux = np.zeros([scanNum, spwNum, 4])
 ScanSlope= np.zeros([scanNum, spwNum, 4])
