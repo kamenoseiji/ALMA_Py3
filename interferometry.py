@@ -424,6 +424,12 @@ def GetBPcalSPWs(msfile):
     msmd.close()
     return BPspwList
 #
+#-------- Get GridSurvey Scans
+def GetOnSource(msfile):
+    msmd.open(msfile)
+    OnScanList = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")))))
+    msmd.close()
+    return OnScanList
 #-------- Get Bandpass Scan
 def GetBPcalScans(msfile):
     msmd.open(msfile)

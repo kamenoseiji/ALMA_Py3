@@ -1,9 +1,10 @@
 #import sys
 #import pickle
 import math
+import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
-from interferometry import BANDPA, GetSourceList
+from interferometry import BANDPA, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetOnSource, GetVisAllBL
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 #exec(open(SCR_DIR + 'interferometry.py').read())
@@ -16,46 +17,51 @@ if 'ACA' in CheckCorr(prefix): BLCORR = False
 #-------- Check Receivers
 RXList = BandList(prefix)
 BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
-BandSPW  = dict(zip(RXList, [[]]*len(RXList)))   # Band SPW for visibilitiies
+BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
 BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
 BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
-#-------- Tsys measurement
-exec(open(SCR_DIR + 'TsysCal.py').read())
-#-------- Check SPWs of atmCal
+#-------- Check SPWs of atmCal and bandpass
+atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
+bandNameList = GetBandNames(msfile, atmSPWs)
+OnScanList = GetOnSource(msfile)
+msmd.open(msfile)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
-    BandatmSPW[BandName] = np.array(atmSPWs)[ np.where(np.array(atmBandNames) == BandName)[0].tolist() ].tolist()
-    BandSPW[BandName] = BandatmSPW[BandName]    # for GridSurvey, bandpass SPW = atm SPW
-#
-
-
-'''
-
-bpspwLists, bpscanLists, BandPA = [], [], []
-msmd.open(msfile)
-for band_index in list(range(NumBands)):
-    if atmBandNames == []:
-        bpspwLists = bpspwLists + [np.array(atmSPWs)]
-    else:
-        bpspwLists  = bpspwLists  + [np.array(atmSPWs)[indexList( np.array([UniqBands[band_index]]), np.array(atmBandNames))].tolist()]
-    if 'spwFlag' in locals():
-        flagIndex = indexList(np.array(spwFlag), np.array(bpspwLists[band_index]))
-        for index in flagIndex: del bpspwLists[band_index][index]
-    #
-    bpscanLists = bpscanLists + [msmd.scansforspw(bpspwLists[band_index][0]).tolist()]
-    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*pi/180.0]
+    BandbpSPW[BandName]= np.array(bpSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()
+    BandatmSPW[BandName]= np.array(atmSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()
+    BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName][0])) & set(OnScanList))
+    BandScanList[BandName].sort()
 #
 msmd.close()
-'''
+#-------- Tsys measurement
+#exec(open(SCR_DIR + 'TsysCal.py').read())
+#execfile(SCR_DIR + 'TsysCal.py')
 #-------- Check Antenna List
 antList = GetAntName(msfile)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
-a = 1.0/0.0
 #-------- Check source list
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
+#-------- Loop for Bands
+for BandName in RXList:
+    scanList = BandScanList[BandName]
+    spwList  = BandbpSPW[BandName]
+    atmspwList  = BandatmSPW[BandName]
+    #-------- Load Visibilities into memory
+    timeStampList, XspecList = [], []
+    for spw in spwList:
+        XscanList = []
+        for scan in scanList:
+            timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
+            XscanList = XscanList + [Xspec]
+            if spw == spwList[0]: timeStampList = timeStampList + [timeStamp]
+        #
+        XspecList = XspecList + [XscanList]
+    #
+#
+a = 1.0/0.0
 msmd.open(msfile)
 ONScans = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_DELAY*")) )))
 msmd.close(); msmd.done()
