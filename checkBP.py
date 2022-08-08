@@ -1,10 +1,11 @@
 #---- Script for Band-3 Astroholograpy Data
 import sys
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Plotters.py').read())
+from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+from Plotters import plotXYP, plotBP, plotSP
 #
 #-------- Procedures
 msfile = wd + prefix + '.ms'

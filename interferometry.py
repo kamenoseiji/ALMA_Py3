@@ -14,6 +14,11 @@ import urllib.request, urllib.error
 import scipy.optimize
 import time
 import datetime
+import analysisUtils as au
+from casatools import table as tbtool
+from casatools import msmetadata as msmdtool
+tb = tbtool()
+msmd = msmdtool()
 BANDPA = [0.0, 45.0, -45.0, 80.0, -80.0, 45.0, -45.0, 36.45, 90.0, -90.0, 0.0]   # X-pol orientation for Band-1, 2, 3, 4, 5, 6, 7, 8, 9, and 10
 BANDFQ = [0.0, 43.2, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 460.0, 650.0, 870.0]   # Standard frequency [GHz]
 Tcmb = 2.725    # CMB temperature
@@ -73,7 +78,7 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     kernelBL = np.where(ant0 == refant)[0].tolist() + np.where(ant1 == refant)[0].tolist()
     flagIndex = np.where(Flag[kernelBL] > 0.5)[0].tolist()
     useKernelBL = np.array(kernelBL)[flagIndex].tolist()
-    SAantennas = unique(np.append(ant0[useKernelBL], ant1[useKernelBL]))
+    SAantennas = list(set(np.append(ant0[useKernelBL], ant1[useKernelBL])))
     SAantMap = [refant] + sort(np.array(list(set(SAantennas) - set([refant])))).tolist()
     SAantNum = len(SAantennas); SAblNum = int(SAantNum* (SAantNum - 1)/2)
     SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
@@ -1544,17 +1549,6 @@ def simple2DGaussFit( z, x, y ):
     result = scipy.optimize.leastsq(resid2DGauss, param, args=(z, x, y))
     return result[0]
 #
-#-------- ACD edge pattern
-def ACDedge( timeXY ):
-    timeSKY = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE")
-    timeAMB = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
-    timeHOT = msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT")
-    #
-    skyRange = range(2, edge[0]-1)
-    ambRange = range(edge[0]+3, edge[1]-1)
-    hotRange = range(edge[1]+3, len(timeXY)-1)
-    return skyRange, ambRange, hotRange
-#
 #-------- 3-bit VanVleck Correction
 def Vanv3bitCorr( dataXY, refRange, Qeff ):
 	refZeroLag = np.mean(dataXY[:, refRange].real)
@@ -1565,95 +1559,6 @@ def Vanv3bitCorr( dataXY, refRange, Qeff ):
 		dataXY[:,index] = temp / VanvCorrect
 	#
 	return dataXY
-#
-#======== Amplitude calibrations
-#-------- Residuals for Tsky - secz regresion (optical depth + intercept)
-def residTskyTransfer( param, Tamb, secz, Tsky, weight ):
-    exp_Tau = np.exp( -param[1]* secz )
-    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Residuals for Tsky - secz regresion (without intercept)
-def residTskyTransfer0( param, Tamb, secz, Tsky, weight ):
-    exp_Tau = np.exp( -param[0]* secz )
-    return weight* (Tsky - (Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Residuals for Tsky - secz regresion (fixed zenith optical depth)
-def residTskyTransfer2( param, Tamb, Tau0, secz, Tsky, weight ):
-    exp_Tau = np.exp( -Tau0* secz )
-    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Tsys from ACD
-def TsysSpec(msfile, pol, TsysScan, spw, vanvSW):
-    #if vanvSW:
-    #	VanvQ3, Qeff = loadVanvQ3('/users/skameno/Scripts/ACAPowerCoeff.data')  # 3-bit Van Vleck
-    #
-	antList = GetAntName(msfile)
-	antNum  = len(antList)
-	polNum  = len(pol)
-	chNum, chWid, freq = GetChNum(msfile, spw)
-	TrxSp = np.zeros([antNum, polNum, chNum]); TsysSp = np.zeros([antNum, polNum, chNum])
-	chRange = range(int(0.1*chNum), int(0.9*chNum))
-	#
-	text_sd =  '%s SPW=%d SCAN=%d' % (msfile, spw, TsysScan)
-	print(text_sd)
-	#-------- Loop for Antenna
-	for ant_index in range(antNum):
-		#-------- Get Physical Temperature of loads
-		tempAmb, tempHot = GetLoadTemp(msfile, ant_index, spw)
-		#
-		for pol_index in range(polNum):
-			timeXY, dataXY = GetVisibility(msfile, ant_index, ant_index, pol[pol_index], spw, TsysScan)
-			#-------- Time range of Sky/Amb/Hot
-			skyRange, ambRange, hotRange = ACDedge(timeXY)
-			#-------- Van Vleck Correction
-			if vanvSW:
-				dataXY = Vanv3bitCorr(dataXY, ambRange, Qeff)
-			#
-			#-------- Calc. Tsys Spectrum
-			Psky, Pamb, Phot = np.mean(dataXY[:,skyRange].real, 1), np.mean(dataXY[:,ambRange].real, 1), np.mean(dataXY[:,hotRange].real, 1)
-			TrxSp[ant_index, pol_index]  = (tempHot* Pamb - Phot* tempAmb) / (Phot - Pamb)
-			TsysSp[ant_index, pol_index] = (Psky* tempAmb) / (Pamb - Psky)
-			text_sd = '%s PL%s %5.1f %5.1f' % (antList[ant_index], pol[pol_index], np.median(TrxSp[ant_index, pol_index]), np.median(TsysSp[ant_index, pol_index]))
-			print(text_sd)
-			# logfile.write(text_sd + '\n')
-		#
-	#
-	return TrxSp, TsysSp
-#
-#-------- Power Spectra
-def PowerSpec(msfile, pol, TsysScan, TsysSPW, vanvSW):
-	VanvQ3, Qeff = loadVanvQ3('/users/skameno/Scripts/ACAPowerCoeff.data')  # 3-bit Van Vleck
-	antList = GetAntName(msfile)
-	antNum  = len(antList)
-	polNum  = len(pol)
-	chNum, chWid, freq = GetChNum(msfile, TsysSPW); Tsysfreq = freq* 1.0e-9 # GHz
-	PskySpec = np.zeros([antNum, polNum, chNum])
-	PambSpec = np.zeros([antNum, polNum, chNum])
-	PhotSpec = np.zeros([antNum, polNum, chNum])
-	#-------- Loop for antennas
-	for ant_index in range(antNum):
-		#-------- Get Physical Temperature of loads
-		tempAmb, tempHot = GetLoadTemp(msfile, ant_index, TsysSPW)
-		#
-		#-------- Loop for polarizations
-		for pol_index in range(polNum):
-			timeXY, dataXY = GetVisibility(msfile, ant_index, ant_index, pol_index, TsysSPW, TsysScan)
-			#
-			#-------- Time range of Sky/Amb/Hot
-			skyRange, ambRange, hotRange = ACDedge(timeXY)
-			#-------- Van Vleck Correction
-			if vanvSW:
-				dataXY = Vanv3bitCorr(dataXY, ambRange, Qeff)
-			#
-			#-------- Calc. Tsys Spectrum
-			PambSpec[ant_index, pol_index] = np.mean(dataXY[:,ambRange].real, 1)
-			scaleFact = tempAmb / np.mean(PambSpec[ant_index, pol_index])
-			PambSpec[ant_index, pol_index] = scaleFact* PambSpec[ant_index, pol_index]
-			PskySpec[ant_index, pol_index] = scaleFact* np.mean(dataXY[:,skyRange].real, 1)
-			PhotSpec[ant_index, pol_index] = scaleFact* np.mean(dataXY[:,hotRange].real, 1)
-		#
-	#
-	return Tsysfreq, PskySpec, PambSpec, PhotSpec
 #
 def GFSmatrix(antDelay, Frequency):
     chNum, antNum = len(Frequency), len(antDelay)

@@ -1,8 +1,14 @@
 #---- Script for Band-3 Astroholograpy Data
-from scipy import stats
+#from scipy import stats
+import math
+import analysisUtils as au
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-exec(open(SCR_DIR + 'interferometry.py').read())
+#exec(open(SCR_DIR + 'interferometry.py').read())
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetTimerecord, GetChNum, GetVisAllBL, Bl2Ant
+from casatools import quanta as qatool
+qa = qatool()
 #-------- Definitions
 msfile = wd + prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
@@ -42,7 +48,7 @@ for spw_index in range(spwNum):
     if 'startMJD' in locals(): st_index = np.argmin( abs(timeStamp - startMJD) )
     if st_index + timeNum > len(timeStamp): st_index = len(timeStamp) - timeNum
     timeRange = list(range(st_index, st_index + timeNum))
-    text_timerange = qa.time('%fs' % (timeStamp[st_index]), form='fits', prec=6)[0] + ' - ' + qa.time('%fs' % (timeStamp[timeRange[-1]]), form='fits', prec=6)[0]
+    text_timerange = au.call_qa_time('%fs' % (timeStamp[st_index]), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (timeStamp[timeRange[-1]]), form='fits', prec=6)
     print('Integration in %s (%.1f sec)' % (text_timerange, timeNum* integDuration))
     figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)), fontsize=fontSize)
     #---- polarization format

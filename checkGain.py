@@ -1,9 +1,8 @@
 #---- Script for Band-3 Astroholograpy Data
-import sys
-from scipy import stats
+import numpy as np
 import matplotlib.pyplot as plt
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Plotters.py').read())
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetUVW, GetVisAllBL, indexList, Ant2Bl, Ant2BlD, ANT0, ANT1, bestRefant, bunchVec, ParaPolBL, gainComplexErr
+from Plotters import plotGain
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []

@@ -1,34 +1,36 @@
-import sys
-import pickle
+#import sys
+#import pickle
+import math
 import analysisUtils as au
 import xml.etree.ElementTree as ET
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Grid.py').read())
+from interferometry import BANDPA, GetSourceList
+from Grid import *
+from ASDM_XML import CheckCorr, BandList
+#exec(open(SCR_DIR + 'interferometry.py').read())
+#exec(open(SCR_DIR + 'Grid.py').read())
 msfile = wd + prefix + '.ms'
 #
 #-------- Check Correlator Type
 BLCORR = True
-tree = ET.parse(prefix + '/CorrelatorMode.xml')
-root = tree.getroot()
-correlatorName = root.find("row").find("correlatorName").text
-if 'ACA' in correlatorName: BLCORR = False
+if 'ACA' in CheckCorr(prefix): BLCORR = False
 #-------- Check Receivers
-tree = ET.parse(prefix + '/Receiver.xml')
-root = tree.getroot()
-rowList = root.findall(".//row[frequencyBand]")
-BandLists, BandList = [], []
-for row in rowList:
-    BandName = row.find("frequencyBand").text
-    if 'ALMA' in BandName: BandLists = BandLists + [BandName.replace('ALMA_', '')]
-#
-BandList = unique(BandLists).tolist()
+RXList = BandList(prefix)
+BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
+BandSPW  = dict(zip(RXList, [[]]*len(RXList)))   # Band SPW for visibilitiies
+BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
+BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 #-------- Tsys measurement
 exec(open(SCR_DIR + 'TsysCal.py').read())
-#-------- Check Antenna List
-antList = GetAntName(msfile)
-antNum = len(antList)
-blNum = int(antNum* (antNum - 1) / 2)
 #-------- Check SPWs of atmCal
+for BandName in RXList:
+    BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
+    BandatmSPW[BandName] = np.array(atmSPWs)[ np.where(np.array(atmBandNames) == BandName)[0].tolist() ].tolist()
+    BandSPW[BandName] = BandatmSPW[BandName]    # for GridSurvey, bandpass SPW = atm SPW
+#
+
+
+'''
+
 bpspwLists, bpscanLists, BandPA = [], [], []
 msmd.open(msfile)
 for band_index in list(range(NumBands)):
@@ -44,6 +46,12 @@ for band_index in list(range(NumBands)):
     BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*pi/180.0]
 #
 msmd.close()
+'''
+#-------- Check Antenna List
+antList = GetAntName(msfile)
+antNum = len(antList)
+blNum = int(antNum* (antNum - 1) / 2)
+a = 1.0/0.0
 #-------- Check source list
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)

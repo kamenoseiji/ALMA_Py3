@@ -1,8 +1,13 @@
+import math
+import analysisUtils as au
+import numpy as np
+import scipy
+import datetime
+from interferometry import GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
-Tcmb = 2.725
 polColor = ['b', 'g', 'm', 'y']
 polName = ['X', 'Y', 'XY', 'YX']
 #
@@ -45,7 +50,7 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
         plotMax = 1.2 * np.max(chAvgTsky)
         TskyPL = figTauFit.add_subplot(1, spwNum, spw_index + 1 )
         TskyPL.axis([1.0, 2.5, 0.0, plotMax])
-        TskyPL.plot( airmass, Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color='k', alpha=0.5)
+        TskyPL.plot( airmass, au.Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color='k', alpha=0.5)
         for ant_index in range(antNum):
             rgb = lineCmap(float(ant_index) / antNum )
             plotTsky = chAvgTsky[ant_index]
@@ -66,9 +71,9 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
     figTauE = plt.figure(0, figsize = (11,8))
     figTauE.suptitle(prefix + ' Zenith Optical Depth')
     DT, DTSpl = [], []
-    for mjdSec in atmTime.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
+    for mjdSec in atmTime.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
     mjdSpl = np.arange(atmTime[0], atmTime[-1], 1)
-    for mjdSec in mjdSpl.tolist(): DTSpl.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
+    for mjdSec in mjdSpl.tolist(): DTSpl.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
     figTauE.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
     figTauE.text(0.03, 0.45, 'Zenith Optical Depth', rotation=90)
     for spw_index in range(spwNum):
@@ -108,7 +113,7 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
             for scan_index in range(scanNum):
                 currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
                 TsysPL = TsysPL + [currentPL]
-                timeLabel = qa.time('%fs' % (atmTime[scan_index]), form='fits')[0]
+                timeLabel = au.call_qa_time('%fs' % (atmTime[scan_index]), form='fits')
                 for pol_index in range(polNum):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
@@ -234,7 +239,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
             AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
-            PhsPL.axis([np.min(Freq), np.max(Freq), -np.pi, np.pi])
+            PhsPL.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
             PhsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
@@ -309,7 +314,7 @@ def plotGain(prefix, spw):
     pp = PdfPages('GA_%s-SPW%d.pdf' %  (prefix, spw))
     DT, timeStamp, Gain, FG = [], np.load(timeFile), np.load(GainFile), np.load(FlagFile)
     polNum = Gain.shape[1]
-    for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
+    for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
     #-------- Prepare Plots
     figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
     figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')
@@ -323,7 +328,7 @@ def plotGain(prefix, spw):
         AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
-        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/pi, '.', markersize=3, color=polColor[pol_index])
+        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/math.pi, '.', markersize=3, color=polColor[pol_index])
         if len(flag_index) > 0: ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
         AmpPL.yaxis.offsetText.set_fontsize(3)
@@ -335,13 +340,69 @@ def plotGain(prefix, spw):
         PhsPL.axis([np.min(DT), np.max(DT), -180.0, 180.0])
         if polNum == 2: text_sd = '%s : Gain(median) = (%.2f%% %.2f%%)' % (antList[ant_index], 100.0* ampMed[0], 100.0* ampMed[1])
         else: text_sd = '%s : Gain(median) = (%.2f%%)' % (antList[ant_index], 100.0* ampMed[0])
-        print(text_sd)
+        pBLphsrint(text_sd)
         AmpPL.text( 0.05, 1.02, text_sd, transform=AmpPL.transAxes, fontsize=5)
         PhsPL.text( 0.05, 1.02, antList[ant_index], transform=PhsPL.transAxes, fontsize=5)
     #
     figAmp.savefig(pp, format='pdf'); figPhs.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
+    return
+#
+#-------- Plot visibility amplitude and closure phase
+def plotBispec(antList, scanVis, DT, plotFile, labelList, pMax):
+    antNum = len(antList)
+    polNum, blNum  = scanVis.shape[0], scanVis.shape[1]
+    figInch  = max(16,antNum)
+    fontSize = min(32, figInch)
+    figSPW = plt.figure(figsize=(figInch, figInch))
+    figSPW.text(0.475, 0.05, labelList[0], fontsize=fontSize)
+    figSPW.text(0.05, 0.5, labelList[1], rotation=90, fontsize=fontSize)
+    figSPW.text(0.95, 0.5, labelList[2], rotation=-90, fontsize=fontSize)
+    figSPW.suptitle(labelList[3], fontsize=fontSize)
+    #
+    for bl_index in list(range(blNum)):
+        ants = Bl2Ant(bl_index)
+        #-------- Plot visibility amplitude
+        BLamp = figSPW.add_subplot(antNum-1, antNum-1, ants[1]*(antNum -1) + ants[0])
+        for pol_index in list(range(polNum)):
+            plotVis = scanVis[pol_index, bl_index]
+            BLamp.step(DT, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
+        #
+        BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*pMax])
+        BLamp.xaxis.set_major_locator(plt.NullLocator())
+        if bl_index == 0:
+            BLamp.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+        if ants[0] - ants[1] == 1:
+            BLamp.set_ylabel(antList[ants[1]])
+        if ants[1] == 0:    # Antenna label in the top and leftside
+            BLamp.set_title( antList[ants[0]] )
+        if ants[0] == antNum - 1:    # Antenna at rightside
+            BLamp.yaxis.tick_right()
+        else:
+            BLamp.yaxis.set_major_locator(plt.NullLocator())
+        #-------- Plot closure phase
+        if bl_index < 2: continue
+        if ants[1] > 0:         # plot Closure phase
+            BLphs = figSPW.add_subplot(antNum-1, antNum-1, (ants[0] - 1)*(antNum-1) + ants[1])
+            BLphs.patch.set_facecolor('lightyellow')
+            tri0, tri1, tri2 = Ant2Bl(ants[0], 0), Ant2Bl(ants[1], 0), Ant2Bl(ants[0], ants[1])
+            for pol_index in list(range(polNum)):
+                plotVis = scanVis[pol_index, tri0].conjugate()* scanVis[pol_index, tri1]* scanVis[pol_index, tri2]
+                BLphs.plot(DT, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
+            #
+            print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri0, tri1, tri2, antList[0], antList[ants[1]], antList[ants[0]]))
+            BLphs.set_title('%s-%s-%s' % (antList[0], antList[ants[1]], antList[ants[0]] ), fontsize=0.5*fontSize)
+            BLphs.axis([np.min(DT), np.max(DT), -math.pi, math.pi])
+            BLphs.tick_params(axis='x', labelsize=int(fontSize*0.25), labelrotation=-90)
+        if ants[1] == 1: BLphs.set_ylabel(antList[ants[0]] )
+        if ants[1] > 1: BLphs.yaxis.set_major_locator(plt.NullLocator())
+        if ants[0] < antNum - 1:    # except bottom panel : skip drawing X-axis
+            BLphs.xaxis.set_major_locator(plt.NullLocator())
+        #
+    #
+    figSPW.savefig(plotFile + '.pdf', format='pdf', dpi=144)
+    plt.close('all')
     return
 #
 #-------- Plot XY-phase spectra
@@ -356,7 +417,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
         XYP  = XYspec[spw_index]
-        PhsPL.plot( Freq, np.angle(XYP)*180.0/pi, '.', label = 'SPW %d' % (spw))
+        PhsPL.plot( Freq, np.angle(XYP)*180.0/math.pi, '.', label = 'SPW %d' % (spw))
         PhsPL.axis([np.min(Freq), np.max(Freq), -180.0, 180.0])
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
@@ -407,4 +468,21 @@ def plotDSpec(pp, prefix, antList, spwList, FreqList, DxList, DyList):
     plt.close('all'); pp.close()
     del(DxPList); del(DyPList); del(DxPL); del(DyPL); del(figAnt)
     return
+#
+#-------- Smooth time-variable Tau
+def tauSMTH( timeSample, TauE ):
+    if len(timeSample) > 5:
+        SplineWeight = np.ones(len(timeSample) + 4)
+        flagIndex = (np.where(abs(TauE - np.median(TauE))/np.std(TauE) > 3.0)[0] + 2).tolist()
+        SplineWeight[flagIndex] = 0.01
+        tempTime = np.append([timeSample[0]-500.0, timeSample[0]-300.0], np.append(timeSample, [timeSample[-1]+300.0, timeSample[-1]+500.0]))
+        tempTauE = np.append([TauE[0], TauE[0]], np.append(TauE, [TauE[-1], TauE[-1]]))
+        #smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3, w=SplineWeight, t=tempTime[range(2, len(tempTime)-2, 3)] - 60.0 )
+        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3, w=SplineWeight, t=tempTime[list(range(1, len(tempTime), 2))] - 60.0 )
+    else:
+        tempTime = np.arange(np.min(timeSample) - 3600.0,  np.max(timeSample) + 3600.0, 300.0)
+        tempTauE = np.repeat(np.median(TauE), len(tempTime))
+        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3)
+    #
+    return smthTau
 #
