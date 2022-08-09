@@ -4,9 +4,10 @@ import math
 import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
-from interferometry import BANDPA, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetOnSource, GetVisAllBL
+from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetOnSource, GetAzEl, loadScanSPW, AzElMatch, gainComplexErr
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
+from PolCal import GetAMAPOLAStokes, PolResponse
 #exec(open(SCR_DIR + 'interferometry.py').read())
 #exec(open(SCR_DIR + 'Grid.py').read())
 msfile = wd + prefix + '.ms'
@@ -40,12 +41,52 @@ msmd.close()
 antList = GetAntName(msfile)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
+chRange = list(range(3, 60))
 #-------- Check source list
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
+#-------- Check AZEL
+azelTime, AntID, AZ, EL = GetAzEl(msfile)
+azelTime_index = np.where( AntID == 0 )[0].tolist() 
 #-------- Loop for Bands
 for BandName in RXList:
+    #-------- Load Visibilities into memory
+    timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName], BandScanList[BandName])
+    StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
+    PAList, CSList, SNList, QCpUSList, UCmQSList = [], [], [], [], []
+    #-------- Check AZEL
+    AzScanList, ElScanList = [], []
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
+        AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
+    #
+    #-------- Polarization responses
+    PAList, CSList, SNList, QCpUSList, UCmQSLis = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
+    #-------- Gain table
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        for spw_index, spw in enumerate(BandbpSPW[BandName]):
+            chAvgVis = np.mean(XspecList[spw_index][scan_index][[0,3]][:,chRange], axis=1)
+            Gain, tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[0])
+            np.apply_along_axis(gainComplexErr, 0, chAvgVis[1])
+
+    '''
+
+    #-------- Polarization 
+    print('        Source     :    I     p%     EVPA  QCpUS  UCmQS')
+    print('-------+-----------+-------+------+------+------+------')
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
+        PA = AzEl2PA(AzScan, ElScan) + BandPA[BandName]
+        CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
+        sourceName = sourceList[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
+        if StokesDic[sourceName] != []:
+            QCpUS = StokesDic[sourceName][1]*CS + StokesDic[sourceName][2]*SN   # Qcos + Usin
+            UCmQS = StokesDic[sourceName][2]*CS - StokesDic[sourceName][1]*SN   # Ucos - Qsin
+            print('Scan%3d %s : %6.2f %6.2f %6.2f %6.2f %6.2f' % (scan, sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0], 90.0* np.arctan2(StokesDic[sourceName][2], StokesDic[sourceName][1])/np.pi, np.median(QCpUS), np.median(UCmQS)))
+        #
+        PAList, CSList, SNList, QCpUSList, UCmQSList = PAList + [PA], CSList + [CS], SNList + [SN], QCpUSList + [QCpUS], UCmQSList + [UCmQS]
+    msmd.close(); msmd.done()
     scanList = BandScanList[BandName]
     spwList  = BandbpSPW[BandName]
     atmspwList  = BandatmSPW[BandName]
@@ -60,8 +101,9 @@ for BandName in RXList:
         #
         XspecList = XspecList + [XscanList]
     #
+    '''
 #
-a = 1.0/0.0
+'''
 msmd.open(msfile)
 ONScans = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_DELAY*")) )))
 msmd.close(); msmd.done()
@@ -152,11 +194,6 @@ for band_index in list(range(NumBands)):
         BPPLOT = True
         spwList = bpspwLists[band_index]
         XYwgt = []
-        '''
-        SNR_THRESH = 3
-        for spw in spwList:
-            exec(open(SCR_DIR + 'checkGain.py').read())
-        '''
         for BPscan in scanList:
             exec(open(SCR_DIR + 'checkBP.py').read())
             refant = antList[UseAnt[refantID]]
@@ -197,7 +234,6 @@ for band_index in list(range(NumBands)):
         pPol, cPol = [0,3], [1,2];  ppolNum, cpolNum = len(pPol), len(cPol)
         exec(open(SCR_DIR + 'SSO_Stokes.py').read()) # Flux calibration using SSO
         #exec(open(SCR_DIR + 'aprioriStokes.py').read())
-        '''
         if Apriori:
             try:
                 exec(open(SCR_DIR + 'aprioriStokes.py').read())
@@ -214,7 +250,6 @@ for band_index in list(range(NumBands)):
                     print('  --A priori flux calibration falied.')
             #
         #
-        '''
     #
     if polNum == 2:
         cPol = [0,1], []; ppolNum, cpolNum = len(pPol), len(cPol)
@@ -234,3 +269,4 @@ if 'BPScans' in locals(): del BPScans
 if 'EQScans' in locals(): del EQScans
 if 'antFlag' in locals(): del antFlag
 if 'flagAnt' in locals(): del flagAnt
+'''

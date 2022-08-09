@@ -235,11 +235,13 @@ def InvPAVector(PA, Unity):
         [ sn,  cs,  cs, -sn],
         [Zeroty,-1.0j*Unity,1.0j*Unity, Zeroty]])
 #
+'''
 def AzEl2PA(az, el, lat=ALMA_lat): # Azimuth, Elevation, Latitude (default=ALMA) in [rad]
     cos_lat, sin_lat = np.cos(lat), np.sin(lat)
     #return np.arctan( -cos_lat* np.sin(az) / (np.sin(lat)* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
     return np.arctan2( -cos_lat* np.sin(az), (sin_lat* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
 #
+'''
 #-------- Greenwidge Mean Sidereal Time
 def mjd2gmst( mjd, ut1utc ):        # mjd in [day], ut1utc in [sec]
     FACT = [24110.54841, 8640184.812866, 0.093104, 0.0000062]
@@ -383,6 +385,20 @@ def GetVisibility(msfile, ant1, ant2, pol, spwID, scanID):
     dataXY = antXantYspw.getcol(colName)[pol]
     tb.close()
     return timeXY, dataXY
+#
+#-------- Load visiblities in all SPWs and scans
+def loadScanSPW(msfile, spwList, scanList):
+    timeStampList, XspecList = [], []
+    for spw in spwList:
+        XscanList = []
+        for scan in scanList:
+            timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
+            XscanList = XscanList + [Xspec]
+            if spw == spwList[0]: timeStampList = timeStampList + [timeStamp]
+        #
+        XspecList = XspecList + [XscanList]
+    #
+    return timeStampList, XspecList
 #
 #-------- Get SPW to DATA_DESC_ID
 def SPW2DATA_DESC_ID(msfile, spwID):
