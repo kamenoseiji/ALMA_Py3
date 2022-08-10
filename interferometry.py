@@ -1348,6 +1348,21 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 	#   
 	return delay_ant, delay_err, delayCalXspec
 #
+def ParaPolBP(Xspec):  # Parallel-hand bandpass 
+    chNum, blNum = Xspec.shape[1], Xspec.shape[2]
+    antNum = Bl2Ant(blNum)[0]
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
+    chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[1,chRange], axis=0))])
+    XPspec = np.mean((abs(Gain[:,ant0]* Gain[:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[:,ant0]* Gain[:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
+    BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[1].T)
+    #---- Amplitude normalization
+    for pol_index in [0,1]:
+        ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
+        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index]), axis=1)).T
+    return BP_ant
+#
 def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=np.array([])): 
     XYsnr = 0.0
     blNum = len(blMap); antNum = Bl2Ant(blNum)[0]

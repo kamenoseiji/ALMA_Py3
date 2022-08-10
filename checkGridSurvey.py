@@ -4,7 +4,7 @@ import math
 import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
-from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetOnSource, GetAzEl, loadScanSPW, AzElMatch, gainComplexErr
+from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetChNum, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, ParaPolBL, ParaPolBP
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, PolResponse
@@ -38,10 +38,14 @@ msmd.close()
 #exec(open(SCR_DIR + 'TsysCal.py').read())
 #execfile(SCR_DIR + 'TsysCal.py')
 #-------- Check Antenna List
+if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
+if 'antFlag' not in locals(): antFlag = []
 antList = GetAntName(msfile)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
 chRange = list(range(3, 60))
+flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
+polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 #-------- Check source list
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
@@ -63,14 +67,69 @@ for BandName in RXList:
     #
     #-------- Polarization responses
     PAList, CSList, SNList, QCpUSList, UCmQSLis = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
+    #-------- Check usable antennas and refant
+    checkSource = max(StokesDic, key=StokesDic.get)
+    checkScan   = BandScanList[BandName][list(StokesDic.keys()).index(checkSource)]
+    Xspec       = XspecList[0][list(StokesDic.keys()).index(checkSource)]
+    checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1)
+    GainX, tempErrX = np.apply_along_axis(gainComplexErr, 0, checkVis[0])
+    GainY, tempErrY = np.apply_along_axis(gainComplexErr, 0, checkVis[1])
+    SNRX = np.median(abs(GainX), axis=1) / np.sqrt(np.mean(abs(tempErrX)**2, axis=1))*np.sqrt(tempErrX.shape[1]) 
+    SNRY = np.median(abs(GainY), axis=1) / np.sqrt(np.mean(abs(tempErrY)**2, axis=1))*np.sqrt(tempErrY.shape[1]) 
+    flagAnt[np.where(SNRX < SNR_THRESH)[0].tolist()] = 0.0
+    flagAnt[np.where(SNRY < SNR_THRESH)[0].tolist()] = 0.0
+    UseAnt = np.where(flagAnt > 0.0)[0].tolist(); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
+    text_sd = '  Usable antennas (%d) : ' % (len(UseAnt))
+    for ants in antList[UseAnt].tolist(): text_sd = text_sd + ants + ' '
+    print(text_sd)
+    blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
+    ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
+    for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
+    timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName][0], checkScan)
+    uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+    refantID = bestRefant(uvDist)
+    print('Use %s as refant' % (antList[UseAnt[refantID]]))
+    antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
+    for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+    #-------- Bandpass using checkScan
+    FreqList, BPList = [], []
+    for spw_index, spw in enumerate(BandbpSPW[BandName]):
+        chNum, chWid, Freq = GetChNum(msfile, spw)
+        BW = chNum* np.median(chWid)
+        FreqList = FreqList + [Freq]
+        BP_ant = ParaPolBP( ParaPolBL(XspecList[spw_index][list(StokesDic.keys()).index(checkSource)][[0,3]][:,:,blMap], blInv) )
+        BPList = BPList + [BP_ant]
+        np.save('%s-SPW%d-Freq.npy' % (prefix, spw), Freq)
+        '''
+        Xspec  = XspecList[spw_index][list(StokesDic.keys()).index(checkSource)]
+        chNum = Xspec.shape[1]
+        BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
+        Xspec  = CrossPolBL(Xspec[:,:,blMap], blInv)
+        Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
+        CaledXspec = (abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
+        XPspec = np.mean(CaledXspec, axis=3)
+        BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
+        #---- Amplitude normalization
+        for pol_index in [0,1]:
+            ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
+            BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index]), axis=1)).T
+        #---- XY delay
+        BPCaledXspec = XPspec.transpose(2, 0, 1)* abs(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex])**2 /(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
+        BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
+        XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
+        XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
+        BPCaledXYSpec = BPCaledXYSpec / abs(BPCaledXYSpec)
+        '''
+
+
+
     #-------- Gain table
+    '''
     for scan_index, scan in enumerate(BandScanList[BandName]):
         for spw_index, spw in enumerate(BandbpSPW[BandName]):
             chAvgVis = np.mean(XspecList[spw_index][scan_index][[0,3]][:,chRange], axis=1)
             Gain, tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[0])
-            np.apply_along_axis(gainComplexErr, 0, chAvgVis[1])
 
-    '''
 
     #-------- Polarization 
     print('        Source     :    I     p%     EVPA  QCpUS  UCmQS')
