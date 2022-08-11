@@ -4,7 +4,7 @@ import math
 import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
-from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetChNum, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, ParaPolBL, ParaPolBP
+from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetChNum, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, PolResponse
@@ -92,15 +92,53 @@ for BandName in RXList:
     antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
     for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
     #-------- Bandpass using checkScan
-    FreqList, BPList = [], []
+    FreqList, BPList, spwGainList = [], [], []
     for spw_index, spw in enumerate(BandbpSPW[BandName]):
-        chNum, chWid, Freq = GetChNum(msfile, spw)
-        BW = chNum* np.median(chWid)
-        FreqList = FreqList + [Freq]
-        BP_ant = ParaPolBP( ParaPolBL(XspecList[spw_index][list(StokesDic.keys()).index(checkSource)][[0,3]][:,:,blMap], blInv) )
+        Xspec = CrossPolBL(XspecList[spw_index][list(StokesDic.keys()).index(checkSource)][:,:,blMap], blInv)
+        BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr = CrossPolBP(Xspec)
         BPList = BPList + [BP_ant]
-        np.save('%s-SPW%d-Freq.npy' % (prefix, spw), Freq)
-        '''
+        #-------- Bandpass-corrected cross-power spectrum
+        BPcaled = (Xspec.transpose(3, 2, 0, 1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())).transpose(3,2,1,0)
+        checkVis= np.mean(BPcaled[chRange], axis=0)[[0,3]]
+        spwGainList = spwGainList + [np.array([gainComplexVec(checkVis[0]), gainComplexVec(checkVis[1])])]
+    #
+    #-------- SPW phase offsets
+    spwGain = np.array(spwGainList) # [spw, pol, ant, time]
+    spwTwiddle= np.mean(spwGain, axis=3).transpose(2,1,0) # [ant, pol, spw]
+    for ant_index in UseAnt:
+        refGain = np.ones(len(timeStamp), dtype=complex)
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        refGain = np.mean(spwGain[:,:,ant_index].transpose(2,0,1)* gainOffset.conjugate(), axis=(1,2))
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        spwTwiddle[ant_index] = (gainOffset / abs(gainOffset)).T
+    #
+    for spw_index, spw in enumerate(BandbpSPW[BandName]):
+        BPList[spw_index] = BPList[spw_index].transpose(2,0,1)* spwTwiddle[:,:,spw_index].conjugate()
+    #
+
+
+
+
+        for spw_index, spw in enumerate(BandbpSPW[BandName]):
+            antGain = spwGainList[spw_index][:,ant_index]
+    #-------- Bandpass correction
+    for spw_index, spw in enumerate(BandbpSPW[BandName]):
+        Xspec = CrossPolBL(XspecList[spw_index][list(StokesDic.keys()).index(checkSource)][:,:,blMap], blInv)
+
+
+    '''
+    #-------- Gain table for all scans
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        for spw_index, spw in enumerate(BandbpSPW[BandName]):
+            BP_ant = BPList[spw_index][:,:,chRange]
+            chAvgVis = np.mean(XspecList[spw_index][scan_index][[0,3]][:,chRange].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate()), axis=3).transpose(2,1,0)
+
+
+
+            XspecList[spw_index][scan_index][[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
+            , axis=1)
+            Gain, tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[0])
+
         Xspec  = XspecList[spw_index][list(StokesDic.keys()).index(checkSource)]
         chNum = Xspec.shape[1]
         BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
@@ -125,10 +163,6 @@ for BandName in RXList:
 
     #-------- Gain table
     '''
-    for scan_index, scan in enumerate(BandScanList[BandName]):
-        for spw_index, spw in enumerate(BandbpSPW[BandName]):
-            chAvgVis = np.mean(XspecList[spw_index][scan_index][[0,3]][:,chRange], axis=1)
-            Gain, tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[0])
 
 
     #-------- Polarization 

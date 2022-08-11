@@ -1348,20 +1348,30 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 	#   
 	return delay_ant, delay_err, delayCalXspec
 #
-def ParaPolBP(Xspec):  # Parallel-hand bandpass 
-    chNum, blNum = Xspec.shape[1], Xspec.shape[2]
+def CrossPolBP(Xspec):  # full-polarization bandpass 
+    polNum, chNum, blNum, timeNum = Xspec.shape
     antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
     BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
     chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
-    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[1,chRange], axis=0))])
-    XPspec = np.mean((abs(Gain[:,ant0]* Gain[:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[:,ant0]* Gain[:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
+    #---- Gain Cal
+    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
+    XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
+    BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
+    XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[1].T)
+    BPCaledXspec = XPspec.transpose(2, 0, 1)* abs(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex])**2 /(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
+    del XPspec
     #---- Amplitude normalization
     for pol_index in [0,1]:
         ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
         BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index]), axis=1)).T
-    return BP_ant
+    #
+    BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
+    XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
+    XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
+    return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
 #
 def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=np.array([])): 
     XYsnr = 0.0
