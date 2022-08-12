@@ -270,7 +270,7 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
             PhsPL = figAnt.add_subplot(2, spwNum, spwNum + spw_index + 1 )
             AmpList = AmpList + [AmpPL]
             PhsList = PhsList + [PhsPL]
-            for pol_index in list(range(ppolNum)):
+            for pol_index in list(range(BPList[spw_index].shape[1])):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 '''
                 delayAnt, delaySNR = delay_search(plotBandpass)

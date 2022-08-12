@@ -4,7 +4,10 @@ import math
 import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
+from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetChNum, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP
+import matplotlib.pyplot as plt
+from Plotters import plotBP
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, PolResponse
@@ -54,7 +57,8 @@ SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
 azelTime, AntID, AZ, EL = GetAzEl(msfile)
 azelTime_index = np.where( AntID == 0 )[0].tolist() 
 #-------- Loop for Bands
-for BandName in RXList:
+#for BandName in RXList:
+for BandName in ['RB_07']:
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName], BandScanList[BandName])
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
@@ -113,20 +117,27 @@ for BandName in RXList:
         spwTwiddle[ant_index] = (gainOffset / abs(gainOffset)).T
     #
     for spw_index, spw in enumerate(BandbpSPW[BandName]):
-        BPList[spw_index] = BPList[spw_index].transpose(2,0,1)* spwTwiddle[:,:,spw_index].conjugate()
+        BPList[spw_index] = (BPList[spw_index].transpose(2,0,1)* spwTwiddle[:,:,spw_index]).transpose(1,2,0)
     #
+    pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
+    plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName], checkScan, BPList)
 
-
-
-
+    GainList = []
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        chAvgList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]):
-            antGain = spwGainList[spw_index][:,ant_index]
-    #-------- Bandpass correction
-    for spw_index, spw in enumerate(BandbpSPW[BandName]):
-        Xspec = CrossPolBL(XspecList[spw_index][list(StokesDic.keys()).index(checkSource)][:,:,blMap], blInv)
-
-
+            Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)
+            BP_ant = BPList[spw_index][:,:,chRange]
+            chAvgList = chAvgList + [np.mean(Xspec[:,chRange].transpose(3,2,0,1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()), axis=3).transpose(2,1,0)[[0,3]]]
+        #
+        GainList = GainList + [gainComplexVec(np.mean(np.array(chAvgList), axis=(0, 1)))]
+    #
+    for ant_index in UseAnt:
+        for scan_index, scan in enumerate(BandScanList[BandName]):
+            plt.plot(timeStampList[scan_index], np.angle(GainList[scan_index][ant_index]), '.')
+    #
     '''
+
     #-------- Gain table for all scans
     for scan_index, scan in enumerate(BandScanList[BandName]):
         for spw_index, spw in enumerate(BandbpSPW[BandName]):
