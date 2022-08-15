@@ -440,10 +440,25 @@ def GetBPcalSPWs(msfile):
     msmd.close()
     return BPspwList
 #
+def GetSPWFreq(msfile, SPWdic):
+    RXList = list(SPWdic.keys())
+    for BandName in RXList:
+        #-------- SPW and Frequency List
+        chNumList, BWList, FreqList = [], [], []
+        for spw in SPWdic[BandName]:
+            chNum, chWid, freq = GetChNum(msfile, spw)
+            chNumList = chNumList + [chNum]
+            BWList = BWList + [chNum* np.median(chWid)]
+            FreqList = FreqList + [freq* 1.0e-9]
+        #
+        SPWdic[BandName] = [SPWdic[BandName], FreqList, chNum, BWList]
+    #
+    return SPWdic
+#
 #-------- Get GridSurvey Scans
 def GetOnSource(msfile):
     msmd.open(msfile)
-    OnScanList = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")))))
+    OnScanList = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURC*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")))))
     msmd.close()
     return OnScanList
 #-------- Get Bandpass Scan
@@ -1347,6 +1362,18 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 		delayCalXspec[bl_index] = delay_cal(Xspec[bl_index], delay_ant[ant2] - delay_ant[ant1])
 	#   
 	return delay_ant, delay_err, delayCalXspec
+#
+def SPWalign(spwGain):
+    timeNum  = spwGain.shape[3]
+    spwTwiddle= np.mean(spwGain, axis=3).transpose(2,1,0) # [ant, pol, spw]
+    for ant_index in list(range(spwTwiddle.shape[0])):
+        refGain = np.ones(timeNum, dtype=complex)
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        refGain = np.mean(spwGain[:,:,ant_index].transpose(2,0,1)* gainOffset.conjugate(), axis=(1,2))
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        spwTwiddle[ant_index] = (gainOffset / abs(gainOffset)).T
+    #
+    return spwTwiddle
 #
 def CrossPolBP(Xspec):  # full-polarization bandpass 
     polNum, chNum, blNum, timeNum = Xspec.shape
