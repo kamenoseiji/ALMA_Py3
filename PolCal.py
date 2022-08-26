@@ -65,7 +65,7 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, AzScanList, ElScanList):
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
         sourceName = list(StokesDic.keys())[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
         scanDic[scan] = [sourceName, np.median(ElScan), 0.0, 0.0, 0.0]
-        if str.isdigit(sourceName[1]):
+        if str.isdigit(sourceName[1]) and len(StokesDic[sourceName]) > 0:
             QCpUS = StokesDic[sourceName][2]*CS + StokesDic[sourceName][3]*SN   # Qcos + Usin
             UCmQS = StokesDic[sourceName][3]*CS - StokesDic[sourceName][2]*SN   # Ucos - Qsin
             BPquality = StokesDic[sourceName][1]* np.sin(np.median(ElScan) - 0.5)  # cut at 40 deg
