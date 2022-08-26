@@ -208,13 +208,14 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
     #-------- Plot BP
-    for ant_index in list(range(antNum)):
+    #for ant_index in list(range(antNum)):
+    for ant_index, antName in enumerate(antList):
         if ant_index > 0:
             for PL in AmpList: figAnt.delaxes(PL)
             for PL in PhsList: figAnt.delaxes(PL)
         #
         AmpList, PhsList = [], []
-        for spw_index in list(range(spwNum)):
+        for spw_index, spw in enumerate(spwList):
             Freq = freqList[spw_index]
             chNum = len(Freq); chRange = list(range(int(0.05*chNum), int(0.95*chNum))); BW = Freq[chRange[-1]] - Freq[chRange[0]]
             AmpPL = figAnt.add_subplot(2, spwNum, spw_index + 1 )
@@ -225,7 +226,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 delayAnt, delaySNR = delay_search(plotBandpass[chRange])
-                text_sd = '%s %s : %+f SNR=%.1f' % (antList[ant_index], polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
+                text_sd = '%s %s : %+f SNR=%.1f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
                 AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
                 PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
             #
@@ -233,11 +234,11 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
+            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SP-W%s Amp' % (str(spw)))
             PhsPL.axis([np.min(Freq), np.max(Freq), -np.pi, np.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            PhsPL.text( np.min(Freq), 2.5, 'SPW=%d Phs' % (spwList[spw_index]))
+            PhsPL.text( np.min(Freq), 2.5, 'SPW=%s Phs' % (str(spw)))
         #
         figAnt.savefig(pp, format='pdf')
     plt.close('all')

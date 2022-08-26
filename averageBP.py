@@ -5,7 +5,6 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 #
 XYSPW, BPSPW = [], []
 if 'chTrim' not in locals(): chTrim = 0.06
-chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
 #-------- Procedures
 for spw in spwList:
     print('SPW %2d:---------------------------------------------------------------' % (spw))
@@ -31,6 +30,7 @@ for spw in spwList:
         bpScanIndex = np.argmax(abs(np.mean(XYspec, axis=1)))
     BPmean = np.mean(BPant, axis=0)
     XYmean = XYspec[bpScanIndex]; chNum = len(XYmean)
+    chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
     for iter in list(range(10)):
         #-------- BP table 
         for ant_index in list(range(antNum)):

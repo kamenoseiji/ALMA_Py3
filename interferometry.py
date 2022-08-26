@@ -362,7 +362,7 @@ def GetVisAllBL(msfile, spwID, scanID):
     return timeStamp, dataXY[:,:,acorr_index], dataXY[:,:,xcorr_index]  # AC[POL, CH, ANT, Time], XC[POL, CH, BL, Time]
 #
 #-------- Single-baseline visibility
-def GetVisibility(msfile, ant1, ant2, pol, spwID, scanID):
+def GetVisibility(msfile, ant1, ant2, spwID, scanID):
     nameList = GetAntName(msfile)
     NumAnt   = len(nameList)
     BasePair = GetBasePair(NumAnt)
@@ -375,20 +375,23 @@ def GetVisibility(msfile, ant1, ant2, pol, spwID, scanID):
     colName = 'DATA'
     if 'FLOAT_DATA' in colNameList: colName = 'FLOAT_DATA'
     timeXY = antXantYspw.getcol('TIME')
-    dataXY = antXantYspw.getcol(colName)[pol]
+    dataXY = antXantYspw.getcol(colName)
     tb.close()
     return timeXY, dataXY
 #
 #-------- Get SPW to DATA_DESC_ID
 def SPW2DATA_DESC_ID(msfile, spwID):
-    tb.open(msfile + '/' + 'DATA_DESCRIPTION')
-    data_desc_id, spw_index = -1,-1
-    while( spw_index !=  spwID ):
-        data_desc_id += 1
-        spw_index = tb.getcell('SPECTRAL_WINDOW_ID', data_desc_id)
-    #
-    tb.close()
-    return data_desc_id
+    if os.path.isfile( msfile + '/' + 'DATA_DESCRIPTION' ):
+        tb.open(msfile + '/' + 'DATA_DESCRIPTION')
+        data_desc_id, spw_index = -1,-1
+        while( spw_index !=  spwID ):
+            data_desc_id += 1
+            spw_index = tb.getcell('SPECTRAL_WINDOW_ID', data_desc_id)
+        #
+        tb.close()
+        return data_desc_id
+    else:
+        return spwID
 #-------- Get atmCal SPWs
 def GetAtmSPWs(msfile):
     msmd.open(msfile)

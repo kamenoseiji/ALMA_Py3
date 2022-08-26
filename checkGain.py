@@ -14,7 +14,8 @@ antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 msmd.open(msfile)
 spwName = msmd.namesforspws(spw)[0]
-BandName = re.findall(r'RB_..', spwName)[0]; BandID = int(BandName[3:5])
+if spwName != 'none':
+    BandName = re.findall(r'RB_..', spwName)[0]; BandID = int(BandName[3:5])
 #-------- Array Configuration
 print('---Checking array configuration')
 flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
@@ -25,10 +26,12 @@ print(text_sd)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
-uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-if 'refant' in locals():    refantID = indexList(np.array([refant]), antList[UseAnt])[0]
-else: refantID = bestRefant(uvDist)
+if 'refant' in locals():
+    refantID = indexList(np.array([refant]), antList[UseAnt])[0]
+else:
+    timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
+    uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+    refantID = bestRefant(uvDist)
 print('  Use ' + antList[UseAnt[refantID]] + ' as the refant.')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
