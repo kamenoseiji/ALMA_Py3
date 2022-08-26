@@ -1,10 +1,12 @@
 ####
 # Script for Bispectra (closure phase)
 ####
-from scipy import stats
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ptick
-exec(open(SCR_DIR + 'interferometry.py').read())
+import numpy as np
+import datetime
+#import matplotlib as plt
+#exec(open(SCR_DIR + 'interferometry.py').read())
+from interferometry import ANT0, ANT1, Ant2Bl, Ant2BlD, indexList, bestRefant, GetAntName, GetUVW, GetVisAllBL, ParaPolBL, specBunch, bunchVec
+from Plotters import plotBispec
 #-------- Definitions
 if 'antFlag' not in locals(): antFlag = []
 msfile = wd + prefix + '.ms'
@@ -77,57 +79,8 @@ polNum = len(polIndex)
 polColor, polName = ['b','g'], ['X', 'Y']
 ET_text = qa.time('%fs' % (timeStamp[-1]), form='fits', prec=6)[0]
 #-------- Prepare Plots
-figSPW = plt.figure(figsize=(figInch, figInch))
-figSPW.text(0.475, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')), fontsize=fontSize)
-figSPW.text(0.05, 0.5, 'Closure Phase [rad]', rotation=90, fontsize=fontSize)
-figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
-text_timerange = '%s - %s' % (ST_text, ET_text)
-figSPW.suptitle('%s SPW=%d %s' % (prefix, spw, text_timerange), fontsize=fontSize)
+labelList = ['UTC on %s' % (DT[0].strftime('%Y-%m-%d')), 'Closure Phase [rad]', 'Amplitude', '%s SPW=%d %s - %s' % (prefix, spw, ST_text, ET_text)]
+plotFile  = 'BS_%s_SPW%d' % (prefix, spw)
 pMax = np.percentile(abs(scanVis), 98) if 'plotMax' not in locals() else plotMax
-#
-for bl_index in list(range(UseBlNum)):
-    ants = Bl2Ant(bl_index)
-    #-------- Plot visibility amplitude
-    BLamp = figSPW.add_subplot(UseAntNum-1, UseAntNum-1, ants[1]*(UseAntNum -1) + ants[0])
-    for pol_index in list(range(polNum)):
-        plotVis = scanVis[pol_index, bl_index]
-        BLamp.step(DT, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
-    #
-    BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*pMax])
-    BLamp.xaxis.set_major_locator(plt.NullLocator())
-    if bl_index == 0:
-        BLamp.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-    if ants[0] - ants[1] == 1:
-        BLamp.set_ylabel(antList[antMap[ants[1]]])
-    if ants[1] == 0:    # Antenna label in the top and leftside
-        BLamp.set_title( antList[antMap[ants[0]]] )
-    if ants[0] == UseAntNum - 1:    # Antenna at rightside
-        BLamp.yaxis.tick_right()
-    else:
-        BLamp.yaxis.set_major_locator(plt.NullLocator())
-    #-------- Plot closure phase
-    if ants[1] > 0:         # plot Closure phase
-        BLphs = figSPW.add_subplot(UseAntNum-1, UseAntNum-1, (ants[0] - 1)*(UseAntNum-1) + ants[1])
-        BLphs.patch.set_facecolor('lightyellow')
-        tri0, tri1, tri2 = Ant2Bl(ants[0], 0), Ant2Bl(ants[1], 0), Ant2Bl(ants[0], ants[1])
-        for pol_index in list(range(polNum)):
-            plotVis = scanVis[pol_index, tri0].conjugate()* scanVis[pol_index, tri1]* scanVis[pol_index, tri2]
-            BLphs.plot(DT, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
-        #
-        print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri0, tri1, tri2, antList[antMap[0]], antList[antMap[ants[1]]], antList[antMap[ants[0]]]))
-        BLphs.set_title('%s-%s-%s' % (antList[antMap[0]], antList[antMap[ants[1]]], antList[antMap[ants[0]]] ), fontsize=0.5*fontSize)
-        BLphs.axis([np.min(DT), np.max(DT), -math.pi, math.pi])
-        BLphs.tick_params(axis='x', labelsize=int(fontSize*0.25), labelrotation=-90)
-        if ants[1] == 1: BLphs.set_ylabel(antList[antMap[ants[0]]] )
-        if ants[1] > 1: BLphs.yaxis.set_major_locator(plt.NullLocator())
-        if ants[0] < UseAntNum - 1:    # except bottom panel : skip drawing X-axis
-            BLphs.xaxis.set_major_locator(plt.NullLocator())
-        #
-    #
-#
-plt.show()
-pngFile = 'BS_%s_SPW%d' % (prefix, spw)
-pdfFile = pngFile + '.pdf'
-figSPW.savefig(pdfFile, format='pdf', dpi=144)
-plt.close('all')
-os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
+plotBispec(antList[antMap], scanVis, DT, plotFile, labelList, pMax)
+os.system('pdftoppm -png %s %s' % (plotFile + '.pdf', plotFile))

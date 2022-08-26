@@ -2,12 +2,15 @@
 #
 import xml.etree.ElementTree as ET
 import numpy as np
+from interferometry import indexList
 
+'''
 def indexList( refArray, motherArray ):     # Compare two arrays and return matched index
     IL = []
     for currentItem in refArray: IL = IL + np.where( motherArray == currentItem )[0].tolist()
     return IL
 #
+'''
 def CheckCorr( ASDM ):
     Corr_XML = ASDM + '/CorrelatorMode.xml'
     tree = ET.parse(Corr_XML)
@@ -28,11 +31,10 @@ def BandList( ASDM ):
     for row in root.findall('row'):
         #-------- Find Receiver band name
         for RX in row.findall('frequencyBand'): RXname = RX.text
-        if KEY_ALMA in RXname:  RXList = RXList + [RXname]
+        if KEY_ALMA in RXname:  RXList = RXList + [RXname.replace(KEY_ALMA, 'RB')]
     #
     return list(set(RXList))
 #
-
 def BBLOfreq( ASDM ):
     #-------- BB-SPWID connection
     SPW_XML = ASDM + '/' + 'SpectralWindow.xml'

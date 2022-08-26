@@ -14,6 +14,11 @@ import urllib.request, urllib.error
 import scipy.optimize
 import time
 import datetime
+import analysisUtils as au
+from casatools import table as tbtool
+from casatools import msmetadata as msmdtool
+tb = tbtool()
+msmd = msmdtool()
 BANDPA = [0.0, 45.0, -45.0, 80.0, -80.0, 45.0, -45.0, 36.45, 90.0, -90.0, 0.0]   # X-pol orientation for Band-1, 2, 3, 4, 5, 6, 7, 8, 9, and 10
 BANDFQ = [0.0, 43.2, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 460.0, 650.0, 870.0]   # Standard frequency [GHz]
 Tcmb = 2.725    # CMB temperature
@@ -73,7 +78,7 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     kernelBL = np.where(ant0 == refant)[0].tolist() + np.where(ant1 == refant)[0].tolist()
     flagIndex = np.where(Flag[kernelBL] > 0.5)[0].tolist()
     useKernelBL = np.array(kernelBL)[flagIndex].tolist()
-    SAantennas = unique(np.append(ant0[useKernelBL], ant1[useKernelBL]))
+    SAantennas = list(set(np.append(ant0[useKernelBL], ant1[useKernelBL])))
     SAantMap = [refant] + sort(np.array(list(set(SAantennas) - set([refant])))).tolist()
     SAantNum = len(SAantennas); SAblNum = int(SAantNum* (SAantNum - 1)/2)
     SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
@@ -230,11 +235,13 @@ def InvPAVector(PA, Unity):
         [ sn,  cs,  cs, -sn],
         [Zeroty,-1.0j*Unity,1.0j*Unity, Zeroty]])
 #
+'''
 def AzEl2PA(az, el, lat=ALMA_lat): # Azimuth, Elevation, Latitude (default=ALMA) in [rad]
     cos_lat, sin_lat = np.cos(lat), np.sin(lat)
     #return np.arctan( -cos_lat* np.sin(az) / (np.sin(lat)* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
     return np.arctan2( -cos_lat* np.sin(az), (sin_lat* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
 #
+'''
 #-------- Greenwidge Mean Sidereal Time
 def mjd2gmst( mjd, ut1utc ):        # mjd in [day], ut1utc in [sec]
     FACT = [24110.54841, 8640184.812866, 0.093104, 0.0000062]
@@ -379,6 +386,20 @@ def GetVisibility(msfile, ant1, ant2, spwID, scanID):
     tb.close()
     return timeXY, dataXY
 #
+#-------- Load visiblities in all SPWs and scans
+def loadScanSPW(msfile, spwList, scanList):
+    timeStampList, XspecList = [], []
+    for spw in spwList:
+        XscanList = []
+        for scan in scanList:
+            timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
+            XscanList = XscanList + [Xspec]
+            if spw == spwList[0]: timeStampList = timeStampList + [timeStamp]
+        #
+        XspecList = XspecList + [XscanList]
+    #
+    return timeStampList, XspecList
+#
 #-------- Get SPW to DATA_DESC_ID
 def SPW2DATA_DESC_ID(msfile, spwID):
     if os.path.isfile( msfile + '/' + 'DATA_DESCRIPTION' ):
@@ -422,6 +443,27 @@ def GetBPcalSPWs(msfile):
     msmd.close()
     return BPspwList
 #
+def GetSPWFreq(msfile, SPWdic):
+    RXList = list(SPWdic.keys())
+    for BandName in RXList:
+        #-------- SPW and Frequency List
+        chNumList, BWList, FreqList = [], [], []
+        for spw in SPWdic[BandName]:
+            chNum, chWid, freq = GetChNum(msfile, spw)
+            chNumList = chNumList + [chNum]
+            BWList = BWList + [chNum* np.median(chWid)]
+            FreqList = FreqList + [freq* 1.0e-9]
+        #
+        SPWdic[BandName] = [SPWdic[BandName], FreqList, chNum, BWList]
+    #
+    return SPWdic
+#
+#-------- Get GridSurvey Scans
+def GetOnSource(msfile):
+    msmd.open(msfile)
+    OnScanList = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURC*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")))))
+    msmd.close()
+    return OnScanList
 #-------- Get Bandpass Scan
 def GetBPcalScans(msfile):
     msmd.open(msfile)
@@ -1324,6 +1366,94 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 	#   
 	return delay_ant, delay_err, delayCalXspec
 #
+def SPWalign(spwGain):
+    timeNum  = spwGain.shape[3]
+    spwTwiddle= np.mean(spwGain, axis=3).transpose(2,1,0) # [ant, pol, spw]
+    for ant_index in list(range(spwTwiddle.shape[0])):
+        refGain = np.ones(timeNum, dtype=complex)
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        refGain = np.mean(spwGain[:,:,ant_index].transpose(2,0,1)* gainOffset.conjugate(), axis=(1,2))
+        gainOffset = spwGain[:,:,ant_index].dot(refGain)
+        spwTwiddle[ant_index] = (gainOffset / abs(gainOffset)).T
+    #
+    return spwTwiddle
+#
+def CrossPolBP(Xspec):  # full-polarization bandpass 
+    polNum, chNum, blNum, timeNum = Xspec.shape
+    antNum = Bl2Ant(blNum)[0]
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
+    BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
+    chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    #---- Gain Cal
+    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
+    XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
+    BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
+    XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
+    BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
+    BPCaledXspec = XPspec.transpose(2, 0, 1)* abs(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex])**2 /(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
+    del XPspec
+    #---- Amplitude normalization
+    for pol_index in [0,1]:
+        ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
+        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
+    #
+    BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
+    XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
+    XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
+    return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
+#
+def BPaverage(BPList, XYList, SSOList, scanList, BPrefIndex=0, XYrefIndex=0):
+    chTrim = 0.06
+    BPant, XYspec  = np.array(BPList), np.array(XYList)
+    scanNum, antNum, parapolNum, chNum  = BPant.shape
+    chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
+    BPweight = np.zeros([scanNum, antNum, parapolNum], dtype=complex)
+    #---- Reference scan
+    BPmean, XYmean =  BPant[BPrefIndex], XYspec[XYrefIndex]
+    for iter in list(range(10)):
+        #-------- BP table 
+        for ant_index in list(range(antNum)):
+            for pol_index in list(range(parapolNum)):
+                BPpower = np.sum(BPant[:, ant_index, pol_index]* BPant[:, ant_index, pol_index].conjugate(), axis=1).real
+                BPcorr = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()) / sqrt(BPpower* (BPmean[ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()).real))
+                BPvar  = -np.log(abs(BPcorr))
+                BPweight[:, ant_index, pol_index]  = BPcorr.conjugate() / (BPvar + np.percentile(BPvar, 100/scanNum))
+                BPweight[:, ant_index, pol_index] = BPweight[:, ant_index, pol_index] / np.sum(abs(BPweight[:, ant_index, pol_index]))
+            #
+        #
+        BPmean = np.sum(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
+        BPscale = np.mean(abs(BPmean[:,:,chRange]), axis=2)
+        BPmean = (BPmean.transpose(2,0,1) / BPscale).transpose(1,2,0)
+        #-------- XY phase 
+        XYcorr = XYspec.dot(XYmean.conjugate()) / chNum
+        XYsign = np.sign(XYcorr.real)
+        if 'XYwgt' in locals():
+            XYweight = XYsign* np.array(XYwgt)
+        else:
+            XYvar  = -np.log(abs(XYcorr))
+            XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
+        #
+        XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
+    #
+    text_BPwgt, text_XYwgt, text_scan = 'BP wgt:', 'XY wgt:', 'Scan  :'
+    for scan_index, scan in enumerate(scanList):
+        text_scan   = text_scan   + '    %3d ' % (scan)
+        text_BPwgt  = text_BPwgt + '%7.3f ' % (np.median(abs(BPweight), axis=(1,2))[scan_index])
+        text_XYwgt  = text_XYwgt + '%7.1f ' % (XYweight[scan_index])
+    #
+    print(text_scan)
+    print(text_BPwgt)
+    print(text_XYwgt)
+    return BPmean, XYmean
+#
+def BPGainCorrection(Xspec, BP_ant, Gain_ant):
+    # Xspec [pol, ch, bl, time]
+    # BP_ant[ant, pol, ch]
+    # Gain_ant [ant, time]
+    Xspec = Xspec / (Gain_ant[ant0]* Gain_ant[ant1].conjugate())
+    return (Xspec.transpose(3,2,0,1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())).transpose(2,3,1,0)
+#
 def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=np.array([])): 
     XYsnr = 0.0
     blNum = len(blMap); antNum = Bl2Ant(blNum)[0]
@@ -1547,17 +1677,6 @@ def simple2DGaussFit( z, x, y ):
     result = scipy.optimize.leastsq(resid2DGauss, param, args=(z, x, y))
     return result[0]
 #
-#-------- ACD edge pattern
-def ACDedge( timeXY ):
-    timeSKY = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE")
-    timeAMB = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
-    timeHOT = msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT")
-    #
-    skyRange = range(2, edge[0]-1)
-    ambRange = range(edge[0]+3, edge[1]-1)
-    hotRange = range(edge[1]+3, len(timeXY)-1)
-    return skyRange, ambRange, hotRange
-#
 #-------- 3-bit VanVleck Correction
 def Vanv3bitCorr( dataXY, refRange, Qeff ):
 	refZeroLag = np.mean(dataXY[:, refRange].real)
@@ -1568,95 +1687,6 @@ def Vanv3bitCorr( dataXY, refRange, Qeff ):
 		dataXY[:,index] = temp / VanvCorrect
 	#
 	return dataXY
-#
-#======== Amplitude calibrations
-#-------- Residuals for Tsky - secz regresion (optical depth + intercept)
-def residTskyTransfer( param, Tamb, secz, Tsky, weight ):
-    exp_Tau = np.exp( -param[1]* secz )
-    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Residuals for Tsky - secz regresion (without intercept)
-def residTskyTransfer0( param, Tamb, secz, Tsky, weight ):
-    exp_Tau = np.exp( -param[0]* secz )
-    return weight* (Tsky - (Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Residuals for Tsky - secz regresion (fixed zenith optical depth)
-def residTskyTransfer2( param, Tamb, Tau0, secz, Tsky, weight ):
-    exp_Tau = np.exp( -Tau0* secz )
-    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
-#
-#-------- Tsys from ACD
-def TsysSpec(msfile, pol, TsysScan, spw, vanvSW):
-    #if vanvSW:
-    #	VanvQ3, Qeff = loadVanvQ3('/users/skameno/Scripts/ACAPowerCoeff.data')  # 3-bit Van Vleck
-    #
-	antList = GetAntName(msfile)
-	antNum  = len(antList)
-	polNum  = len(pol)
-	chNum, chWid, freq = GetChNum(msfile, spw)
-	TrxSp = np.zeros([antNum, polNum, chNum]); TsysSp = np.zeros([antNum, polNum, chNum])
-	chRange = range(int(0.1*chNum), int(0.9*chNum))
-	#
-	text_sd =  '%s SPW=%d SCAN=%d' % (msfile, spw, TsysScan)
-	print(text_sd)
-	#-------- Loop for Antenna
-	for ant_index in range(antNum):
-		#-------- Get Physical Temperature of loads
-		tempAmb, tempHot = GetLoadTemp(msfile, ant_index, spw)
-		#
-		for pol_index in range(polNum):
-			timeXY, dataXY = GetVisibility(msfile, ant_index, ant_index, pol[pol_index], spw, TsysScan)
-			#-------- Time range of Sky/Amb/Hot
-			skyRange, ambRange, hotRange = ACDedge(timeXY)
-			#-------- Van Vleck Correction
-			if vanvSW:
-				dataXY = Vanv3bitCorr(dataXY, ambRange, Qeff)
-			#
-			#-------- Calc. Tsys Spectrum
-			Psky, Pamb, Phot = np.mean(dataXY[:,skyRange].real, 1), np.mean(dataXY[:,ambRange].real, 1), np.mean(dataXY[:,hotRange].real, 1)
-			TrxSp[ant_index, pol_index]  = (tempHot* Pamb - Phot* tempAmb) / (Phot - Pamb)
-			TsysSp[ant_index, pol_index] = (Psky* tempAmb) / (Pamb - Psky)
-			text_sd = '%s PL%s %5.1f %5.1f' % (antList[ant_index], pol[pol_index], np.median(TrxSp[ant_index, pol_index]), np.median(TsysSp[ant_index, pol_index]))
-			print(text_sd)
-			# logfile.write(text_sd + '\n')
-		#
-	#
-	return TrxSp, TsysSp
-#
-#-------- Power Spectra
-def PowerSpec(msfile, pol, TsysScan, TsysSPW, vanvSW):
-	VanvQ3, Qeff = loadVanvQ3('/users/skameno/Scripts/ACAPowerCoeff.data')  # 3-bit Van Vleck
-	antList = GetAntName(msfile)
-	antNum  = len(antList)
-	polNum  = len(pol)
-	chNum, chWid, freq = GetChNum(msfile, TsysSPW); Tsysfreq = freq* 1.0e-9 # GHz
-	PskySpec = np.zeros([antNum, polNum, chNum])
-	PambSpec = np.zeros([antNum, polNum, chNum])
-	PhotSpec = np.zeros([antNum, polNum, chNum])
-	#-------- Loop for antennas
-	for ant_index in range(antNum):
-		#-------- Get Physical Temperature of loads
-		tempAmb, tempHot = GetLoadTemp(msfile, ant_index, TsysSPW)
-		#
-		#-------- Loop for polarizations
-		for pol_index in range(polNum):
-			timeXY, dataXY = GetVisibility(msfile, ant_index, ant_index, pol_index, TsysSPW, TsysScan)
-			#
-			#-------- Time range of Sky/Amb/Hot
-			skyRange, ambRange, hotRange = ACDedge(timeXY)
-			#-------- Van Vleck Correction
-			if vanvSW:
-				dataXY = Vanv3bitCorr(dataXY, ambRange, Qeff)
-			#
-			#-------- Calc. Tsys Spectrum
-			PambSpec[ant_index, pol_index] = np.mean(dataXY[:,ambRange].real, 1)
-			scaleFact = tempAmb / np.mean(PambSpec[ant_index, pol_index])
-			PambSpec[ant_index, pol_index] = scaleFact* PambSpec[ant_index, pol_index]
-			PskySpec[ant_index, pol_index] = scaleFact* np.mean(dataXY[:,skyRange].real, 1)
-			PhotSpec[ant_index, pol_index] = scaleFact* np.mean(dataXY[:,hotRange].real, 1)
-		#
-	#
-	return Tsysfreq, PskySpec, PambSpec, PhotSpec
 #
 def GFSmatrix(antDelay, Frequency):
     chNum, antNum = len(Frequency), len(antDelay)
