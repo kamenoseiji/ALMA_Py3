@@ -140,6 +140,7 @@ for BandName in RXList:
     BPList, XYList = [], []
     for scan_index, scan in enumerate(BPavgScanList):
         BPSPWList, XYSPWList = [], []
+        print('--------- Scan %d ' % (scan))
         for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)  # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/(GainList[scan_index][ant0]* GainList[scan_index][ant1].conjugate()), axis=3)
@@ -153,8 +154,8 @@ for BandName in RXList:
         #
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
-        #pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        #plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], scan, BPSPWList)
+        pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
+        plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], scan, BPSPWList)
     #
     # XY reference scan
     BPscanIndex = np.argmax(np.array([scanDic[scan][3] for scan in BandScanList[BandName]]))
@@ -164,7 +165,7 @@ for BandName in RXList:
         XYSPW = [XYList[scan_index][spw_index] for scan_index, scan in enumerate(BPavgScanList)]
         BPSPWList[spw_index], XYSPWList[spw_index] = BPaverage(BPSPW, XYSPW, SSOList, BPavgScanList)
         BPSPWList[spw_index][:][1] *= XYSPWList[spw_index]  # XY phase correction into Bandpass Y
-    del BPSPW, XYSPW, BPList, XYList
+    #del BPSPW, XYSPW, BPList, XYList
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], 0, BPSPWList)
     #---- 
