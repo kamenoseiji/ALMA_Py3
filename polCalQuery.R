@@ -98,7 +98,7 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     }
 }
 #-------- # filtering by source polarization
-estimateIQUV(DF, refFreq, refData){
+estimateIQUV <- function(DF, refFreq, refData){
     DF$relTime <-as.numeric(DF$Date) - as.numeric(as.POSIXct(refDate))
     DF$relFreq <- DF$Freq / refFreq
     if( sd(DF$relFreq) > 0.5 ){

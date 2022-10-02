@@ -1,3 +1,4 @@
+import os
 import re
 import numpy as np
 from numpy import *
@@ -1366,7 +1367,7 @@ def delayCalSpec2( Xspec, chRange, sigma ):  # chRange = [startCH:stopCH] specif
 	#   
 	return delay_ant, delay_err, delayCalXspec
 #
-def SPWalign(spwGain):
+def SPWalign(spwGain):       # spwGain[spw, pol, ant, time]
     timeNum  = spwGain.shape[3]
     spwTwiddle= np.mean(spwGain, axis=3).transpose(2,1,0) # [ant, pol, spw]
     for ant_index in list(range(spwTwiddle.shape[0])):
@@ -1384,7 +1385,7 @@ def CrossPolBP(Xspec):  # full-polarization bandpass
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
     BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
-    chRange = list(range(int(0.05*chNum), int(0.95*chNum)))
+    chRange = list(range(int(0.06*chNum), int(0.94*chNum)))
     #---- Gain Cal
     Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
@@ -1403,7 +1404,7 @@ def CrossPolBP(Xspec):  # full-polarization bandpass
     XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
     return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
 #
-def BPaverage(BPList, XYList, SSOList, scanList, BPrefIndex=0, XYrefIndex=0):
+def BPaverage(BPList, XYList, scanList, BPrefIndex=0, XYrefIndex=0):
     chTrim = 0.06
     BPant, XYspec  = np.array(BPList), np.array(XYList)
     scanNum, antNum, parapolNum, chNum  = BPant.shape
