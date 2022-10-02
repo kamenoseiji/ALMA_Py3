@@ -239,7 +239,11 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
+<<<<<<< HEAD
             AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
+=======
+            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SP-W%s Amp' % (str(spw)))
+>>>>>>> refs/remotes/origin/main
             PhsPL.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
