@@ -6,7 +6,6 @@ import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
 from Plotters import plotXYP, plotBP, plotSP
-#
 #-------- Procedures
 msfile = wd + prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)

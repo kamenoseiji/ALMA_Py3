@@ -28,8 +28,8 @@ refFreq <- argList$refFreq
 srcList <- argList$srcList
 
 #-------- Load Flux.Rdata from web
-#load('Flux.Rdata')
-load(url("http://www.alma.cl/~skameno/Grid/Stokes/Flux.Rdata")) 
+load('Flux.Rdata')
+#load(url("http://www.alma.cl/~skameno/Grid/Stokes/Flux.Rdata")) 
 FLDF$timeDiff <- as.numeric(difftime(FLDF$Date, refDate, units='days'))
 #-------- For each source
 IatRef <- QatRef <- UatRef <- numeric(0)

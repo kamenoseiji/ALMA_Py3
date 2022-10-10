@@ -44,7 +44,7 @@ if 'FGprefix' in locals():  # Flag table
     useTimeStamp = TS[useTimeIndex]
     if len(antFlag) > 0: print('Flagged antennas : %s' % (str(antFlag)))
 #
-sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
+#sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
 refAntID  = indexList([refantName], antList)
 flagAntID = indexList(antFlag, antList)
 if len(refAntID) < 1:
@@ -72,7 +72,7 @@ for scan in scanLS:
     else:
         scanLS = list( set(scanLS) - set([scan]) )
     #
-    sourceName = sourceList[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
+    sourceName = sourceRename(sources)[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
     sourceScan = sourceScan + [sourceName]
     scanDic[sourceName] = scanDic[sourceName] + [scanIndex]
     if 'AprioriDic' in locals(): 

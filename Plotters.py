@@ -239,11 +239,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-<<<<<<< HEAD
             AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
-=======
-            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SP-W%s Amp' % (str(spw)))
->>>>>>> refs/remotes/origin/main
             PhsPL.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
@@ -345,7 +341,7 @@ def plotGain(prefix, spw):
         PhsPL.axis([np.min(DT), np.max(DT), -180.0, 180.0])
         if polNum == 2: text_sd = '%s : Gain(median) = (%.2f%% %.2f%%)' % (antList[ant_index], 100.0* ampMed[0], 100.0* ampMed[1])
         else: text_sd = '%s : Gain(median) = (%.2f%%)' % (antList[ant_index], 100.0* ampMed[0])
-        pBLphsrint(text_sd)
+        print(text_sd)
         AmpPL.text( 0.05, 1.02, text_sd, transform=AmpPL.transAxes, fontsize=5)
         PhsPL.text( 0.05, 1.02, antList[ant_index], transform=PhsPL.transAxes, fontsize=5)
     #
