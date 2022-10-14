@@ -9,7 +9,7 @@ FreqList, DxList, DyList = [], [], []
 spwNum = len(spwList)
 for spw_index in list(range(spwNum)):
     spw = spwList[spw_index]
-    antList = np.load('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName))
+    if 'antList' not in locals(): antList = np.load('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName))
     antNum = len(antList)
     for ant_index in list(range(antNum)):
         Dterm = np.load('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antList[ant_index]))

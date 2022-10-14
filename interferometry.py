@@ -1194,6 +1194,14 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
     newDy += Solution[2*antNum:3*antNum] + (1.0j)* Solution[3*antNum:4*antNum]
     return newDx, newDy
 #
+def TransferD(Vis, DtX, DtY, PS): 
+    # IN: Vis[4, time] : normalized and baseline-averaged visibilities of XX, XY, YX, and YY
+    # IN: DtX, DTY     : average of D-terms in tracking antennas
+    # IN: PS[4, time]  : P.dot(S) where P is the Muller matrix and S=[I, Q, U, V]/I
+    Dx = np.sum( Vis[0] + Vis[1] - (1.0 + DtY.conjugate())*PS[0] - (1.0 + DtX.conjugate())*PS[1]) / np.sum( (1.0 + DtY.conjugate())* PS[2] + (1.0 + DtX.conjugate())* PS[3])
+    Dy = np.sum( Vis[2] + Vis[3] - (1.0 + DtY.conjugate())*PS[2] - (1.0 + DtX.conjugate())*PS[3]) / np.sum( (1.0 + DtY.conjugate())* PS[0] + (1.0 + DtX.conjugate())* PS[1])
+    return Dx, Dy
+'''
 def TransferD(Vis, DtX, DtY, PS):
     refAntNum, PAnum = len(DtX), PS.shape[1]
     #
@@ -1228,6 +1236,7 @@ def TransferD(Vis, DtX, DtY, PS):
     Solution = PTdotR / PTP_diag
     return Solution[0] + 1.0j* Solution[1], Solution[2] + 1.0j* Solution[3]
 #
+'''
 def Vis2solveD(Vis, DtX, DtY, PS):
     refAntNum = len(DtX)
     A = np.array([ PS[3]* DtX.real + PS[2], PS[2]* DtY.real + PS[3], -PS[3]* DtX.imag, -PS[2]* DtY.imag])
