@@ -10,9 +10,8 @@ spwNum = len(spwList)
 for spw_index in list(range(spwNum)):
     spw = spwList[spw_index]
     if 'antList' not in locals(): antList = np.load('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName))
-    antNum = len(antList)
-    for ant_index in list(range(antNum)):
-        Dterm = np.load('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antList[ant_index]))
+    for ant_index, antName in enumerate(antList):
+        Dterm = np.load('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antName))
         DxList   = DxList   + [Dterm[1] + (0.0 + 1.0j)* Dterm[2]]
         DyList   = DyList   + [Dterm[3] + (0.0 + 1.0j)* Dterm[4]]
     #
