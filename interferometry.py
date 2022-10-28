@@ -1411,48 +1411,17 @@ def CrossPolBP(Xspec):  # full-polarization bandpass
     XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
     return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
 #
-def BPaverage(BPList, XYList, scanList, BPrefIndex=0, XYrefIndex=0):
+def BPaverage(BPList, XYList, scanList, BPweight, XYweight):
     chTrim = 0.06
     BPant, XYspec  = np.array(BPList), np.array(XYList)
     scanNum, antNum, parapolNum, chNum  = BPant.shape
-    chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
-    BPweight = np.zeros([scanNum, antNum, parapolNum], dtype=complex)
-    #---- Reference scan
-    BPmean, XYmean =  BPant[BPrefIndex], XYspec[XYrefIndex]
-    for iter in list(range(10)):
-        #-------- BP table 
-        for ant_index in list(range(antNum)):
-            for pol_index in list(range(parapolNum)):
-                BPpower = np.sum(BPant[:, ant_index, pol_index]* BPant[:, ant_index, pol_index].conjugate(), axis=1).real
-                BPcorr = BPant[:, ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()) / sqrt(BPpower* (BPmean[ant_index, pol_index].dot(BPmean[ant_index, pol_index].conjugate()).real))
-                BPvar  = -np.log(abs(BPcorr))
-                BPweight[:, ant_index, pol_index]  = BPcorr.conjugate() / (BPvar + np.percentile(BPvar, 100/scanNum))
-                BPweight[:, ant_index, pol_index] = BPweight[:, ant_index, pol_index] / np.sum(abs(BPweight[:, ant_index, pol_index]))
-            #
-        #
-        BPmean = np.sum(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
-        BPscale = np.mean(abs(BPmean[:,:,chRange]), axis=2)
-        BPmean = (BPmean.transpose(2,0,1) / BPscale).transpose(1,2,0)
-        #-------- XY phase 
-        XYcorr = XYspec.dot(XYmean.conjugate()) / chNum
-        XYsign = np.sign(XYcorr.real)
-        if 'XYwgt' in locals():
-            XYweight = XYsign* np.array(XYwgt)
-        else:
-            XYvar  = -np.log(abs(XYcorr))
-            XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
-        #
-        XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
+    #---- BP average
+    BPmean = (BPant.transpose(1,2,3,0).dot(BPweight) / np.sum(BPweight))
+    #---- XY average
+    refScanIndex = np.argmax(abs(XYweight))
+    XYweight = abs(XYweight)* np.sign(XYspec.dot(XYspec[refScanIndex].conjugate()).real)
+    XYmean   = XYspec.T.dot(XYweight); XYmean = XYmean / abs(XYmean)
     #
-    text_BPwgt, text_XYwgt, text_scan = 'BP wgt:', 'XY wgt:', 'Scan  :'
-    for scan_index, scan in enumerate(scanList):
-        text_scan   = text_scan   + '    %3d ' % (scan)
-        text_BPwgt  = text_BPwgt + '%7.3f ' % (np.median(abs(BPweight), axis=(1,2))[scan_index])
-        text_XYwgt  = text_XYwgt + '%7.1f ' % (XYweight[scan_index])
-    #
-    print(text_scan)
-    print(text_BPwgt)
-    print(text_XYwgt)
     return BPmean, XYmean
 #
 def BPGainCorrection(Xspec, BP_ant, Gain_ant):
