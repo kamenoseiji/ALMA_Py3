@@ -1,7 +1,7 @@
 #---- Script for Band-3 Astroholograpy Data
 import numpy as np
 import matplotlib.pyplot as plt
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetUVW, GetVisAllBL, indexList, Ant2Bl, Ant2BlD, ANT0, ANT1, bestRefant, bunchVec, ParaPolBL, gainComplexErr
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetUVW, GetVisAllBL, indexList, Ant2Bl, Ant2BlD, ANT0, ANT1, bestRefant, specBunch, bunchVec, ParaPolBL, gainComplexErr
 from Plotters import plotGain
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
