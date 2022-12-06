@@ -69,13 +69,11 @@ for BandName in RXList:
         StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [np.median(BandbpSPW[BandName][1][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName][0])])
     PAList, CSList, SNList, QCpUSList, UCmQSList = [], [], [], [], []
     #-------- Check AZEL
-    print('-----AZ, EL, PA')
     AzScanList, ElScanList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
     #-------- Polarization responses
-    print('-----Estimated polarization responses')
     PAList, CSList, SNList, QCpUSList, UCmQSLis, scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
@@ -159,7 +157,9 @@ for BandName in RXList:
     for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
         BPSPW = [BPList[scan_index][spw_index] for scan_index in indexList(np.array(BPavgScanList), np.array(BPscanList))]
         XYSPW = [XYList[scan_index][spw_index] for scan_index in indexList(np.array(BPavgScanList), np.array(BPscanList))]
-        BPSPWList[spw_index], XYSPWList[spw_index] = BPaverage(BPSPW, XYSPW, BPavgScanList, np.median(abs(np.array(GainList)), axis=(1,2))**2, np.array(XYamp))
+        #
+        BPSPWList[spw_index], XYSPWList[spw_index] = BPaverage(BPSPW, XYSPW, BPavgScanList, np.median(abs(np.array(GainList)[indexList(np.array(BPavgScanList), np.array(BPscanList))]), axis=(1,2))**2, np.array(XYamp)[indexList(np.array(BPavgScanList), np.array(BPscanList))])
+        #
         BPSPWList[spw_index][:,1] *= XYSPWList[spw_index]  # XY phase correction into Bandpass Y
     del BPSPW, XYSPW, BPList, XYList, XYamp, XYSPWList, XYampSPWList
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
