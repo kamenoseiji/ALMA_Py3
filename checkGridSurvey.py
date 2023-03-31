@@ -41,7 +41,7 @@ msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
-#exec(open(SCR_DIR + 'TsysCal.py').read())
+exec(open(SCR_DIR + 'TsysCal.py').read())
 #-------- Check Antenna List
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []
@@ -61,6 +61,9 @@ azelTime_index = np.where( AntID == 0 )[0].tolist()
 #-------- Loop for Bands
 for BandName in RXList:
     print('-----%s----' % (BandName))
+    #-------- Load Aeff file
+    etaA = GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(timeStamp)).T
+    #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName][0], BandScanList[BandName])
@@ -73,6 +76,20 @@ for BandName in RXList:
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
+    #-------- Trx and Zenith optical depth
+    TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
+    atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
+    Tau0List, TrxList, TaNList, TrxFreq = [], [], [], []
+    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+        Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
+        TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
+        TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
+        TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
+    #-------- A priori SEFD
+    #SEFDList = []   # SEFDList[ant][spw][scan] [time]
+    #for ant_index, ants in enumerate(antList):
+    #    for scan_index, scan in enumerate(BandScanList[BandName]):
+    #
     #-------- Polarization responses
     PAList, CSList, SNList, QCpUSList, UCmQSLis, scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
     #-------- Check usable antennas and refant
@@ -169,6 +186,7 @@ for BandName in RXList:
     #  Visibilities : XspecList [spw][scan][pol, ch, bl, time]
     #  Bandpass     : BPSPWList [spw][ant, pol, ch]
     #  Gain phase   : GainList  [scan][ant, time]
+    #-------- Apply bandpass and gain correction to obtain channel-averaged visibilities
 
     #Xspec = np.mean(CrossPolBL(XspecList[0][10][:,:,blMap], blInv) * (GainList[10][ant1]* GainList[10][ant0].conjugate()), axis=3).transpose(2,0,1) / (BPSPWList[0][ant1][:,polXindex]* BPSPWList[0][ant0][:,polYindex].conjugate())
     '''
