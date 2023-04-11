@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage
+from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetAzEl, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage
 import matplotlib.pyplot as plt
 from Plotters import plotBP
 from Grid import *
@@ -62,7 +62,7 @@ azelTime_index = np.where( AntID == 0 )[0].tolist()
 for BandName in RXList:
     print('-----%s----' % (BandName))
     #-------- Load Aeff file
-    etaA = GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(timeStamp)).T
+    etaA = GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
     #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory

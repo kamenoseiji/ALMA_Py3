@@ -43,8 +43,7 @@ if 'BPprefix' in locals():
 #
 #-------- Loop for Scan
 GainList, timeList, flagList, fieldList = [], [], [], []
-for scan_index in list(range(len(scanList))):
-    scan = scanList[scan_index]
+for scan_index, scan in enumerate(scanList):
     field_names = msmd.fieldsforscan(scan, True); fieldList = fieldList + [field_names[0]]
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)

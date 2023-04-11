@@ -12,6 +12,8 @@ from scipy.interpolate import LSQUnivariateSpline
 from scipy.interpolate import griddata
 from scipy.sparse import lil_matrix
 import urllib.request, urllib.error
+import ssl
+import certifi
 import scipy.optimize
 import time
 import datetime
@@ -507,29 +509,29 @@ def GetAeff(URI, antMap, band, refMJD):
     if band == 4 : band = 3
     antNum = len(antMap)
     Aeff  = np.ones([antNum, 2])
-    response =  urllib.request.urlopen(url = '%sAeB%d.table' % (URI, band))
+    context = ssl._create_unverified_context()
+    response =  urllib.request.urlopen(url = '%sAeB%d.table' % (URI, band), context=context)
     fileLines = response.readlines()
     lineLength = len(fileLines)
     antPolList = fileLines[0].decode('utf-8').split()[1:]
     polList = ['X', 'Y']
     #-------- reference timing
     mjdSec = np.ones(lineLength - 3)
-    for line_index in range(3, lineLength): mjdSec[line_index - 3] = qa.convert(fileLines[line_index].decode('utf-8').split()[0], 's')['value']
+    for line_index, fileLine in enumerate(fileLines[3:]):
+        mjdSec[line_index] = qa.convert(fileLine.decode('utf-8').split()[0], 's')['value']
     refpointer = np.argmin(abs(mjdSec - refMJD))
     if (refpointer == 0) | (refpointer == len(mjdSec) - 1) :
-        for ant_index in range(antNum):
-            ant = antMap[ant_index]
-            for pol_index in range(2):
-                keyhead = ant + '-' + polList[pol_index]
+        for ant_index, antName in enumerate(antMap):
+            for pol_index, polName in enumerate(polList):
+                keyhead = antName + '-' + polName
                 pointer = antPolList.index(keyhead) + 1
                 Aeff[ant_index, pol_index] = float(fileLines[refpointer + 3].decode('utf-8').split()[pointer])
         return Aeff
     #
     tmpMJD  = np.array([mjdSec[refpointer-1], mjdSec[refpointer], mjdSec[refpointer+1]])
-    for ant_index in range(antNum):
-        ant = antMap[ant_index]
-        for pol_index in range(2):
-            keyhead = ant + '-' + polList[pol_index]
+    for ant_index, antName in enumerate(antMap):
+        for pol_index, polName in enumerate(polList):
+            keyhead = antName + '-' + polName
             pointer = antPolList.index(keyhead) + 1
             tmpAeff = np.array([float(fileLines[refpointer+2].decode('utf-8').split()[pointer]), float(fileLines[refpointer+3].decode('utf-8').split()[pointer]), float(fileLines[refpointer+4].decode('utf-8').split()[pointer])])
             Aeff[ant_index, pol_index] = quadratic_interpol(tmpMJD, tmpAeff, refMJD)
