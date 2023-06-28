@@ -3,7 +3,7 @@ parseArg <- function( args ){
 	argList <- list(as.character(as.POSIXct(Sys.time())), 3600, 3, 0.05, 100.0, FALSE)
 	names(argList) <- c('startTime', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
 	if( !file.exists("Flux.Rdata") ){ argList$load <- TRUE }
-    if( is.logical(args) == FALSE) return(argList)
+    #if( is.logical(args) == FALSE) return(argList)
 	argNum <- length(args)
 	for( index in 1:argNum ){
 		if(substr(args[index], 1,2) == "-s"){ argList$startTime <- as.character(substring(args[index], 3)) }
@@ -84,7 +84,7 @@ EL_HA <- function(sinEL, dec){
 
 #-------- # filtering by source polarization
 sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
-    DateRange <- 60    # 30-day window
+    DateRange <- 60    # 60-day window
     #-------- Filter by observing date
 	DF <- DF[abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange,]
 	#filterDF <- DF[((DF$Band == 7) | (DF$Band == 6)),]
@@ -92,78 +92,35 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     #sourceList <- sourceList[grep('^J[0-9]', sourceList)]  # Filter SSOs out
     sourceList <- unique(DF$Src)
     sourceList <- sourceList[grep('^J[0-9]', sourceList)]  # Filter SSOs out
+    SDF <- data.frame( matrix(rep(NA, 9), nrow=1))[numeric(0),]
+    colnames(SDF) <- c('Src', 'RA', 'DEC', 'I', 'Q', 'U', 'V', 'P', 'EVPA')
 	for(src in sourceList){
 		srcDF <- DF[((DF$Src == src) & (abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange)),] 
-        tempDF <- estimateIQUV(srcDF, refFreq, refDate)
+        srcDF$relTime <- as.numeric(srcDF$Date) - as.numeric(as.POSIXct(refDate))
+        if( (diff(range(srcDF$Freq)) > 100.0) & ( min(abs(srcDF$relTime)) / diff(range(srcDF$relTime)) < 2 ) ){
+            tempDF <- estimateIQUV(srcDF, refFreq)
+            tempDF$RA  <- pi* (60.0* as.numeric(substring(src, 2, 3)) + as.numeric(substring(src, 4, 5))) / 720.0
+            tempDF$DEC <- pi* sign(as.numeric(substring(src, 6, 10)))* (as.numeric(substring(src, 7, 8)) + as.numeric(substring(src, 9, 10))/60.0) / 180.0
+            SDF <- rbind(SDF, tempDF)
+        }
     }
+    return( SDF )
 }
 #-------- # filtering by source polarization
-estimateIQUV <- function(DF, refFreq, refData){
-    DF$relTime <-as.numeric(DF$Date) - as.numeric(as.POSIXct(refDate))
+estimateIQUV <- function(DF, refFreq){
     DF$relFreq <- DF$Freq / refFreq
-    if( sd(DF$relFreq) > 0.5 ){
-        fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI) * (864000 / abs(relTime + 864000)) )
-    } else {
-        fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI) * (864000 / abs(relTime + 864000)) )
-
-
-    #-------- filter by observed band coverage
-    flagSoruceList <- sourceList
-    for(src in sourceList){
-        srcDF <- DF[DF$Src == src,]
-        bandList <- unique(srcDF$Band)
-        B3obsNum <- nrow(srcDF[srcDF$Band == 3,])
-        B7obsNum <- nrow(srcDF[((srcDF$Band == 7) | (srcDF$Band == 6)),])
-        if( (length(bandList) < 2) | (B3obsNum < 3) | (B7obsNum < 3) ){
-            flagSoruceList <- flagSoruceList[-which(flagSoruceList == src)]
-		}
-	}
-    sourceList <- flagSoruceList
-    numSrc <- length(sourceList)
-    #-------- Source properties
-    RAList <- (60.0* as.numeric(substring(sourceList, 2,3)) + as.numeric(substring(sourceList, 4,5))) / 720 * pi # RA in [rad]
-    DecList<- as.numeric(substring(sourceList, 6,8))
-    DecList<- DecList + sign(as.numeric(substring(sourceList, 6,10)))* as.numeric(substring(sourceList, 9,10))/60.0
-    DecList<- DecList / 180 * pi # DEC in [rad]
-	sourceDF <- data.frame(Src=sourceList, RA=RAList, Dec=DecList, I=numeric(numSrc), Q=numeric(numSrc), U=numeric(numSrc), V=numeric(numSrc), P=numeric(numSrc), EVPA=numeric(numSrc), RM=numeric(numSrc), stringsAsFactors=F)
-	for(src in sourceList){
-		index <- which(sourceDF$Src == src)
-		srcDF <- DF[((DF$Src == src) & (abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange)),] 
-		srcDF$relTime <-as.numeric(srcDF$Date) - as.numeric(as.POSIXct(refDate))  # Relative time since reference [sec]
-		srcDF$relFreq <- srcDF$Freq / refFreq                                	  # Relative frequency ratio
-		fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=srcDF, weight=(srcDF$I/srcDF$eI)^2)
-		fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=srcDF, weight=(srcDF$P/(srcDF$eP_upper - srcDF$eP_lower))^2)
-		B3DF <- srcDF[srcDF$Band == 3,]
-		B7DF <- srcDF[((srcDF$Band == 7) | (srcDF$Band == 6)),]
-		B7DF[B7DF$Band == 6,]$I <- B7DF[B7DF$Band == 6,]$I* (BandFreq[7]/BandFreq[6])^coef(fitI)['log(relFreq)'][[1]]
-		B7DF[B7DF$Band == 6,]$P <- B7DF[B7DF$Band == 6,]$P* (BandFreq[7]/BandFreq[6])^coef(fitP)['log(relFreq)'][[1]]
-		B7DF[B7DF$Band == 6,]$Q <- B7DF[B7DF$Band == 6,]$Q* (BandFreq[7]/BandFreq[6])^coef(fitP)['log(relFreq)'][[1]]
-		B7DF[B7DF$Band == 6,]$U <- B7DF[B7DF$Band == 6,]$U* (BandFreq[7]/BandFreq[6])^coef(fitP)['log(relFreq)'][[1]]
-		B7DF[B7DF$Band == 6,]$V <- B7DF[B7DF$Band == 6,]$V* (BandFreq[7]/BandFreq[6])^coef(fitP)['log(relFreq)'][[1]]		
-		fitB3Q <- lm(formula = Q ~ relTime, data=B3DF, weight=(B3DF$P / B3DF$eQ)^2)
-		fitB3U <- lm(formula = U ~ relTime, data=B3DF, weight=(B3DF$P / B3DF$eU)^2)
-		fitB3V <- lm(formula = V ~ relTime, data=B3DF, weight=(B3DF$P / B3DF$eV)^2)
-		fitB7Q <- lm(formula = Q ~ relTime, data=B7DF, weight=(B7DF$P / B7DF$eQ)^2)
-		fitB7U <- lm(formula = U ~ relTime, data=B7DF, weight=(B7DF$P / B7DF$eU)^2)
-		fitB7V <- lm(formula = V ~ relTime, data=B7DF, weight=(B7DF$P / B7DF$eV)^2)
-		sourceDF[index,]$V <- (coef(fitB3V)['(Intercept)'][[1]]*(BandFreq[7] - refFreq) + coef(fitB7V)['(Intercept)'][[1]]*(refFreq - BandFreq[3])) / (BandFreq[7] - BandFreq[3])		
-		B3EVPA <- 0.5* atan2( coef(fitB3U)['(Intercept)'][[1]], coef(fitB3Q)['(Intercept)'][[1]] )
-		B7EVPA <- 0.5* atan2( coef(fitB7U)['(Intercept)'][[1]], coef(fitB7Q)['(Intercept)'][[1]] )
-		lambdaSQ <- (0.299792458 / c(BandFreq[3], BandFreq[7], refFreq))^2
-		if(B3EVPA - B7EVPA >  pi/2){ B3EVPA <- B3EVPA - pi }
-		if(B3EVPA - B7EVPA < -pi/2){ B3EVPA <- B3EVPA + pi }
-		sourceDF[index,]$RM <- (B7EVPA - B3EVPA) / (lambdaSQ[2] - lambdaSQ[1])
-		sourceDF[index,]$EVPA <- (lambdaSQ[2]* B3EVPA - lambdaSQ[1]* B7EVPA) / (lambdaSQ[2] - lambdaSQ[1]) + sourceDF[index,]$RM* lambdaSQ[3]
-		sourceDF[index,]$I <- exp(coef(fitI)['(Intercept)'][[1]])
-		sourceDF[index,]$P <- exp(coef(fitP)['(Intercept)'][[1]])
-	}
-	sourceDF$Q <- sourceDF$P * cos(2.0* sourceDF$EVPA)
-	sourceDF$U <- sourceDF$P * sin(2.0* sourceDF$EVPA)
-	return( sourceDF )
+    fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
+	fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
+    weight <- 1.0/(abs(DF$eEVPA)^2 * abs(log(DF$relFreq) + 1.0)^2 * (864000 / abs(DF$relTime + 864000)))
+    Twiddle <- sum( weight* exp((0.0 + 2.0i)*DF$EVPA) ) / sum(weight)
+    IQUV <- data.frame(Src=DF$Src[1], I=exp(coef(fitI)[[1]]), Q=0.0, U=0.0, V=0.0, P=exp(coef(fitP)[[1]]), EVPA=0.5*Arg(Twiddle))
+    IQUV$Q <- IQUV$P* Re(Twiddle)
+    IQUV$U <- IQUV$P* Im(Twiddle)
+	return( IQUV )
 }
 
 #-------- Input parameters for debugging
-#Arguments <- "-s2019-12-13T03:10:21"
+#Arguments <- "-s2023-10-01T03:24:00 -d7200 -b3 -#97.5"
 Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
@@ -198,11 +155,11 @@ SDF <- SDF[SDF$P / SDF$I > 0.03,]
 #---- Filter by EL
 SDF$startHA <- startLST - SDF$RA
 SDF$endHA   <- endLST - SDF$RA
-SDF <- SDF[ which(cos(SDF$startHA) > EL_HA(minSinEL, SDF$Dec)), ]	# EL >20º at the beggining
-SDF <- SDF[ which(cos(SDF$endHA)   > EL_HA(minSinEL, SDF$Dec)), ] # EL >20º at the end
-SDF <- SDF[ which(cos(SDF$startHA) < EL_HA(maxSinEL, SDF$Dec)), ] # EL < 86º at the beggining
-SDF <- SDF[ which(cos(SDF$endHA)   < EL_HA(maxSinEL, SDF$Dec)), ] # EL < 86º at the end
-SDF <- SDF[ which( (EL_HA(maxSinEL, SDF$Dec) > 1.0) | (sin(SDF$startHA)* sin(SDF$endHA) > 0)),] # transit for EL>86º
+SDF <- SDF[ which(cos(SDF$startHA) > EL_HA(minSinEL, SDF$DEC)), ]	# EL >20º at the beggining
+SDF <- SDF[ which(cos(SDF$endHA)   > EL_HA(minSinEL, SDF$DEC)), ] # EL >20º at the end
+SDF <- SDF[ which(cos(SDF$startHA) < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the beggining
+SDF <- SDF[ which(cos(SDF$endHA)   < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the end
+SDF <- SDF[ which( (EL_HA(maxSinEL, SDF$DEC) > 1.0) | (sin(SDF$startHA)* sin(SDF$endHA) > 0)),] # transit for EL>86º
 
 #---- Calculate feed-EVPA angle
 sourceList <- SDF$Src
@@ -213,8 +170,8 @@ for(src in sourceList){
 	HA <- seq(SDF$startHA[index], SDF$endHA[index], by=0.01)
 	cos_HA  <- cos(HA)
 	sin_HA  <- sin(HA)
-	cos_dec <- cos(SDF$Dec[index])
-	sin_dec <- sin(SDF$Dec[index])
+	cos_dec <- cos(SDF$DEC[index])
+	sin_dec <- sin(SDF$DEC[index])
 	PA <- atan2(sin_HA, sin_phi*cos_dec/cos_phi - sin_dec* cos_HA) + BandPA[argList$Band]
 	QCpUS <- SDF$Q[index] * cos(2.0* PA) + SDF$U[index] * sin(2.0* PA)
 	UCmQS <- SDF$U[index] * cos(2.0* PA) - SDF$Q[index] * sin(2.0* PA)
@@ -225,7 +182,6 @@ for(src in sourceList){
 	SDF$UC_H[index] <- max(UCmQS)
 	SDF$UC_L[index] <- min(UCmQS)
 }
-
 calDF <- SDF[which.max(SDF$UC_H - SDF$UC_L),]		# Primary calibrator for max XY
 SDF <- SDF[-(SDF$Src == calDF$Src),]
 if( calDF$UC_H* calDF$UC_L > 0 ){					# require 2nd calibrator
@@ -237,4 +193,5 @@ if( min(calDF$QC_L* calDF$QC_H) > 0 ){				# 3rd calibrator for gain equalization
 		calDF[nrow(calDF)+1,] <- SDF[which.max(SDF$P),]
 	}
 }
-write.table(na.omit(calDF[,c('Src', 'I', 'P', 'EVPA', 'UC_L', 'UC_H', 'UC_0', 'QC_0')]), file="CalQU.data", append=F, quote=F, col.names=T, row.name=F)
+options(digits=3)
+write.table(format(na.omit(calDF[,c('Src', 'I', 'P', 'EVPA', 'UC_L', 'UC_H', 'UC_0', 'QC_0')]), digits=3), file="CalQU.data", append=F, quote=F, col.names=T, row.name=F)

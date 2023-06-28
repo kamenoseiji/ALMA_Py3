@@ -76,6 +76,7 @@ for spw_index in list(range(spwNum)):
     np.save('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYList[spw_index]) 
     np.save('%s-REF%s-SC%d-SPW%d-XYdelay.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYdelayList[spw_index]) 
 #
+#tb.create(prefix + '.BP', 
 #-------- Plots
 if BPPLOT:
     if XYsnr > 0.0:
