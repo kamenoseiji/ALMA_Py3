@@ -1,12 +1,13 @@
 #-------- Parse arguments
 parseArg <- function( args ){
-	argList <- list(as.character(as.POSIXct(Sys.time())), 3600, 3, 0.05, 100.0, FALSE)
-	names(argList) <- c('startTime', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
+	argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, 100.0, FALSE)
+	names(argList) <- c('startTime', 'RA', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
 	if( !file.exists("Flux.Rdata") ){ argList$load <- TRUE }
     #if( is.logical(args) == FALSE) return(argList)
 	argNum <- length(args)
 	for( index in 1:argNum ){
 		if(substr(args[index], 1,2) == "-s"){ argList$startTime <- as.character(substring(args[index], 3)) }
+		if(substr(args[index], 1,2) == "-r"){ argList$RA <- as.numeric(substring(args[index], 3)) }
 		if(substr(args[index], 1,2) == "-d"){ argList$execDuration <- as.numeric(substring(args[index], 3)) }
 		if(substr(args[index], 1,2) == "-b"){ argList$Band <- as.integer(substring(args[index], 3)) }
 		if(substr(args[index], 1,2) == "-t"){ argList$threshFlux <- as.numeric(substring(args[index], 3))}
@@ -109,8 +110,13 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
 #-------- # filtering by source polarization
 estimateIQUV <- function(DF, refFreq){
     DF$relFreq <- DF$Freq / refFreq
-    fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
-	fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
+    #if(nrow(DF) < 8){
+        fitI <- lm(formula=log(I) ~ log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
+	    fitP <- lm(formula=log(P) ~ log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
+    #} else {
+    #    fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
+	#    fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
+    #}
     weight <- 1.0/(abs(DF$eEVPA)^2 * abs(log(DF$relFreq) + 1.0)^2 * (864000 / abs(DF$relTime + 864000)))
     Twiddle <- sum( weight* exp((0.0 + 2.0i)*DF$EVPA) ) / sum(weight)
     IQUV <- data.frame(Src=DF$Src[1], I=exp(coef(fitI)[[1]]), Q=0.0, U=0.0, V=0.0, P=exp(coef(fitP)[[1]]), EVPA=0.5*Arg(Twiddle))
@@ -121,6 +127,7 @@ estimateIQUV <- function(DF, refFreq){
 
 #-------- Input parameters for debugging
 #Arguments <- "-s2023-10-01T03:24:00 -d7200 -b3 -#97.5"
+#Arguments <- list('-s2023-06-29T11:18:12', '-d7200', '-b6', '-#230', '-L')
 Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
@@ -153,8 +160,14 @@ SDF <- SDF[SDF$P > argList$threshFlux,]
 SDF <- SDF[SDF$P / SDF$I > 0.03,]
 
 #---- Filter by EL
-SDF$startHA <- startLST - SDF$RA
-SDF$endHA   <- endLST - SDF$RA
+if( is.na(argList$RA) ){
+    SDF$startHA <- startLST - SDF$RA
+    SDF$endHA   <- endLST - SDF$RA
+} else {
+    SDF$startHA <- pi* (argList$RA/12.0 - argList$execDuration/SEC_PER_DAY) - SDF$RA
+    SDF$endHA   <- pi* (argList$RA/12.0 + argList$execDuration/SEC_PER_DAY) - SDF$RA
+}
+#cat(sprintf('%s: HA = %.1f - %.1f\n', SDF$Src, SDF$startHA, SDF$endHA))
 SDF <- SDF[ which(cos(SDF$startHA) > EL_HA(minSinEL, SDF$DEC)), ]	# EL >20º at the beggining
 SDF <- SDF[ which(cos(SDF$endHA)   > EL_HA(minSinEL, SDF$DEC)), ] # EL >20º at the end
 SDF <- SDF[ which(cos(SDF$startHA) < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the beggining
