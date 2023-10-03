@@ -6,7 +6,7 @@ from Plotters import plotGain
 #-------- Initial Settings
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []
-msfile = wd + prefix + '.ms'
+if 'msfile' not in locals(): msfile = wd + prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spw, scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]

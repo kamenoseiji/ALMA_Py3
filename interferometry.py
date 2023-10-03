@@ -868,7 +868,7 @@ def ant2blamp(ant_amp, antamp_error):
 	return  bl_amp, bl_amp_err
 #
 def logamp_solve(bl_amp):
-    blNum  =  len(bl_amp); log_bl =  np.log(bl_amp)
+    blNum  =  len(bl_amp); log_bl =  np.log(bl_amp + 1.0e-30)
     antNum =  Bl2Ant(blNum)[0]
     ant0, ant1 = np.array(ANT0[0:blNum]), np.array(ANT1[0:blNum])
     PTP_inv = ((2.0* antNum - 2.0)* np.diag(np.ones(antNum)) - 1.0) / (2.0* (antNum - 1.0)* (antNum - 2.0))
