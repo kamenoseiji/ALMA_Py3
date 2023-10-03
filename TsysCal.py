@@ -65,7 +65,7 @@ for band_index in list(range(NumBands)):
 # bpscanLists[band]  : scans on source
 #
 print('---Checking time for ambient and hot load')
-timeOFF, timeON, timeAMB, timeHOT = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#ON_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT")
+timeOFF, timeON, timeAMB, timeHOT, timeTEST = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#ON_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#TEST")
 if len(timeAMB) == 0:
     for band_index in list(range(NumBands)):
         atmSPW = atmspwLists[band_index]
@@ -89,6 +89,7 @@ azelTime, AntID, AZ, EL = GetAzEl(msfile)
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
 # timeAMB : mjd of CALIBRATE_ATMOSPHERE#AMBIENT (after Cycle 3)
 # timeHOT : mjd of CALIBRATE_ATMOSPHERE#HOT (after Cycle 3)
+# timeTEST: mjd of CALIBRATE_ATMOSPHERE#TEST (ON_SOURCE since Cycle 10)
 #
 #-------- Get Load Temperature
 tempAmb, tempHot  = np.zeros([useAntNum]), np.zeros([useAntNum])
