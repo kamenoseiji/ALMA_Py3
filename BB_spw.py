@@ -44,6 +44,7 @@ ant_index = np.where(antList == antName)[0][0]
 pp = PdfPages('SQLD_%s_%s_Scan%d.pdf' % (prefix, antName, scanID))
 figBB = plt.figure(0, figsize=(8,11))
 figBB.suptitle('%s %s SQLD Power Scan=%d' % (prefix, antName, scanID))
+figBB.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/BB_spw.py to generate this plot', fontsize=4)
 DT = []
 for spw_index, spwID in enumerate(spwList):
     timeStamp, BBPower = GetPSpecScan(msfile, ant_index, spwID, scanID)

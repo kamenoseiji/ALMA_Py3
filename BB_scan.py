@@ -45,6 +45,7 @@ ant_index = np.where(antList == antName)[0][0]
 pp = PdfPages('SQLD_%s_%s_SPW%d.pdf' % (prefix, antName, spwID))
 figBB = plt.figure(0, figsize=(8,11))
 figBB.suptitle('%s %s SQLD Power SPW=%d' % (prefix, antName, spwID))
+figBB.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/BB_scan.py to generate this plot', fontsize=4)
 scanNum = len(scanList)
 panelNum_X = int(math.sqrt(scanNum + 1))
 panelNum_Y = math.ceil( scanNum / panelNum_X )
