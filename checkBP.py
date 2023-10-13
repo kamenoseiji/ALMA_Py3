@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
 from Plotters import plotXYP, plotBP, plotSP
 #-------- Procedures
 msfile = wd + prefix + '.ms'
@@ -41,42 +41,43 @@ print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 print('---Generating antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
 FreqList, BPList, XYList, XYdelayList = [], [], [], []
-spwNum = len(spwList)
 if 'bunchNum' not in locals(): bunchNum = 1
-for spw_index in list(range(spwNum)):
+for spw_index, spw in enumerate(spwList):
     if 'FGprefix' in locals():  # Flag table
         try:
-            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spwList[spw_index]))
-            TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spwList[spw_index]))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG, TS)
-            #BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum, FG)
+            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw))
+            TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw))
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum, FG, TS)
         except:
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum )
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum )
         #
     else:
-        BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spwList[spw_index], BPscan, blMap, blInv, bunchNum)
+        if spw_index == 0:
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum)
+        else :
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum, np.array([]), np.array([]), Gain)
+        #
     #
     BPList = BPList + [BP_ant]
     XYList = XYList + [XY_BP]
     XYdelayList = XYdelayList + [XYD]
-    chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])
+    chNum, chWid, Freq = GetChNum(msfile, spw)
     chNum, chWid, Freq = int(chNum / bunchNum), chWid* bunchNum, bunchVec(Freq, bunchNum)
-    np.save('%s-SPW%d-Freq.npy' % (prefix, spwList[spw_index]), Freq) 
+    np.save('%s-SPW%d-Freq.npy' % (prefix, spw), Freq) 
     FreqList = FreqList + [Freq]
     BW = chNum* np.median(chWid)    # Bandwidth
-    print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spwList[spw_index], SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
+    print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spw, SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
 #
 ppolNum = BPList[0].shape[1]
 PolList = ['X', 'Y']
 #
 #-------- Save CalTables
 np.save(prefix + '-REF' + antList[UseAnt[refantID]] + '.Ant.npy', antList[antMap]) 
-for spw_index in list(range(spwNum)):
-    np.save('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), BPList[spw_index]) 
-    np.save('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYList[spw_index]) 
-    np.save('%s-REF%s-SC%d-SPW%d-XYdelay.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spwList[spw_index]), XYdelayList[spw_index]) 
+for spw_index, spw in enumerate(spwList):
+    np.save('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spw), BPList[spw_index]) 
+    np.save('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spw), XYList[spw_index]) 
+    np.save('%s-REF%s-SC%d-SPW%d-XYdelay.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spw), XYdelayList[spw_index]) 
 #
-#tb.create(prefix + '.BP', 
 #-------- Plots
 if BPPLOT:
     if XYsnr > 0.0:
