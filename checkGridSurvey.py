@@ -25,8 +25,9 @@ BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
-atmSPWs = list(set(atmSPWs)- set(spwFlag));atmSPWs.sort()
-bpSPWs  = list(set(bpSPWs) - set(spwFlag)); bpSPWs.sort()
+if 'spwFlag' in locals():
+    atmSPWs = list(set(atmSPWs)- set(spwFlag));atmSPWs.sort()
+    bpSPWs  = list(set(bpSPWs) - set(spwFlag)); bpSPWs.sort()
 bandNameList = GetBandNames(msfile, atmSPWs)
 OnScanList = GetOnSource(msfile)
 msmd.open(msfile)
@@ -136,35 +137,52 @@ for BandName in RXList:
     plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], checkScan, BPList)
     #-------- SPW-combined phase calibration
     print('-----Antenna-based gain correction')
-    BPscanList = list(set(BandScanList[BandName]) - set( np.array(BandScanList[BandName])[SSOList] )); BPscanList.sort()   # Exclude SSO
-    GainList = []
-    for scan_index, scan in enumerate(BPscanList):
+    text_sd = '        coherence loss % :'
+    for antName in antList[antMap]: text_sd = text_sd + ' ' +  antName
+    print(text_sd)
+    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        # if scanDic[scan][2] == 0.0 : continue        # Exclude SSO
+        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan][0])
         chAvgList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
             BP_ant = BPList[spw_index]
+            medBP = np.median(abs(BP_ant), axis=(0,1))
             BPcaledSpec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)[[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
             chAvgList = chAvgList + [np.mean( BPcaledSpec[:,:,:,chRange], axis=(2,3))]
         #
-        GainList = GainList + [gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)]
+        scanGain = gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)
+        scanDic[scan] = scanDic[scan] + [scanGain]
+        coh = abs(np.mean(scanGain, axis=1)) / np.mean(abs(scanGain), axis=1)
+        for ant_index in list(range(antNum)): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
+        print(text_sd)
     #
-    scanGain = np.array([np.median(abs(GainList[scan_index])) for scan_index, scan in enumerate(BPscanList)])
-    BPavgScanList = np.array(BPscanList)[np.where(scanGain > 0.01)[0].tolist()].tolist()
     #-------- Scan-by-scan bandpass
+    BPavgScanList, BPList, XYList, XYamp = [], [], [], []
     print('-----Scan-by-scan bandpass')
-    BPList, XYList, XYamp = [], [], []
-    for scan_index, scan in enumerate(BPscanList):
+    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        if scanDic[scan][2] == 0.0 : continue        # Exclude SSO
+        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan][0])
+        print(text_sd)
+        scanGain = scanDic[scan][5]
         BPSPWList, XYSPWList, XYampSPWList = [], [], []
-        print('--------- Scan %d ' % (scan))
         for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)  # Xspec[pol, ch, bl, time]
-            XPspec = np.mean(Xspec/(GainList[scan_index][ant0]* GainList[scan_index][ant1].conjugate()), axis=3)
+            XPspec = np.mean(Xspec/ (scanGain[ant0]* scanGain[ant1].conjugate()), axis=3)
             BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
+            #---- Amplitude normalization
+            for pol_index in [0,1]:
+                BP_eq_gain = np.mean(abs(BP_ant[pol_index][:,chRange]), axis=1)
+                BP_ant[pol_index] = (BP_ant[pol_index].T / BP_eq_gain).T
+            #
             BPCaledXspec = XPspec.transpose(0, 2, 1)/(BP_ant[polYindex][:,ant0]* BP_ant[polXindex][:,ant1].conjugate())
             BPCaledXYSpec = np.mean(BPCaledXspec[1], axis=0) +  np.mean(BPCaledXspec[2], axis=0).conjugate()
             XYampSPWList = XYampSPWList + [abs(np.mean(BPCaledXYSpec))]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
+        BPavgScanList = BPavgScanList = [scan]
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYamp  = XYamp + [np.mean(np.array(XYampSPWList))]

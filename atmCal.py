@@ -214,7 +214,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
 def LogTrx(antList, spwList, freqList, scanList, timeRef, Trx, TantN, logFile):
     antNum, spwNum, scanNum, polNum = len(antList), len(spwList), Trx[0].shape[3], Trx[0].shape[0]
     for scan_index in list(range(scanNum)):
-        text_sd =  'Scan %d : %s' % (scanList[scan_index], au.call_qa_time('%fs' % (timeRef[scan_index]), form='fits')[0]); logFile.write(text_sd + '\n'); print(text_sd)
+        text_sd =  'Scan %d : %s' % (scanList[scan_index], au.call_qa_time('%fs' % (timeRef[scan_index]), form='fits')); logFile.write(text_sd + '\n'); print(text_sd)
         text_sd = 'Trx  : '
         for spw_index in list(range(spwNum)): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spwList[spw_index], freqList[spw_index])
         logFile.write(text_sd + '\n'); print(text_sd)

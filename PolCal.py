@@ -57,6 +57,7 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, AzScanList, ElScanList):
     scanDic = dict(zip(scanList, [['', 0.0, 0.0, 0.0, 0.0]]*len(scanList))) # scanDict{ scanID: [source, EL, I, BPquality, XYquality]}
     msmd.open(msfile)
     #-------- Check AZEL
+    print('------------------- AMAPOLA-based prediction -----------------')
     print('        Source     :    I     p%     EVPA  QCpUS  UCmQS   EL  ')
     print('-------+-----------+-------+------+------+------+------+------')
     for scan_index, scan in enumerate(scanList):
