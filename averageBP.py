@@ -1,7 +1,6 @@
-#---- Script for Band-3 Astroholograpy Data
 import sys
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Plotters.py').read())
+#exec(open(SCR_DIR + 'interferometry.py').read())
+#exec(open(SCR_DIR + 'Plotters.py').read())
 #
 XYSPW, BPSPW = [], []
 if 'chTrim' not in locals(): chTrim = 0.06

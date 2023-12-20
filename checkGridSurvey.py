@@ -182,13 +182,14 @@ for BandName in RXList:
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
-        BPavgScanList = BPavgScanList = [scan]
+        BPavgScanList = BPavgScanList + [scan]
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYamp  = XYamp + [np.mean(np.array(XYampSPWList))]
         pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
         plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], scan, BPSPWList)
     #
+    '''
     for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
         BPSPW = [BPList[scan_index][spw_index] for scan_index in indexList(np.array(BPavgScanList), np.array(BPscanList))]
         XYSPW = [XYList[scan_index][spw_index] for scan_index in indexList(np.array(BPavgScanList), np.array(BPscanList))]
@@ -199,6 +200,7 @@ for BandName in RXList:
     del BPSPW, XYSPW, BPList, XYList, XYamp, XYSPWList, XYampSPWList
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], 0, BPSPWList)
+    '''
     #---- 
     # Now we have
     #  Visibilities : XspecList [spw][scan][pol, ch, bl, time]
