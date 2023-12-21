@@ -208,18 +208,26 @@ def plotAC(prefix, antList, spwList, freqList, AC):
 def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.2):
     antNum, spwNum = len(antList), len(spwList)
     figAnt = plt.figure(figsize = (11, 8))
-    #figAnt.suptitle(prefix + ' Scan %d' % (BPscan))
     figAnt.suptitle(prefix + ' Bandpass')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
     figAnt.text(0.03, 0.45, 'Bandpass Amplitude and Phase', rotation=90)
     #-------- Plot BP
-    #for ant_index in list(range(antNum)):
+    text_delay = 'Ant  '
+    for spw_index, spw in enumerate(spwList):
+        text_delay = text_delay + ' |SPW%02d'%spw
+        text_delay = text_delay + '  ' + polName[0]
+        if BPList[spw_index].shape[1] == 2: text_delay = text_delay + '         ' + polName[1]
+    print(text_delay)
+    text_delay = '------+'
+    for spw_index, spw in enumerate(spwList): text_delay = text_delay + '--- delay [ns] ----+'
+    print(text_delay)
     for ant_index, antName in enumerate(antList):
         if ant_index > 0:
             for PL in AmpList: figAnt.delaxes(PL)
             for PL in PhsList: figAnt.delaxes(PL)
         #
         AmpList, PhsList = [], []
+        text_delay = antName + '  |'
         for spw_index, spw in enumerate(spwList):
             Freq = freqList[spw_index]
             chNum = len(Freq); chRange = list(range(int(0.05*chNum), int(0.95*chNum))); BW = Freq[chRange[-1]] - Freq[chRange[0]]
@@ -231,8 +239,9 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 delayAnt, delaySNR = delay_search(plotBandpass[chRange])
-                text_sd = '%s %s : %+f SNR=%.1f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
+                # text_sd = '%s %s : %+f SNR=%.1f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
                 AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
+                text_delay = text_delay + '%+f ' % (0.5e9* delayAnt/ BW)
                 PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
@@ -245,6 +254,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
             PhsPL.text( np.min(Freq), 2.5, 'SPW=%s Phs' % (str(spw)))
         #
+        print(text_delay)
         figAnt.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
