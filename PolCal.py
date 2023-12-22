@@ -54,7 +54,7 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
 #-------- PA and polarization responses
 def PolResponse(msfile, StokesDic, BandPA, scanList, AzScanList, ElScanList):
     PAList, CSList, SNList, QCpUSList, UCmQSList = [], [], [], [], []
-    scanDic = dict(zip(scanList, [['', 0.0, 0.0, 0.0, 0.0]]*len(scanList))) # scanDict{ scanID: [source, EL, I, BPquality, XYquality]}
+    scanDic = dict(zip(scanList, [['', 0.0, 0.0, 0.0, 0.0, [], [], []]]*len(scanList))) # scanDict{ scanID: [source, EL, I, BPquality, XYquality, PAList, QCpUSList, UCmQSList]}
     msmd.open(msfile)
     #-------- Check AZEL
     print('------------------- AMAPOLA-based prediction -----------------')
@@ -65,16 +65,18 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, AzScanList, ElScanList):
         PA = AzEl2PA(AzScan, ElScan) + BandPA
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
         sourceName = list(StokesDic.keys())[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
-        scanDic[scan] = [sourceName, np.median(ElScan), 0.0, 0.0, 0.0]
+        #scanDic[scan] = [sourceName, np.median(ElScan), 0.0, 0.0, 0.0]
+        BPquality, XYquality = -999.9, -999.9
         if str.isdigit(sourceName[1]) and len(StokesDic[sourceName]) > 0:
             QCpUS = StokesDic[sourceName][2]*CS + StokesDic[sourceName][3]*SN   # Qcos + Usin
             UCmQS = StokesDic[sourceName][3]*CS - StokesDic[sourceName][2]*SN   # Ucos - Qsin
             BPquality = StokesDic[sourceName][1]* np.sin(np.median(ElScan) - 0.5)  # cut at 40 deg
-            XYquality = np.median(abs(QCpUS))* np.sin(np.median(ElScan) - 0.5)             # cut at 30 deg
+            XYquality = np.median(abs(QCpUS))* np.sin(np.median(ElScan) - 0.5)     # cut at 30 deg
             print('Scan%3d %s : %6.2f %6.2f %6.2f %6.2f %6.2f %6.2f' % (scan, sourceName, StokesDic[sourceName][1], 100.0*np.sqrt(StokesDic[sourceName][2]**2 + StokesDic[sourceName][3]**2)/StokesDic[sourceName][1], 90.0* np.arctan2(StokesDic[sourceName][3], StokesDic[sourceName][2])/np.pi, np.median(QCpUS), np.median(UCmQS), 180.0* np.median(ElScan)/np.pi))
-            scanDic[scan] = [sourceName, np.median(ElScan), StokesDic[sourceName][1], BPquality, XYquality]
         #
-        PAList, CSList, SNList, QCpUSList, UCmQSList = PAList + [PA], CSList + [CS], SNList + [SN], QCpUSList + [QCpUS], UCmQSList + [UCmQS]
+        scanDic[scan] = [sourceName, np.median(ElScan), StokesDic[sourceName][1], BPquality, XYquality, PA.tolist()]
+        #PAList, CSList, SNList, QCpUSList, UCmQSList = PAList + [PA], CSList + [CS], SNList + [SN], QCpUSList + [QCpUS], UCmQSList + [UCmQS]
     msmd.close(); msmd.done()
-    return PAList, CSList, SNList, QCpUSList, UCmQSList, scanDic
+    #return PAList, CSList, SNList, QCpUSList, UCmQSList, scanDic
+    return scanDic
 #

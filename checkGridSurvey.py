@@ -71,7 +71,6 @@ for BandName in RXList:
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     if len(SSOList) > 0:
         StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [np.median(BandbpSPW[BandName][1][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName][0])])
-    PAList, CSList, SNList, QCpUSList, UCmQSList = [], [], [], [], []
     #-------- Check AZEL
     AzScanList, ElScanList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
@@ -92,7 +91,8 @@ for BandName in RXList:
     #    for scan_index, scan in enumerate(BandScanList[BandName]):
     #
     #-------- Polarization responses
-    PAList, CSList, SNList, QCpUSList, UCmQSLis, scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
+    #PAList, CSList, SNList, QCpUSList, UCmQSLis, scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
+    scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], AzScanList, ElScanList)
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
     checkScan   = BandScanList[BandName][np.argmax(np.array([scanDic[scan][3] for scan in BandScanList[BandName]]))]
@@ -135,6 +135,8 @@ for BandName in RXList:
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
     pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
     plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], checkScan, BPList)
+    os.system('rm -rf B0')
+    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName][0])), scan=str(checkScan), refant=antList[antMap[0]])
     #-------- SPW-combined phase calibration
     print('-----Antenna-based gain correction')
     text_sd = '        coherence loss % :'
@@ -157,6 +159,7 @@ for BandName in RXList:
         for ant_index in list(range(antNum)): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
         print(text_sd)
     #
+    '''
     #-------- Scan-by-scan bandpass
     BPavgScanList, BPList, XYList, XYamp = [], [], [], []
     print('-----Scan-by-scan bandpass')
@@ -189,6 +192,16 @@ for BandName in RXList:
         pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
         plotBP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], scan, BPSPWList)
     #
+    #-------- Average bandpass
+    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+        BPspw, scanWeight, XYweight = [], [], []
+        for scan_index, scan in enumerate(BPavgScanList):
+            BPspw = BPspw + [BPList[scan_index][spw_index]]
+            scanWeight = scanWeight + [scanDic[scan][1]**2]
+        scanWeight = np.array(scanWeight)
+        BPant = np.array(BPspw)
+        BPmean = BPant.transpose(1,2,3,0).dot(scanWeight) / np.sum(scanWeight)
+    '''
     '''
     for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
         BPSPW = [BPList[scan_index][spw_index] for scan_index in indexList(np.array(BPavgScanList), np.array(BPscanList))]

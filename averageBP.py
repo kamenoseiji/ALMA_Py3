@@ -3,7 +3,6 @@ import sys
 #exec(open(SCR_DIR + 'Plotters.py').read())
 #
 XYSPW, BPSPW = [], []
-if 'chTrim' not in locals(): chTrim = 0.06
 #-------- Procedures
 for spw_index, spw in enumerate(spwList):
     print('SPW %2d:---------------------------------------------------------------' % (spw))
@@ -26,7 +25,7 @@ for spw_index, spw in enumerate(spwList):
     if spw_index == 0:
         BPmean = np.mean(BPant, axis=0)
         chNum = BPmean.shape[2]
-        chRange = list(range(int(chTrim*chNum), int((1.0 - chTrim)*chNum)))
+        chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
         #-------- Iteration to optimize BPweight and XYweight
         for iter in list(range(10)):
             #-------- BP table 
