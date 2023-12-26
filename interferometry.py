@@ -1300,22 +1300,18 @@ def delay_cal( spec, delay ):
 	return np.multiply(spec, twiddle)
 #
 def delay_search( spec ):
-	nspec = len( spec )
-	#-------- Search for delay
-	corrAbs = abs(spec2corr(spec))
-	if( max(corrAbs) == 0.0 ):	# Unavailable baseline
-		return 0.0, 1.0e-20	
-	#
-	delay = argmax(corrAbs) - nspec # Coarse Delay
-	trial_delay = np.multiply(range(-2,3), 0.5)
-	trial_amp   = np.zeros(5) 
-	for i in range(5):
-		trial_amp[i] = abs(np.mean(delay_cal(spec, delay + trial_delay[i])))
-	fit = np.polyfit(trial_delay, trial_amp, 2)
-	return fit[1]/(2.0*fit[0]) - delay, 0.5*(fit[2] - fit[1]**2/(4*fit[0]))/np.median(corrAbs)	# return residual delay [sample] and SNR
+    nspec = len( spec )
+    #-------- Search for delay
+    corrAbs = abs(spec2corr(spec))
+    if( max(corrAbs) == 0.0 ): return 0.0, 1.0e-20	
+    delay = np.argmax(corrAbs) - nspec # Coarse Delay
+    trial_delay = np.multiply(range(-2,3), 0.5)
+    trial_amp = np.array([abs(np.mean(delay_cal(spec, delay + trial_delay))) for trial_delay in np.multiply(range(-2,3), 0.5).tolist()])
+    fit = np.polyfit(trial_delay, trial_amp, 2)
+    return -fit[1]/(2.0*fit[0]) - delay, (fit[2] - fit[1]**2/(4*fit[0])) / np.std(abs(spec))* sqrt(nspec)	# return residual delay [sample] and SNR
 #
 def blGain( blSpec ):				# Average in spectral channels
-	return np.mean(blSpec, 0)
+    return np.mean(blSpec, 0)
 
 def blBp( blSpec ):					# Average in time
 	return np.mean(blSpec, 1)
