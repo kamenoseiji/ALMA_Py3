@@ -194,7 +194,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL.step(Freq, plotSD, where='mid')
             #
         #
-        figAnt.savefig(pp, format='pdf')
+        prefix,   figAnt.savefig(pp, format='pdf')
     #
     plt.close('all')
     pp.close()
@@ -205,7 +205,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
     return
 #
 #-------- Plot Cross power spectrum
-def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.2):
+def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.2, delayMessage=False):
     antNum, spwNum = len(antList), len(spwList)
     figAnt = plt.figure(figsize = (11, 8))
     figAnt.suptitle(prefix + ' Bandpass')
@@ -217,10 +217,10 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
         text_delay = text_delay + ' |SPW%02d'%spw
         text_delay = text_delay + '  ' + polName[0]
         if BPList[spw_index].shape[1] == 2: text_delay = text_delay + '         ' + polName[1]
-    print(text_delay)
+    if delayMessage: print(text_delay)
     text_delay = '------+'
     for spw_index, spw in enumerate(spwList): text_delay = text_delay + '--- delay [ns] ----+'
-    print(text_delay)
+    if delayMessage: print(text_delay)
     for ant_index, antName in enumerate(antList):
         if ant_index > 0:
             for PL in AmpList: figAnt.delaxes(PL)
@@ -254,7 +254,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
             PhsPL.text( np.min(Freq), 2.5, 'SPW=%s Phs' % (str(spw)))
         #
-        print(text_delay)
+        if delayMessage: print(text_delay)
         figAnt.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()

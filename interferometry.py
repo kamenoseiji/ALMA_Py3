@@ -455,7 +455,7 @@ def GetSPWFreq(msfile, SPWdic):
             chNum, chWid, freq = GetChNum(msfile, spw)
             chNumList = chNumList + [chNum]
             BWList = BWList + [chNum* np.median(chWid)]
-            FreqList = FreqList + [freq* 1.0e-9]
+            FreqList = FreqList + [freq]
         #
         SPWdic[BandName] = [SPWdic[BandName], FreqList, chNum, BWList]
     #
