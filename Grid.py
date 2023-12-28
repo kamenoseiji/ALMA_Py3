@@ -1,4 +1,6 @@
 import math
+import numpy as np
+import scipy
 #SSOCatalog = ['Uranus', 'Neptune', 'Callisto', 'Ganymede', 'Titan', 'Io', 'Europa', 'Ceres', 'Pallas', 'Vesta', 'Juno', 'Mars', 'Mercury', 'Venus']
 SSOCatalog = ['Uranus', 'Neptune', 'Callisto', 'Ganymede', 'Titan', 'Io', 'Europa', 'Vesta', 'Juno', 'Mars', 'Mercury', 'Venus']
 SSOscore   = [
@@ -124,8 +126,24 @@ def aprioriSEFD(Ae, EL, TrxSpec, Tau0Spec):
     TsysEQScan = np.mean(TrxList[spw_index].transpose(2,0,1)[:,:,chRange] + Tcmb*exp_Tau[chRange] + tempAtm* (1.0 - exp_Tau[chRange]), axis=2)[Trx2antMap] # [antMap, pol]
 
     return 2.0* kb* TsysEQScan.T / Ae
+#
+#-------- Smooth time-variable Tau
+def tauSMTH( timeSample, TauE ):
+    if len(timeSample) > 5:
+        SplineWeight = np.ones(len(timeSample) + 4)
+        flagIndex = (np.where(abs(TauE - np.median(TauE))/np.std(TauE) > 3.0)[0] + 2).tolist()
+        SplineWeight[flagIndex] = 0.01
+        tempTime = np.append([timeSample[0]-500.0, timeSample[0]-300.0], np.append(timeSample, [timeSample[-1]+300.0, timeSample[-1]+500.0]))
+        tempTauE = np.append([TauE[0], TauE[0]], np.append(TauE, [TauE[-1], TauE[-1]]))
+        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3, w=SplineWeight, t=tempTime[list(range(1, len(tempTime), 2))] - 60.0 )
+    else:
+        tempTime = np.arange(np.min(timeSample) - 3600.0,  np.max(timeSample) + 3600.0, 300.0)
+        tempTauE = np.repeat(np.median(TauE), len(tempTime))
+        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3)
+    #
+    return smthTau
+#
 '''
-	
 #-------- Load D-term file
 #Dcat = GetDterm(TBL_DIR, antList,int(UniqBands[band_index][3:5]), np.mean(timeStamp))
 #-------- Load Tsys table

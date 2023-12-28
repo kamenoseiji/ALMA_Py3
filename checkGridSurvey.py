@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search
+from interferometry import Tcmb, BANDPA, BANDFQ, indexList, GetAntName, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -71,16 +71,16 @@ for BandName in RXList:
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     if len(SSOList) > 0:
         StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName][1][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName][0])])
-    #-------- Polarization responses
+    #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
     '''
-
     AzScanList, ElScanList = [], []
     #-------- Check AZEL
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
     #-------- Trx and Zenith optical depth
+    '''
     TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
     atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
     Tau0List, TrxList, TaNList, TrxFreq = [], [], [], []
@@ -89,16 +89,29 @@ for BandName in RXList:
         TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
         TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
         TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
-    #-------- A priori SEFD
-    #SEFDList = []   # SEFDList[ant][spw][scan] [time]
-    #for ant_index, ants in enumerate(antList):
-    #    for scan_index, scan in enumerate(BandScanList[BandName]):
-    #
+    TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName)) 
     #-------- Put Tsys into scanDic
-    for scan_index, scan in enumerate(BandScanList[BandName]):
-        secZ = np.mean(1.0 / np.sin(ElScanList[scan_index]))
-        if len(
+    atmReltime = atmTime - atmTime[0]
+    for scan_index, scan in enumerate(scanDic.keys()):
+        scanTau = []
+        TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
+        for spw_index in range(spwNum):
+            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(2, 0, 1)  # [ant, pol, ch]
+            SP = tauSMTH(atmReltime, TauE[spw_index] )
+            Tau0SP = Tau0[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
+            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))
+            zenithTau = Tau0SP + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ
+            scanTau = scanTau + [zenithTau * secZ]
+            exp_Tau = np.exp(-zenithTau * secZ )
+            atmCorrect = 1.0 / exp_Tau
+            TsysScan = atmCorrect* TrxAnt + Tcmb*exp_Tau + tempAtm* (1.0 - exp_Tau)
+            for ant_index, ant in enumerate(TrxAntList):
+                TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
+        #
+        scanDic[scan]['Tau']  = scanTau
+        scanDic[scan]['Tsys'] = TsysScanDic
     #
+    '''
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
     checkScan   = BandScanList[BandName][np.argmax(np.array([scanDic[scan][3] for scan in BandScanList[BandName]]))]
