@@ -451,13 +451,15 @@ def GetSPWFreq(msfile, SPWdic):
     for BandName in RXList:
         #-------- SPW and Frequency List
         chNumList, BWList, FreqList = [], [], []
-        for spw in SPWdic[BandName]:
+        for spw in SPWdic[BandName]['spw']:
             chNum, chWid, freq = GetChNum(msfile, spw)
             chNumList = chNumList + [chNum]
             BWList = BWList + [chNum* np.median(chWid)]
             FreqList = FreqList + [freq]
         #
-        SPWdic[BandName] = [SPWdic[BandName], FreqList, chNum, BWList]
+        SPWdic[BandName]['freq']  = FreqList
+        SPWdic[BandName]['chNum'] = chNumList
+        SPWdic[BandName]['BW']    = BWList
     #
     return SPWdic
 #

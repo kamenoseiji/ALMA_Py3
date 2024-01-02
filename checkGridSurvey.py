@@ -33,9 +33,9 @@ OnScanList = GetOnSource(msfile)
 msmd.open(msfile)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
-    BandbpSPW[BandName]= np.array(bpSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()
-    BandatmSPW[BandName]= np.array(atmSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()
-    BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName][0])) & set(OnScanList))
+    BandbpSPW[BandName]  = {'spw': np.array(bpSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()}
+    BandatmSPW[BandName] = {'spw': np.array(atmSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()}
+    BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
 #
 msmd.close()
@@ -67,31 +67,31 @@ for BandName in RXList:
     #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
-    timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName][0], BandScanList[BandName])
+    timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName]['spw'], BandScanList[BandName])
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     if len(SSOList) > 0:
-        StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName][1][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName][0])])
+        StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
-    '''
+    QSOList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
     AzScanList, ElScanList = [], []
     #-------- Check AZEL
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
     #-------- Trx and Zenith optical depth
-    '''
     TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
     atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
     Tau0List, TrxList, TaNList, TrxFreq = [], [], [], []
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
         TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
         TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
         TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
     TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName)) 
-    #-------- Put Tsys into scanDic
+    #-------- Put Tsys into scanDic and Tsys correction
     atmReltime = atmTime - atmTime[0]
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     for scan_index, scan in enumerate(scanDic.keys()):
         scanTau = []
         TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
@@ -105,17 +105,19 @@ for BandName in RXList:
             exp_Tau = np.exp(-zenithTau * secZ )
             atmCorrect = 1.0 / exp_Tau
             TsysScan = atmCorrect* TrxAnt + Tcmb*exp_Tau + tempAtm* (1.0 - exp_Tau)
+            #-------- Tsys correction
+            Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
+            XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
             for ant_index, ant in enumerate(TrxAntList):
                 TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
         #
         scanDic[scan]['Tau']  = scanTau
         scanDic[scan]['Tsys'] = TsysScanDic
     #
-    '''
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
-    checkScan   = BandScanList[BandName][np.argmax(np.array([scanDic[scan][3] for scan in BandScanList[BandName]]))]
-    checkSource = scanDic[checkScan][0]
+    checkScan   = QSOList[np.argmax(np.array([scanDic[scan]['I'] for scan in QSOList]))]
+    checkSource = scanDic[checkScan]['source']
     Xspec       = XspecList[0][BandScanList[BandName].index(checkScan)]
     checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1)
     GainX, tempErrX = np.apply_along_axis(gainComplexErr, 0, checkVis[0])
@@ -131,7 +133,7 @@ for BandName in RXList:
     blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
     ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
     for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-    timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName][0][0], checkScan)
+    timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist)
     print('Use %s as refant' % (antList[UseAnt[refantID]]))
@@ -140,7 +142,7 @@ for BandName in RXList:
     print('-----Bandpass to align SPWs and polarization')
     #-------- Bandpass using checkScan
     FreqList, BPList, spwGainList = [], [], []
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         Xspec = CrossPolBL(XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,blMap], blInv)
         BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr = CrossPolBP(Xspec)
         BPList = BPList + [BP_ant]
@@ -150,12 +152,12 @@ for BandName in RXList:
     spwTwiddle = SPWalign(np.array(spwGainList))
     #-------- Phase-aligned bandpass table
     print('-----SPW-aligned bandpass')
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
     pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
-    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], BandbpSPW[BandName][1], BPList)
+    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
     os.system('rm -rf B0')
-    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName][0])), scan=str(checkScan), refant=antList[antMap[0]])
+    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[antMap[0]], solnorm=True)
     #-------- SPW-combined phase calibration
     print('-----Antenna-based gain correction')
     text_sd = '        coherence loss % :'
@@ -163,17 +165,17 @@ for BandName in RXList:
     print(text_sd)
     chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     for scan_index, scan in enumerate(BandScanList[BandName]):
-        # if scanDic[scan][2] == 0.0 : continue        # Exclude SSO
-        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan][0])
+        if scan not in QSOList : continue              # filter by QSO
+        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         chAvgList = []
-        for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             BP_ant = BPList[spw_index]
             #medBP = np.median(abs(BP_ant), axis=(0,1))
             BPcaledSpec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)[[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
             chAvgList = chAvgList + [np.mean( BPcaledSpec[:,:,:,chRange], axis=(2,3))]
         #
         scanGain = gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)
-        scanDic[scan] = scanDic[scan] + [scanGain]
+        scanDic[scan]['Gain'] = scanGain
         coh = abs(np.mean(scanGain, axis=1)) / np.mean(abs(scanGain), axis=1)
         for ant_index in list(range(antNum)): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
         print(text_sd)
@@ -181,19 +183,20 @@ for BandName in RXList:
     #-------- Scan-by-scan bandpass
     BPavgScanList, BPList, XYList, XYWList = [], [], [], []
     text_sd = '-----Scan-by-scan BP     :'
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]): text_sd = text_sd + '     SPW%2d     ' % (spw)
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + '     SPW%2d     ' % (spw)
     print(text_sd)
     text_sd = '----- XY delay           :'
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]): text_sd = text_sd + '  [ns]  ( SNR )'
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
     print(text_sd)
     chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     for scan_index, scan in enumerate(BandScanList[BandName]):
-        if scanDic[scan][0] in np.array(sourceList)[SSOList]: continue  # Exclude SSO
-        if len(StokesDic[scanDic[scan][0]]) < 3             : continue  # no entry in AMAPOLA?
-        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan][0])
-        scanGain = scanDic[scan][6]
+        # if scanDic[scan][0] in np.array(sourceList)[SSOList]: continue  # Exclude SSO
+        # if len(StokesDic[scanDic[scan][0]]) < 3             : continue  # no entry in AMAPOLA?
+        if scan not in QSOList : continue              # filter by QSO
+        text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
+        scanGain = scanDic[scan]['Gain']
         BPSPWList, XYSPWList, XYsnrList = [], [], []
-        for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)  # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/ (scanGain[ant0]* scanGain[ant1].conjugate()), axis=3)
             BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
@@ -206,7 +209,7 @@ for BandName in RXList:
             BPCaledXYSpec = np.mean(BPCaledXspec[1], axis=0) +  np.mean(BPCaledXspec[2], axis=0).conjugate()
             XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
             XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
-            text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName][3][spw_index]*1.0e-9), XYsnr)
+            text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName]['BW'][spw_index]*1.0e-9), XYsnr)
             XYsnrList = XYsnrList + [XYsnr]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
@@ -217,19 +220,19 @@ for BandName in RXList:
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
         pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], BandbpSPW[BandName][1], BPSPWList)
+        plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
         pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
-        plotXYP(pp, prefix, BandbpSPW[BandName][0], XYSPWList)
+        plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
     #
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         refXY = XYList[np.argmax( XYW[:,spw_index])][spw_index]
         XY = 0.0* refXY
         BP = 0.0* BPList[0][spw_index]
         for scan_index, scan in enumerate(BPavgScanList):
             #-------- average BP
-            BPW = abs(np.mean(scanDic[scan][6], axis=1))**2
+            BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1))**2
             BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW).transpose(2,0,1)
             #-------- average XY
             XYspec = XYList[scan_index][spw_index]
@@ -246,7 +249,7 @@ for BandName in RXList:
     #
     tb.close()
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
-    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName][0], BandbpSPW[BandName][1], BPSPWList, 0.0, 1.2, True)
+    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
     #---- 
     # Now we have
@@ -258,29 +261,36 @@ for BandName in RXList:
     #  TauE         : TauE[spw][scan]
     #  scanDic      : 
     #-------- Apply bandpass and Tsys spectrum onto Visibilities
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            BP_ant = BPSPWList[spw_index].transpose(1,2,0)
+            #-------- Phase correction
+            scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
+            #Xspec = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
+        #
+    #
+    '''
+
+
+
+
+            Xspec = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3).transpose(2,0,1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()) .transpose(3,2,0,1) / (BP_ant[ant1][:,polXindex]* BP_ant[ant0][:,polYindex].conjugate())
+
         BP_ant = BPSPWList[spw_index]
         TrxAnt = TrxList[spw_index].transpose(3,0,2,1) + TaNList[spw_index]
         Tau0Sec = Tau0List[spw]
-        for scan_index, scan in enumerate(BandScanList[BandName]):
             TsysAnt = 
 
 
 
             scanPhase = scanDic[scan][6] / abs(scanDic[scan][6])
-            Xspec = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3).transpose(2,0,1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
-
-.transpose(3,2,0,1) / (BP_ant[ant1][:,polXindex]* BP_ant[ant0][:,polYindex].conjugate())
+            Xspec = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3).transpose(2,0,1) / (BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()) .transpose(3,2,0,1) / (BP_ant[ant1][:,polXindex]* BP_ant[ant0][:,polYindex].conjugate())
 
         
 
 
 
     #Xspec = np.mean(CrossPolBL(XspecList[0][10][:,:,blMap], blInv) * (GainList[10][ant1]* GainList[10][ant0].conjugate()), axis=3).transpose(2,0,1) / (BPSPWList[0][ant1][:,polXindex]* BPSPWList[0][ant0][:,polYindex].conjugate())
-    '''
-        
-    '''
-
 
 
 
@@ -324,13 +334,10 @@ for BandName in RXList:
         XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
         XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
         BPCaledXYSpec = BPCaledXYSpec / abs(BPCaledXYSpec)
-        '''
 
 
 
     #-------- Gain table
-    '''
-
 
     #-------- Polarization 
     print('        Source     :    I     p%     EVPA  QCpUS  UCmQS')
@@ -363,10 +370,10 @@ for BandName in RXList:
     #
     '''
 #
+#msmd.open(msfile)
+#ONScans = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_DELAY*")) )))
+#msmd.close(); msmd.done()
 '''
-msmd.open(msfile)
-ONScans = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_DELAY*")) )))
-msmd.close(); msmd.done()
 #-------- Loop for Bands
 for band_index in list(range(NumBands)):
     msmd.open(msfile)
