@@ -485,12 +485,11 @@ def GetBandNames(msfile, atmSPWs=[]):
     msmd.close(); msmd.done()
     return atmBandNames
 #
-def GetAntD(antName):
-    antD = 12.0
-    if antName.find('C') > -1:
-        antD = 7.0
-    #
-    return(antD)
+def GetAntD(antList):
+    antD = 12.0* np.ones(len(antList))
+    for ant_index, antName in enumerate(antList):
+        if antName.find('C') > -1: antD[ant_index] = 7.0
+    return antD
 #
 def GetFWHM(msfile, spw, antD ):    # antD is the antenna diameter [m]
     Num, chWid, Freq = GetChNum(msfile, spw)
