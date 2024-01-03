@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, BANDPA, BANDFQ, indexList, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -64,8 +64,7 @@ SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
 for BandName in RXList:
     print('-----%s----' % (BandName))
     #-------- Load Aeff file
-    etaA = GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
-    
+    etaA = 0.01* GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
     #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
@@ -97,8 +96,12 @@ for BandName in RXList:
     for scan_index, scan in enumerate(scanDic.keys()):
         scanTau = []
         TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
+        source = scanDic[scan]['source']
         for spw_index in range(spwNum):
-            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(2, 0, 1)  # [ant, pol, ch]
+            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
+            Tant = np.zeros([chNum, antNum, 2])
+            if source in SSODic.keys():
+                Tant = Tant + (SSODic[source][1][spw_index]* etaA* np.pi* antDia**2 / (2.0* kb)).T    # Tant[ch, ant, pol] Antenna temperature of SSO
             SP = tauSMTH(atmReltime, TauE[spw_index] )
             Tau0SP = Tau0[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
             secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))
@@ -106,7 +109,7 @@ for BandName in RXList:
             scanTau = scanTau + [zenithTau * secZ]
             exp_Tau = np.exp(-zenithTau * secZ )
             atmCorrect = 1.0 / exp_Tau
-            TsysScan = atmCorrect* TrxAnt + Tcmb*exp_Tau + tempAtm* (1.0 - exp_Tau)
+            TsysScan = atmCorrect* TrxAnt.transpose(1,2,0) + (Tcmb + Tant.transpose(1, 2, 0))*exp_Tau + tempAtm* (1.0 - exp_Tau)
             #-------- Tsys correction
             Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
             XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
@@ -265,13 +268,28 @@ for BandName in RXList:
     #-------- Gain scaling using SSO
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
-        if scan > 18 : continue              # filter QSO out
         SSOname = scanDic[scan]['source']
         text_sd = ' Flux Calibrator : %10s ' % (SSOname)
+        print(text_sd); text_sd = ''
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+        UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             centerFreq = np.mean(BandbpSPW[BandName]['freq'][spw_index][chRange])
+            uvFlag = np.zeros(blNum)
+            uvFlag[np.where( uvDist < UVlimit* 299792458 / centerFreq)[0].tolist()] = 1.0
+            text_sd = 'SPW=%d uv limit = %5.0f klambda' % (spw, UVlimit*1.0e-3); print(text_sd)
+            for ant_index in list(range(1, antNum)):
+                text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
+                blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
+                for bl_index in blList:
+                    if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
+                    else: text_sd = '%4.0f' % (uvDist[bl_index])
+                    print(text_sd, end=' ')
+                print('')
+            print('       ', end='')
+            for ant_index, ant in enumerate(antList): print(ant, end=' ')
+            print('')
             uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
             primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
             SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
@@ -279,9 +297,13 @@ for BandName in RXList:
             BP_ant = BPSPWList[spw_index].transpose(1,2,0)
             scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
             VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
-            VisChav = np.mean(VisChav[0::3][:,chRange], axis=1)
+            VisChav = np.mean(VisChav[0::3][:,chRange], axis=1) / abs(SSOmodelVis[blMap])
+            Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
+            Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[antMap]**2)
             # plt.plot(uvDist[blMap], abs(VisChav[0]), 'o')
             # plt.plot(uvDist[blMap], abs(SSOmodelVis[blMap]), '.')
+            for ant_index in antMap: print('%s %.1f %.1f' % (antList[ant_index], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
+        #
     #
 
 
