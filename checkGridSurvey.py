@@ -265,7 +265,7 @@ for BandName in RXList:
     #-------- Gain scaling using SSO
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
-        if scan > 14 : continue              # filter QSO out
+        if scan > 18 : continue              # filter QSO out
         SSOname = scanDic[scan]['source']
         text_sd = ' Flux Calibrator : %10s ' % (SSOname)
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
@@ -280,6 +280,8 @@ for BandName in RXList:
             scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
             VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
             VisChav = np.mean(VisChav[0::3][:,chRange], axis=1)
+            # plt.plot(uvDist[blMap], abs(VisChav[0]), 'o')
+            # plt.plot(uvDist[blMap], abs(SSOmodelVis[blMap]), '.')
     #
 
 
