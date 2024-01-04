@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -260,36 +260,41 @@ for BandName in RXList:
     # Now we have
     #  Visibilities : XspecList [spw][scan][pol, ch, bl, time]
     #  Bandpass     : BPSPWList [spw][ant, pol, ch]
-    #  TrxList      : TrxList[spw][pol, ch, ant, scan]
-    #  Tau0List     : Tau0List[spw][ch]
-    #  TaNList      : TaNList[spw][ant, ch]
-    #  TauE         : TauE[spw][scan]
     #  scanDic      : 
     #-------- Gain scaling using SSO
+    AeList = []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
         SSOname = scanDic[scan]['source']
-        text_sd = ' Flux Calibrator : %10s ' % (SSOname)
+        text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic[scan]['EL'])/np.pi)
         print(text_sd); text_sd = ''
+        if np.median(scanDic[scan]['EL']) < ELshadow : continue              # filter QSO out
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-        UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+        #UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+        UVlimit = 0.20 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+        text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
+        #-------- Check usable antenna/baselines
+        uvFlag = np.ones(blNum)
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             centerFreq = np.mean(BandbpSPW[BandName]['freq'][spw_index][chRange])
-            uvFlag = np.zeros(blNum)
-            uvFlag[np.where( uvDist < UVlimit* 299792458 / centerFreq)[0].tolist()] = 1.0
-            text_sd = 'SPW=%d uv limit = %5.0f klambda' % (spw, UVlimit*1.0e-3); print(text_sd)
-            for ant_index in list(range(1, antNum)):
-                text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
-                blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
-                for bl_index in blList:
-                    if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
-                    else: text_sd = '%4.0f' % (uvDist[bl_index])
-                    print(text_sd, end=' ')
-                print('')
-            print('       ', end='')
-            for ant_index, ant in enumerate(antList): print(ant, end=' ')
+            uvFlag[np.where( uvDist > UVlimit* 299792458 / centerFreq)[0].tolist()] *= 0.0
+        #
+        SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag, refantID)
+        if len(SAantMap) < 4: continue #  Too few antennas
+        print('Subarray : ',); print(antList[SAantMap])
+        for ant_index in list(range(1, antNum)):
+            text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
+            blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
+            for bl_index in blList:
+                if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
+                else: text_sd = '%4.0f' % (uvDist[bl_index])
+                print(text_sd, end=' ')
             print('')
+        print('       ', end='')
+        for ant_index, ant in enumerate(antList): print(ant, end=' ')
+        print('')
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
             primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
             SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
@@ -298,11 +303,11 @@ for BandName in RXList:
             scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
             VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
             VisChav = np.mean(VisChav[0::3][:,chRange], axis=1) / abs(SSOmodelVis[blMap])
-            Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
-            Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[antMap]**2)
+            Gain = gainComplexVec(VisChav[:,SAblMap].T).T  # Gain[pol, ant]
+            Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
             # plt.plot(uvDist[blMap], abs(VisChav[0]), 'o')
             # plt.plot(uvDist[blMap], abs(SSOmodelVis[blMap]), '.')
-            for ant_index in antMap: print('%s %.1f %.1f' % (antList[ant_index], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
+            for ant_index, SAant in enumerate(SAantMap): print('%s %.1f %.1f' % (antList[SAant], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
         #
     #
 
