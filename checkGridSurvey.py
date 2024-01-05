@@ -262,7 +262,7 @@ for BandName in RXList:
     #  Bandpass     : BPSPWList [spw][ant, pol, ch]
     #  scanDic      : 
     #-------- Gain scaling using SSO
-    AeList = []
+    AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
         SSOname = scanDic[scan]['source']
@@ -272,7 +272,7 @@ for BandName in RXList:
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         #UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
-        UVlimit = 0.20 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+        UVlimit = 0.1 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
         text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
         #-------- Check usable antenna/baselines
         uvFlag = np.ones(blNum)
@@ -282,6 +282,7 @@ for BandName in RXList:
         #
         SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag, refantID)
         if len(SAantMap) < 4: continue #  Too few antennas
+        #-------- Baseline map
         print('Subarray : ',); print(antList[SAantMap])
         for ant_index in list(range(1, antNum)):
             text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
@@ -294,6 +295,8 @@ for BandName in RXList:
         print('       ', end='')
         for ant_index, ant in enumerate(antList): print(ant, end=' ')
         print('')
+        AeSPW, WgSPW = [], []
+        #-------- Aperture Efficiency 
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
             primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
@@ -305,12 +308,35 @@ for BandName in RXList:
             VisChav = np.mean(VisChav[0::3][:,chRange], axis=1) / abs(SSOmodelVis[blMap])
             Gain = gainComplexVec(VisChav[:,SAblMap].T).T  # Gain[pol, ant]
             Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
-            # plt.plot(uvDist[blMap], abs(VisChav[0]), 'o')
-            # plt.plot(uvDist[blMap], abs(SSOmodelVis[blMap]), '.')
-            for ant_index, SAant in enumerate(SAantMap): print('%s %.1f %.1f' % (antList[SAant], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
+            Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
+            for ant_index, SAant in enumerate(SAantMap):
+                print('%s %.1f %.1f' % (antList[SAant], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
+                Ae[SAant] = Aeff[:, ant_index]
+                Wg[SAant] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
+            #
+            AeSPW = AeSPW   + [Ae]
+            WgSPW = WgSPW + [Wg]
         #
+        AeList = AeList + [ np.median(np.array(AeSPW), axis=0) ]
+        WgList = WgList + [ np.median(np.array(WgSPW), axis=0) ]
     #
-
+    UseAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
+    Ae = np.array(AeList)
+    Wg = np.array(WgList)
+    Ae = np.sum(Ae* Wg, axis=0)
+    Ae[UseAntList] = Ae[UseAntList] / np.sum(Wg[:,UseAntList], axis=0)
+    #-------- Gain transfer and equalization
+    for scan_index, scan in enumerate(QSOscanList):
+        scanWg = np.median(abs(scanDic[6]['Gain']))
+        scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
+        #for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        #    BP_ant = BPSPWList[spw_index].transpose(1,2,0)
+        #    VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
+        #    VisChav = np.mean(VisChav[0::3][:,chRange], axis=1)
+        #    #Gain = gainComplexVec(VisChav[:,SAblMap].T).T  # Gain[pol, ant]
+        #if len(WgList) > 0:         # SSO scaling
+        #else:                       # No SSO, a priori scaling
+    #
 
     '''
     for SSOindex in SSOList:
