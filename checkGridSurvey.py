@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, CrossPolBL, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -100,7 +100,7 @@ for BandName in RXList:
         for spw_index in range(spwNum):
             TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
             Tant = np.zeros([chNum, antNum, 2])
-            if source in SSODic.keys():
+            if source in SSOCatalog:
                 Tant = Tant + (SSODic[source][1][spw_index]* etaA* np.pi* antDia**2 / (2.0* kb)).T    # Tant[ch, ant, pol] Antenna temperature of SSO
             SP = tauSMTH(atmReltime, TauE[spw_index] )
             Tau0SP = Tau0[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
@@ -272,7 +272,7 @@ for BandName in RXList:
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         #UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
-        UVlimit = 0.1 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+        UVlimit = 0.3 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
         text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
         #-------- Check usable antenna/baselines
         uvFlag = np.ones(blNum)
@@ -306,7 +306,7 @@ for BandName in RXList:
             scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
             VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
             VisChav = np.mean(VisChav[0::3][:,chRange], axis=1) / abs(SSOmodelVis[blMap])
-            Gain = gainComplexVec(VisChav[:,SAblMap].T).T  # Gain[pol, ant]
+            Gain = gainComplexVec(VisChav[:,np.array(blMap)[SAblMap].tolist()].T).T  # Gain[pol, ant]
             Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
             Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
             for ant_index, SAant in enumerate(SAantMap):
@@ -320,15 +320,26 @@ for BandName in RXList:
         AeList = AeList + [ np.median(np.array(AeSPW), axis=0) ]
         WgList = WgList + [ np.median(np.array(WgSPW), axis=0) ]
     #
-    UseAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
+    GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
     Ae = np.array(AeList)
     Wg = np.array(WgList)
     Ae = np.sum(Ae* Wg, axis=0)
-    Ae[UseAntList] = Ae[UseAntList] / np.sum(Wg[:,UseAntList], axis=0)
+    Wg = np.sum(Wg, axis=0)
+    Ae[GainRefAntList] = Ae[GainRefAntList] / Wg[GainRefAntList]
     #-------- Gain transfer and equalization
-    for scan_index, scan in enumerate(QSOscanList):
-        scanWg = np.median(abs(scanDic[6]['Gain']))
-        scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
+    maxI = 0.0
+    QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
+    checkScan = [scan for scan in QSONonShadowScanList if scanDic[scan]['I'] > maxI][-1]
+    scan_index = BandScanList[BandName].index(checkScan)
+    scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
+    '''
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        BP_ant = BPSPWList[spw_index].transpose(1,2,0)
+        VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
+        VisChav = np.mean(VisChav[0::3][:,chRange], axis=1)
+        Gain = gainComplexVec(VisChav[:,blMap].T).T  # Gain[pol, ant]
+
+
         #for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         #    BP_ant = BPSPWList[spw_index].transpose(1,2,0)
         #    VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
@@ -338,7 +349,6 @@ for BandName in RXList:
         #else:                       # No SSO, a priori scaling
     #
 
-    '''
     for SSOindex in SSOList:
         SSO = sourceList[SSOindex]
         [scan for scan in scanDic.keys() if scanDic[scan]['source'] == SSO]
