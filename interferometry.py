@@ -1389,18 +1389,17 @@ def SPWalign(spwGain):       # spwGain[spw, pol, ant, time]
 #
 def CrossPolBP(Xspec):  # full-polarization bandpass 
     polNum, chNum, blNum, timeNum = Xspec.shape
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
     BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
     #---- Gain Cal for coherent averating
-    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
+    Gain = np.array([gainComplexVec(np.mean(Xspec[0], axis=0)), gainComplexVec(np.mean(Xspec[3], axis=0))])
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- Tentative BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
     medBP = np.median(abs(BP_ant), axis=(0,1))
-    chRange = np.where( medBP < np.median(medBP) + 1.5*np.std(medBP))[0].tolist()
+    #chRange = np.where( medBP < np.median(medBP) + 1.5*np.std(medBP))[0].tolist()
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- improved BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
@@ -1409,11 +1408,13 @@ def CrossPolBP(Xspec):  # full-polarization bandpass
     #---- Amplitude normalization
     for pol_index in [0,1]:
         ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
-        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
+        #BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
+        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index]), axis=1)).T
     #
     BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
-    XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
-    XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
+    #XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
+    XYdelay, XYsnr = delay_search( BPCaledXYSpec )
+    #XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
     return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
 #
 def BPaverage(BPList, XYList, scanList, BPweight, XYweight):
