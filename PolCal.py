@@ -55,9 +55,6 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
 def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElScanList):
     scanDic = dict(zip(scanList, [[]]* len(scanList)))
     azelTime, AntID, AZ, EL = GetAzEl(msfile)
-    #PAList, CSList, SNList, QCpUSList, UCmQSList = [], [], [], [], []
-    #scanDic = dict(zip(scanList, [{'source':'', 'mjdSec':[], 'EL':[], 'PA':[], 'I':0.0, 'QCpUS':0.0}]* len(scanList)))
-    # [['', 0.0, 0.0, 0.0, 0.0, [], [], []]]*len(scanList))) # scanDict{ scanID: [source, EL, I, BPquality, XYquality, PAList, QCpUSList, UCmQSList]}
     msmd.open(msfile)
     #-------- Check AZEL
     print('------------------- AMAPOLA-based prediction -----------------')
@@ -68,12 +65,10 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElS
         AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, 0, AZ, EL)
         PA = AzEl2PA(AzScan, ElScan) + BandPA
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
-        #scanDic[scan]['source'] = sourceName
-        #scanDic[scan]['mjdSec'] = mjdList[scan_index]
-        #scanDic[scan]['EL'] = ElScan
-        #scanDic[scan]['PA'] = PA
         QCpUS = np.zeros(len(mjdList[scan_index]))
+        StokesI = 0.0
         if str.isdigit(sourceName[1]) and len(StokesDic[sourceName]) > 0:
+            StokesI = StokesDic[sourceName][1]
             QCpUS = StokesDic[sourceName][2]*CS + StokesDic[sourceName][3]*SN   # Qcos + Usin
             UCmQS = StokesDic[sourceName][3]*CS - StokesDic[sourceName][2]*SN   # Ucos - Qsin
             BPquality = StokesDic[sourceName][1]* np.sin(np.median(ElScan) - 0.5)  # cut at 40 deg
@@ -85,7 +80,7 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElS
             'mjdSec': mjdList[scan_index],
             'EL'    : ElScan,
             'PA'    : PA,
-            'I'     : StokesDic[sourceName][1],
+            'I'     : StokesI,
             'QCpUS' : np.median(QCpUS)}
     msmd.close(); msmd.done()
     return scanDic
