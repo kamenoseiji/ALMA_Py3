@@ -1387,19 +1387,19 @@ def SPWalign(spwGain):       # spwGain[spw, pol, ant, time]
     #
     return spwTwiddle
 #
-def CrossPolBP(Xspec):  # full-polarization bandpass 
+def CrossPolBP(Xspec):  # full-polarization bandpass: Xspec[pol, ch, bl, time]
     polNum, chNum, blNum, timeNum = Xspec.shape
+    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
     BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)
     #---- Gain Cal for coherent averating
-    Gain = np.array([gainComplexVec(np.mean(Xspec[0], axis=0)), gainComplexVec(np.mean(Xspec[3], axis=0))])
+    Gain = np.array([gainComplexVec(np.mean(Xspec[0,chRange], axis=0)), gainComplexVec(np.mean(Xspec[3,chRange], axis=0))])
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- Tentative BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
     medBP = np.median(abs(BP_ant), axis=(0,1))
-    #chRange = np.where( medBP < np.median(medBP) + 1.5*np.std(medBP))[0].tolist()
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- improved BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
@@ -1407,9 +1407,9 @@ def CrossPolBP(Xspec):  # full-polarization bandpass
     del XPspec
     #---- Amplitude normalization
     for pol_index in [0,1]:
-        ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
+        ant_index = np.where( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) ))[0].tolist()
         #BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
-        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index]), axis=1)).T
+        BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
     #
     BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
     #XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
@@ -1457,7 +1457,7 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
     kernel_index = KERNEL_BL[0:(antNum-1)]
     if polNum == 4:
         BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)          # BP_ant[ant, pol, ch]
-        polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
+        polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
         Xspec  = CrossPolBL(Xspec[:,:,blMap], blInv)[:,:,:,flagIndex]
         #
         if Gain.shape[0] == 0:  #-------- Determine delay and phase in this SPW itself
@@ -1467,15 +1467,17 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             antDelayY = np.append(np.array([0.0]), len(chRange)* np.apply_along_axis(delay_search, 0, timeAvgSpecY)[0]/chNum)
             delayCalTable = np.ones([2, antNum, chNum], dtype=complex)
             for ant_index in list(range(antNum)):
-                delayCalTable[0,ant_index] = np.exp(pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
-                delayCalTable[1,ant_index] = np.exp(pi* antDelayY[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
+                delayCalTable[0,ant_index] = np.exp(np.pi* antDelayX[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
+                delayCalTable[1,ant_index] = np.exp(np.pi* antDelayY[ant_index]* np.multiply(list(range(-chNum, chNum, 2)), 0.5j) / chNum )
             #
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[polYindex][:,ant0] / delayCalTable[polXindex][:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[3,chRange], axis=0))])
+            Gain = Gain / abs(Gain)
             del delayCaledXspec
         #
-        CaledXspec = (abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
+        #CaledXspec = (abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
+        CaledXspec = (Gain[polYindex][:,ant0].conjugate()* Gain[polXindex][:,ant1]* Xspec.transpose(1,0,2,3) ).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
         XPspec = np.mean(CaledXspec, axis=3)  # Time Average
@@ -1484,8 +1486,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
         #---- Amplitude normalization
         for pol_index in [0,1]:
-            ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
-            BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index]), axis=1)).T
+            ant_index = np.where( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) ))[0].tolist()
+            BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
         #---- XY delay
         BPCaledXspec = XPspec.transpose(2, 0, 1)* abs(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex])**2 /(BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate())
         del XPspec
@@ -1509,9 +1511,11 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[:,ant0] / delayCalTable[:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[1,chRange], axis=0))])
+            Gain = Gain / abs(Gain)
             del delayCaledXspec
         #
-        CaledXspec = (abs(Gain[:,ant0]* Gain[:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[:,ant0]* Gain[:,ant1].conjugate())).transpose(1,0,2,3)
+        #CaledXspec = (abs(Gain[:,ant0]* Gain[:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[:,ant0]* Gain[:,ant1].conjugate())).transpose(1,0,2,3)
+        CaledXspec = (Gain[:,ant0].conjugate()* Gain[:,ant1]* Xspec.transpose(1,0,2,3)).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
         XPspec = np.mean(CaledXspec, axis=3)  # Time Average
@@ -1520,8 +1524,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[1].T)
         #---- Amplitude normalization
         for pol_index in [0,1]:
-            ant_index = np.where( abs(np.mean(BP_ant[:,pol_index], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index], axis=1)) ))[0].tolist()
-            BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index]), axis=1)).T
+            ant_index = np.where( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) ))[0].tolist()
+            BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean( abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
         del XPspec
         BPCaledXYSpec = np.ones(chNum, dtype=complex)
         XYdelay = 0.0   # No XY correlations
@@ -1545,8 +1549,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         #---- Antenna-based bandpass table
         BP_ant[:,0] = gainComplexVec(XPspec[0].T)
         #---- Amplitude normalization
-        ant_index = np.where( abs(np.mean(BP_ant[:,0], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,0], axis=1)) ))[0].tolist()
-        BP_ant[ant_index, 0] = (BP_ant[ant_index, 0].T / np.mean( abs(BP_ant[ant_index, 0]), axis=1)).T
+        ant_index = np.where( abs(np.mean(BP_ant[:,0], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,0][:,chRange], axis=1)) ))[0].tolist()
+        BP_ant[ant_index, 0] = (BP_ant[ant_index, 0].T / np.mean( abs(BP_ant[ant_index, 0][:,chRange]), axis=1)).T
         BPCaledXYSpec = np.ones(chNum, dtype=complex)
         XYdelay = 0.0   # No XY correlations
     #
