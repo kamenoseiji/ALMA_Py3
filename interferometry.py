@@ -1408,13 +1408,12 @@ def CrossPolBP(Xspec):  # full-polarization bandpass: Xspec[pol, ch, bl, time]
     #---- Amplitude normalization
     for pol_index in [0,1]:
         ant_index = np.where( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) ))[0].tolist()
-        #BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
         BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
     #
     BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
-    #XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
-    XYdelay, XYsnr = delay_search( BPCaledXYSpec )
-    #XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
+    #XYdelay, XYsnr = delay_search( BPCaledXYSpec )
+    XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
+    XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
     return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
 #
 def BPaverage(BPList, XYList, scanList, BPweight, XYweight):
@@ -1473,11 +1472,10 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[polYindex][:,ant0] / delayCalTable[polXindex][:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[3,chRange], axis=0))])
-            Gain = Gain / abs(Gain)
+            GainPhase = Gain / abs(Gain)
             del delayCaledXspec
         #
-        #CaledXspec = (abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
-        CaledXspec = (Gain[polYindex][:,ant0].conjugate()* Gain[polXindex][:,ant1]* Xspec.transpose(1,0,2,3) ).transpose(1,0,2,3)
+        CaledXspec = (GainPhase[polYindex][:,ant0].conjugate()* GainPhase[polXindex][:,ant1]* Xspec.transpose(1,0,2,3) ).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
         XPspec = np.mean(CaledXspec, axis=3)  # Time Average
@@ -1511,11 +1509,10 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[:,ant0] / delayCalTable[:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[1,chRange], axis=0))])
-            Gain = Gain / abs(Gain)
+            GainPhase = Gain / abs(Gain)
             del delayCaledXspec
         #
-        #CaledXspec = (abs(Gain[:,ant0]* Gain[:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[:,ant0]* Gain[:,ant1].conjugate())).transpose(1,0,2,3)
-        CaledXspec = (Gain[:,ant0].conjugate()* Gain[:,ant1]* Xspec.transpose(1,0,2,3)).transpose(1,0,2,3)
+        CaledXspec = (GainPhase[:,ant0].conjugate()* GainPhase[:,ant1]* Xspec.transpose(1,0,2,3)).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
         XPspec = np.mean(CaledXspec, axis=3)  # Time Average
@@ -1715,8 +1712,8 @@ def PTdotR(CompSol, Cresid):
     return PTR[list(range(antNum)) + list(range(antNum+1, 2*antNum))]
 #
 def gainComplexVec( bl_vis, niter=2 ):       # bl_vis[baseline, channel]
-    #ChavVis = np.median(bl_vis.real, axis=1) + (0.0+1.0j)*np.median(bl_vis.imag, axis=1)
-    ChavVis = np.mean(bl_vis.real, axis=1) + (0.0+1.0j)*np.mean(bl_vis.imag, axis=1)
+    ChavVis = np.median(bl_vis.real, axis=1) + (0.0+1.0j)*np.median(bl_vis.imag, axis=1)
+    #ChavVis = np.mean(bl_vis.real, axis=1) + (0.0+1.0j)*np.mean(bl_vis.imag, axis=1)
     blNum, chNum  =  bl_vis.shape[0], bl_vis.shape[1]
     antNum =  Bl2Ant(blNum)[0]
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()

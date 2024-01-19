@@ -194,9 +194,7 @@ for BandName in RXList:
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
     print(text_sd)
     chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
-    #for scan_index, scan in enumerate(BandScanList[BandName]):
-        if scan != 25: continue
-        # if len(StokesDic[scanDic[scan][0]]) < 3             : continue  # no entry in AMAPOLA?
+    for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         scanGain = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
@@ -229,7 +227,6 @@ for BandName in RXList:
         pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
         plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
     #
-    '''
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -256,7 +253,6 @@ for BandName in RXList:
     tb.close()
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
-
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
     #---- 
     # Now we have
@@ -351,7 +347,6 @@ for BandName in RXList:
             #GainScale = np.sum( abs(Gain[pol_index, antMap
         #
     #
-    '''
     '''
 
 
