@@ -47,8 +47,9 @@ exec(open(SCR_DIR + 'TsysCal.py').read())
 if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []
 antList = GetAntName(msfile)
-antNum = len(antList)
 antDia = GetAntD(antList)
+antNum = len(antList)
+antDic = dict(zip(antList, [[]]* len(antList)))
 blNum = int(antNum* (antNum - 1) / 2)
 flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -56,6 +57,7 @@ polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
+fluxScale = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
 #-------- Check AZEL
 #azelTime, AntID, AZ, EL = GetAzEl(msfile)
 #azelTime_index = np.where( AntID == 0 )[0].tolist() 
@@ -262,7 +264,6 @@ for BandName in RXList:
     #-------- Gain scaling using SSO
     AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
-        if scan != 8 : continue
         if scan in QSOscanList : continue              # filter QSO out
         SSOname = scanDic[scan]['source']
         text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic[scan]['EL'])/np.pi)
@@ -316,38 +317,61 @@ for BandName in RXList:
             AeSPW = AeSPW   + [Ae]
             WgSPW = WgSPW + [Wg]
         #
-        AeList = AeList + [ np.median(np.array(AeSPW), axis=0) ]
-        WgList = WgList + [ np.median(np.array(WgSPW), axis=0) ]
+        fluxScale[SSOname] = {'Ae'    : AeSPW}
+        AeList = AeList + [np.median(np.array(AeSPW), axis=0) ]
+        WgList = WgList + [np.median(np.array(WgSPW), axis=0) ]
+        for ant_index, SAant in enumerate(SAantMap):
+            AeXList, AeYList = [], []
+            for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+                AeXList = AeXList + [AeSPW[spw_index][SAant][0]]
+                AeYList = AeYList + [AeSPW[spw_index][SAant][1]]
+            #
+            antDic[antList[SAant]] = {
+                'source'  : SSOname,
+                'AeX'     : np.array(AeXList),
+                'AeY'     : np.array(AeYList)}
     #
     GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
-    Ae = np.array(AeList)
-    Wg = np.array(WgList)
-    Ae = np.sum(Ae* Wg, axis=0)
-    Wg = np.sum(Wg, axis=0)
-    Ae[GainRefAntList] = Ae[GainRefAntList] / Wg[GainRefAntList]
+    text_sd = ' Aeff: '
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
+    print(text_sd)
     for ant_index, ant in enumerate(antList):
-        text_sd = '%s %.1f %.1f' % (ant, 100.0* Ae[ant_index, 0], 100.0* Ae[ant_index, 1])
-        if ant in antList[GainRefAntList]: print(text_sd)
+        if ant not in antList[GainRefAntList]:
+            text_sd = '%s :   -----   -----   -----   -----   -----   -----   -----   -----' % (ant)
+            print(text_sd)
+            continue
+        text_sd = '%s : ' % (ant)
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            text_sd = text_sd + '  %4.1f%%   %4.1f%% ' % (100.0* antDic[ant]['AeX'][spw_index], 100.0* antDic[ant]['AeY'][spw_index])
+        print(text_sd)
     #-------- Gain transfer and equalization
+    '''
     maxI = 0.0
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
     scan_index = BandScanList[BandName].index(checkScan)
     scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
+    AntArea = 0.25* np.pi* antDia**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BP_ant = BPSPWList[spw_index].transpose(1,2,0)
         VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
         VisChav = np.mean(VisChav[0::3][:,chRange], axis=1)
         Gain = gainComplexVec(VisChav[:,blMap].T).T  # Gain[pol, ant]
-        for pol_index, pol in enumerate(['X','Y']):
+        for pol_index, pol in enumerate(['AeX','AeY']):
+            Aeff = []
             for ant_index, ant in enumerate(antList):
+                Aeff = Aeff + [antDic[ant][pol][spw_index] if len(
+            Aeff = np.array(Aeff)* AntArea
+        #
+
+
+
                 text_sd = '%s %s : %4.1f | %8.5f '  % (ant, pol, 100.0* Ae[ant_index, pol_index], abs(Gain[pol_index, antMap.index(ant_index)]))
                 print(text_sd)
             #
             #GainScale = np.sum( abs(Gain[pol_index, antMap
         #
     #
-    '''
 
 
         #for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
