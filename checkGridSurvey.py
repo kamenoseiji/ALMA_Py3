@@ -57,7 +57,7 @@ polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-fluxScale = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
+FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
 #-------- Check AZEL
 #azelTime, AntID, AZ, EL = GetAzEl(msfile)
 #azelTime_index = np.where( AntID == 0 )[0].tolist() 
@@ -215,7 +215,7 @@ for BandName in RXList:
             XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
             XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
             text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName]['BW'][spw_index]*1.0e-9), XYsnr)
-            XYsnrList = XYsnrList + [XYsnr]
+            XYsnrList = XYsnrList + [XYsnr**2]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
@@ -238,7 +238,7 @@ for BandName in RXList:
         for scan_index, scan in enumerate(BPavgScanList):
             #-------- average BP
             BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
-            BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW).transpose(2,0,1)
+            BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW**2).transpose(2,0,1)
             #-------- average XY
             XYspec = XYList[scan_index][spw_index]
             Weight = XYW[scan_index][spw_index] * np.sign( XYspec.dot(refXY.conjugate()))
@@ -317,33 +317,31 @@ for BandName in RXList:
             AeSPW = AeSPW   + [Ae]
             WgSPW = WgSPW + [Wg]
         #
-        fluxScale[SSOname] = {'Ae'    : AeSPW}
-        AeList = AeList + [np.median(np.array(AeSPW), axis=0) ]
-        WgList = WgList + [np.median(np.array(WgSPW), axis=0) ]
-        for ant_index, SAant in enumerate(SAantMap):
-            AeXList, AeYList = [], []
-            for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-                AeXList = AeXList + [AeSPW[spw_index][SAant][0]]
-                AeYList = AeYList + [AeSPW[spw_index][SAant][1]]
-            #
-            antDic[antList[SAant]] = {
-                'source'  : SSOname,
-                'AeX'     : np.array(AeXList),
-                'AeY'     : np.array(AeYList)}
+        FscaleDic[SSOname] = {
+                'scan'  : scan,
+                'Ae'    : AeSPW,
+                'Wg'    : WgSPW}
     #
-    GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
-    text_sd = ' Aeff: '
-    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
-    print(text_sd)
-    for ant_index, ant in enumerate(antList):
-        if ant not in antList[GainRefAntList]:
-            text_sd = '%s :   -----   -----   -----   -----   -----   -----   -----   -----' % (ant)
-            print(text_sd)
-            continue
-        text_sd = '%s : ' % (ant)
-        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            text_sd = text_sd + '  %4.1f%%   %4.1f%% ' % (100.0* antDic[ant]['AeX'][spw_index], 100.0* antDic[ant]['AeY'][spw_index])
+    #GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
+    AeList, WgList = [], []
+    for SSO_index, SSOname in enumerate(FscaleDic.keys()):
+        AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
+        WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
+        text_sd = ' Aeff: '
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
+        text_sd = text_sd + '--- %s' % (SSOname)
         print(text_sd)
+        for ant_index, ant in enumerate(antList):
+            text_sd = '%s : ' % (ant)
+            for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+                for pol_index in [0,1]:
+                    if WgSPW[spw_index][ant_index][pol_index] == 0.0:
+                        text_sd = text_sd + '  ----- ' 
+                    else:
+                        text_sd = text_sd + '  %4.1f%% ' % (100.0* AeSPW[spw_index][ant_index][pol_index])
+            print(text_sd)
+    #
+    Aeff = (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
     #-------- Gain transfer and equalization
     '''
     maxI = 0.0
