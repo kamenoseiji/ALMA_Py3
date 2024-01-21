@@ -450,15 +450,17 @@ def GetSPWFreq(msfile, SPWdic):
     RXList = list(SPWdic.keys())
     for BandName in RXList:
         #-------- SPW and Frequency List
-        chNumList, BWList, FreqList = [], [], []
+        chNumList, chRangeList, BWList, FreqList = [], [], [], []
         for spw in SPWdic[BandName]['spw']:
             chNum, chWid, freq = GetChNum(msfile, spw)
             chNumList = chNumList + [chNum]
+            chRangeList = chRangeList + [list(range(int(0.1*chNum), int(0.95*chNum)))]
             BWList = BWList + [chNum* np.median(chWid)]
             FreqList = FreqList + [freq]
         #
         SPWdic[BandName]['freq']  = FreqList
         SPWdic[BandName]['chNum'] = chNumList
+        SPWdic[BandName]['chRange'] = chRangeList
         SPWdic[BandName]['BW']    = BWList
     #
     return SPWdic
@@ -1897,6 +1899,7 @@ def GridData( value, samp_x, samp_y, grid_x, grid_y, kernel ):
     #
     return results
 #
+'''
 #-------- Disk Visibility
 def diskVis(diskRadius, u):
     # diskRadius : radius of planet disk [rad]
@@ -1916,6 +1919,7 @@ def diskVisBeam(diskShape, u, v, primaryBeam):
     uvDisp = (DSmin*(u* cs - v* sn))**2 + (DSmaj*(u* sn + v* cs))**2 
     return beamF(diskRadius/primaryBeam)* np.exp(-0.5* uvDisp)
 #
+'''
 #-------- ArrayCenterAntenna
 def bestRefant(uvDist, useantList=[]):
     blNum = len(uvDist)
@@ -1942,8 +1946,7 @@ def ParaPolBL(Xspec, blInv):
     Neg, Pos = (0.0 + np.array(blInv)), (1.0 - np.array(blInv))
     Tspec = Xspec.copy()
     Tspec[0]   = (Xspec[0].transpose(0,2,1)* Pos + Xspec[0].conjugate().transpose(0,2,1)* Neg).transpose(0,2,1) # XX
-    if Tspec.shape[0] == 2:
-        Tspec[1]   = (Xspec[1].transpose(0,2,1)* Pos + Xspec[1].conjugate().transpose(0,2,1)* Neg).transpose(0,2,1) # YY
+    Tspec[1]   = (Xspec[1].transpose(0,2,1)* Pos + Xspec[1].conjugate().transpose(0,2,1)* Neg).transpose(0,2,1) # YY
     return Tspec
 #
 #-------- CrossPol Visibility

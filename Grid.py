@@ -127,6 +127,92 @@ def aprioriSEFD(Ae, EL, TrxSpec, Tau0Spec):
 
     return 2.0* kb* TsysEQScan.T / Ae
 #
+#-------- Disk Visibility
+def diskVis(diskRadius, u):
+    # diskRadius : radius of planet disk [rad]
+    # u          : spatial frequency (= baseline / wavelength)
+    argument = 2.0* np.pi* u* diskRadius
+    return 2.0* scipy.special.jn(1, argument) / argument
+#
+#-------- Disk Visibility with primary beam correction, u must be smaller than 0.3/diskRadius
+def diskVisBeam(diskShape, u, v, primaryBeam):
+    # diskShape  : planet disk diameter [MajorAxis, MinorAxis, PA] (rad)
+    # u,v        : spatial frequency (= baseline / wavelength)
+    # primaryBeam: FWHM of primary beam [rad]
+    from interferometry import beamF
+    cs, sn = np.cos(diskShape[2]), np.sin(diskShape[2])
+    diskRadius = 0.5* np.sqrt(diskShape[0]* diskShape[1])
+    DSmaj = 1.0 / np.sqrt( (0.30585 / diskShape[0])**2 + 2.0* np.log(2.0)/(np.pi* primaryBeam)**2 )    # Primary-beam correction
+    DSmin = 1.0 / np.sqrt( (0.30585 / diskShape[1])**2 + 2.0* np.log(2.0)/(np.pi* primaryBeam)**2 )    # Primary-beam correction
+    uvDisp = (DSmin*(u* cs - v* sn))**2 + (DSmaj*(u* sn + v* cs))**2
+    return beamF(diskRadius/primaryBeam)* np.exp(-0.5* uvDisp)
+#
+#-------- Apertue effciency measurements using Solar System Objects
+def SSOAe(antList, refantID, blMap, blInv, uvw, scanDic, BandbpSPW, SSODic, BPList, XspecList):
+    # antList   : List of antenna name
+    # refantID  : antList[refantID] is the refernece antenna
+    # blMap, blInv : baseline mapping and direction 
+    # uvw          : baseline vector [m]
+    # scanDic      : scan dictionary
+    # BandbpSPW    : SPW dictionary
+    # SSODic       : SSO dictionary
+    # BPList       : Bandpass List [spw]
+    # XPspecList   : Cross Correlation XspecList[spw][pol, ch, bl, time]
+    from interferometry import GetAntD, subArrayIndex, ANT0, ANT1, kb, ParaPolBL, gainComplexVec
+    SSOname = scanDic['source']
+    text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
+    if np.median(scanDic['EL']) < ELshadow : return              # filter QSO out
+    uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+    UVlimit = 0.05 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+    text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
+    antNum, blNum, antDia = len(antList), len(uvDist), GetAntD(antList)
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    #-------- Check usable antenna/baselines
+    uvFlag = np.ones(blNum)
+    for spw_index, spw in enumerate(BandbpSPW['spw']):
+        chRange = BandbpSPW['chRange'][spw_index]
+        centerFreq = np.mean(BandbpSPW['freq'][spw_index][chRange])
+        uvFlag[np.where( uvDist > UVlimit* 299792458 / centerFreq)[0].tolist()] *= 0.0
+    #
+    SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag, refantID)
+    if len(SAantMap) < 4: return #  Too few antennas
+    #-------- Baseline map
+    print('Subarray : ',); print(antList[SAantMap])
+    for ant_index in list(range(1, antNum)):
+        text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
+        blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
+        for bl_index in blList:
+            if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
+            else: text_sd = '%4.0f' % (uvDist[bl_index])
+            print(text_sd, end=' ')
+        print('')
+    print('       ', end='')
+    for ant_index, ant in enumerate(antList): print(ant, end=' ')
+    print('')
+    AeSPW, WgSPW = [], []
+    #-------- Aperture Efficiency
+    for spw_index, spw in enumerate(BandbpSPW['spw']):
+        uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
+        primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
+        SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
+        #-------- Phase correction
+        BP_ant = BPList[spw_index].transpose(1,2,0)
+        scanPhase = scanDic['Gain']/abs(scanDic['Gain'])
+        VisChav = np.mean(ParaPolBL(XspecList[spw_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[:,:,ant0]* BP_ant[:,:,ant1].conjugate())
+        VisChav = np.mean(VisChav[:,chRange], axis=1) / abs(SSOmodelVis[blMap])
+        Gain = gainComplexVec(VisChav[:,np.array(blMap)[SAblMap].tolist()].T).T  # Gain[pol, ant]
+        Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
+        Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
+        for ant_index, SAant in enumerate(SAantMap):
+            Ae[SAant] = Aeff[:, ant_index]
+            Wg[SAant] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
+        #
+        AeSPW = AeSPW   + [Ae]
+        WgSPW = WgSPW + [Wg]
+    FscaleDic = {
+        'Ae'    : AeSPW,
+        'Wg'    : WgSPW}
+    return FscaleDic
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:

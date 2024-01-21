@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search, diskVisBeam
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -122,7 +122,8 @@ for BandName in RXList:
     #
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
+    #chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
+    chRange = BandbpSPW[BandName]['chRange'][0]
     checkScan   = QSOscanList[np.argmax(np.array([scanDic[scan]['I'] for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
     Xspec       = XspecList[0][BandScanList[BandName].index(checkScan)]
@@ -170,12 +171,12 @@ for BandName in RXList:
     text_sd = '        coherence loss % :'
     for antName in antList[antMap]: text_sd = text_sd + ' ' +  antName
     print(text_sd)
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     for scan_index, scan in enumerate(BandScanList[BandName]):
         #if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         chAvgList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            chRange = BandbpSPW[BandName]['chRange'][spw_index]
             BP_ant = BPList[spw_index]
             #medBP = np.median(abs(BP_ant), axis=(0,1))
             BPcaledSpec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)[[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
@@ -195,13 +196,13 @@ for BandName in RXList:
     text_sd = '----- XY delay           :'
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
     print(text_sd)
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         scanGain = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
         BPSPWList, XYSPWList, XYsnrList = [], [], []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            chRange = BandbpSPW[BandName]['chRange'][spw_index]
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)          # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/ (scanGain[ant0]* scanGain[ant1].conjugate()), axis=3)   # antenna-based phase correction
             BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
@@ -232,6 +233,7 @@ for BandName in RXList:
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        chRange = BandbpSPW[BandName]['chRange'][spw_index]
         refXY = XYList[np.argmax( XYW[:,spw_index])][spw_index]
         XY = 0.0* refXY
         BP = 0.0* BPList[0][spw_index]
@@ -265,62 +267,9 @@ for BandName in RXList:
     AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
-        SSOname = scanDic[scan]['source']
-        text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic[scan]['EL'])/np.pi)
-        print(text_sd); text_sd = ''
-        if np.median(scanDic[scan]['EL']) < ELshadow : continue              # filter QSO out
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
-        uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-        #UVlimit = 0.50 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
-        UVlimit = 0.05 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
-        text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
-        #-------- Check usable antenna/baselines
-        uvFlag = np.ones(blNum)
-        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            centerFreq = np.mean(BandbpSPW[BandName]['freq'][spw_index][chRange])
-            uvFlag[np.where( uvDist > UVlimit* 299792458 / centerFreq)[0].tolist()] *= 0.0
-        #
-        SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag, refantID)
-        if len(SAantMap) < 4: continue #  Too few antennas
-        #-------- Baseline map
-        print('Subarray : ',); print(antList[SAantMap])
-        for ant_index in list(range(1, antNum)):
-            text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
-            blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
-            for bl_index in blList:
-                if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
-                else: text_sd = '%4.0f' % (uvDist[bl_index])
-                print(text_sd, end=' ')
-            print('')
-        print('       ', end='')
-        for ant_index, ant in enumerate(antList): print(ant, end=' ')
-        print('')
-        AeSPW, WgSPW = [], []
-        #-------- Aperture Efficiency 
-        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
-            primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
-            SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
-            #-------- Phase correction
-            BP_ant = BPSPWList[spw_index].transpose(1,2,0)
-            scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
-            VisChav = np.mean(CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
-            VisChav = np.mean(VisChav[0::3][:,chRange], axis=1) / abs(SSOmodelVis[blMap])
-            Gain = gainComplexVec(VisChav[:,np.array(blMap)[SAblMap].tolist()].T).T  # Gain[pol, ant]
-            Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
-            Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
-            for ant_index, SAant in enumerate(SAantMap):
-                #print('%s %.1f %.1f' % (antList[SAant], 100.0* Aeff[0, ant_index], 100.0* Aeff[1, ant_index]))
-                Ae[SAant] = Aeff[:, ant_index]
-                Wg[SAant] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
-            #
-            AeSPW = AeSPW   + [Ae]
-            WgSPW = WgSPW + [Wg]
-        #
-        FscaleDic[SSOname] = {
-                'scan'  : scan,
-                'Ae'    : AeSPW,
-                'Wg'    : WgSPW}
+        uvw = np.mean(UVW, axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+        FscaleDic[scanDic[scan]['source']] = SSOAe(antList, refantID, blMap, blInv, uvw, scanDic[scan], BandbpSPW[BandName], SSODic, BPSPWList, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
     #
     #GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
     AeList, WgList = [], []

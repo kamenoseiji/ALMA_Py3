@@ -76,6 +76,7 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElS
             print('Scan%3d %s : %6.2f %6.2f %6.2f %6.2f %6.2f %6.2f' % (scan, sourceName, StokesDic[sourceName][1], 100.0*np.sqrt(StokesDic[sourceName][2]**2 + StokesDic[sourceName][3]**2)/StokesDic[sourceName][1], 90.0* np.arctan2(StokesDic[sourceName][3], StokesDic[sourceName][2])/np.pi, np.median(QCpUS), np.median(UCmQS), 180.0* np.median(ElScan)/np.pi))
         #
         scanDic[scan] = {
+            'msfile': msfile,
             'source': sourceName,
             'mjdSec': mjdList[scan_index],
             'EL'    : ElScan,
