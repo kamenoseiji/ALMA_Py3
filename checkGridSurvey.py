@@ -263,7 +263,7 @@ for BandName in RXList:
     #  Visibilities : XspecList [spw][scan][pol, ch, bl, time]
     #  Bandpass     : BPSPWList [spw][ant, pol, ch]
     #  scanDic      : 
-    #-------- Gain scaling using SSO
+    #-------- Aperture Efficiencies Determination using Solar System Objects
     AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
@@ -271,31 +271,41 @@ for BandName in RXList:
         uvw = np.mean(UVW, axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList, refantID, blMap, blInv, uvw, scanDic[scan], BandbpSPW[BandName], SSODic, BPSPWList, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
     #
-    #GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
-    AeList, WgList = [], []
-    for SSO_index, SSOname in enumerate(FscaleDic.keys()):
-        AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
-        WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
-        text_sd = ' Aeff: '
-        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
-        text_sd = text_sd + '--- %s' % (SSOname)
-        print(text_sd)
-        for ant_index, ant in enumerate(antList):
-            text_sd = '%s : ' % (ant)
-            for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-                for pol_index in [0,1]:
-                    if WgSPW[spw_index][ant_index][pol_index] == 0.0:
-                        text_sd = text_sd + '  ----- ' 
-                    else:
-                        text_sd = text_sd + '  %4.1f%% ' % (100.0* AeSPW[spw_index][ant_index][pol_index])
-            print(text_sd)
-    #
-    Aeff = (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
-    #-------- Gain transfer and equalization
+    Aeff = averageAe(FscaleDic, antList, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     '''
-    maxI = 0.0
+    #GainRefAntList = np.where(np.min(np.sum( np.array(WgList), axis=0 ), axis=1) > 0.1)[0].tolist()
+    '''
+    #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
+    scan_index = list(scanDic.keys()).index(checkScan)
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        SAantList = np.where(np.min( Aeff[:,:,spw_index], axis=1) > 0.1)[0].tolist()
+        SAblList  = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] in SAantList and Bl2Ant(bl_index)[1] in SAantList]
+        SAblNum   = len(SAblList)
+        SAant0, SAant1 = ANT0[0:SAblNum], ANT1[0:SAblNum]
+        SAscanPhase = (scanDic[checkScan]['Gain'][SAantList]/abs(scanDic[checkScan]['Gain'][SAantList]))
+        BP_ant = BPSPWList[spw_index][SAantList].transpose(1,2,0)
+        Xspec = ParaPolBL(XspecList[spw_index][scan_index][0::3][:,:,np.array(blMap)[SAblList].tolist()], np.array(blInv)[SAblList].tolist())
+        VisChav = np.mean(Xspec* scanPhase[SAant1]* scanPhase[SAant0].conjugate(), axis=3) / (BP_ant[:,:,SAant0]* BP_ant[:,:,SAant1].conjugate())
+
+
+
+
+        su
+
+
+
+        newAeff = AeTransfer(Aeff[:,:,spw_index], antList, blMap, blInv, BPSPWList[spw_index].transpose(1,2,0), scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain']), XspecList[spw_index][BandScanList[BandName].index(checkScan)][0::3])
+
+        BP_ant = BPSPWList[spw_index].transpose(1,2,0)
+        scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
+        scan_index = BandScanList[BandName].index(checkScan)
+        Xspec = XspecList[spw_index][scan_index][0::3]
+
+        VisChav = np.mean(ParaPolBL(Xspec[:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
+
+    '''
     scan_index = BandScanList[BandName].index(checkScan)
     scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
     AntArea = 0.25* np.pi* antDia**2

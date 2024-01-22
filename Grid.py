@@ -213,6 +213,38 @@ def SSOAe(antList, refantID, blMap, blInv, uvw, scanDic, BandbpSPW, SSODic, BPLi
         'Ae'    : AeSPW,
         'Wg'    : WgSPW}
     return FscaleDic
+#-------- Average Ae among multiple SSOs
+def averageAe(FscaleDic, antList, spwList):
+    AeList, WgList = [], []
+    for SSO_index, SSOname in enumerate(FscaleDic.keys()):
+        AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
+        WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
+        text_sd = ' Aeff: '
+        for spw_index, spw in enumerate(spwList): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
+        text_sd = text_sd + '--- %s' % (SSOname)
+        print(text_sd)
+        for ant_index, ant in enumerate(antList):
+            text_sd = '%s : ' % (ant)
+            for spw_index, spw in enumerate(spwList):
+                for pol_index in [0,1]:
+                    if WgSPW[spw_index][ant_index][pol_index] == 0.0:
+                        text_sd = text_sd + '  ----- '
+                    else:
+                        text_sd = text_sd + '  %4.1f%% ' % (100.0* AeSPW[spw_index][ant_index][pol_index])
+            print(text_sd)
+    #
+    return  (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
+#-------- Gain transfer and equalization
+'''
+def AeTransfer(Aeff, antList, refantID, blMap, blInv, BP_ant, scanPhase, Xspec):
+    from interferometry import ANT0, ANT1, ParaPolBL, gainComplexVec
+    blNum = len(blMap)
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    VisChav = np.mean(ParaPolBL(Xspec[:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[:,:,ant0]* BP_ant[:,:,ant1].conjugate())
+
+    return Aeff
+#
+'''
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:
