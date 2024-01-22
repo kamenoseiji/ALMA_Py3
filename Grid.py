@@ -148,17 +148,15 @@ def diskVisBeam(diskShape, u, v, primaryBeam):
     return beamF(diskRadius/primaryBeam)* np.exp(-0.5* uvDisp)
 #
 #-------- Apertue effciency measurements using Solar System Objects
-def SSOAe(antList, refantID, blMap, blInv, uvw, scanDic, BandbpSPW, SSODic, BPList, XspecList):
+def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
     # antList   : List of antenna name
-    # refantID  : antList[refantID] is the refernece antenna
-    # blMap, blInv : baseline mapping and direction 
+    # antMap    : Antenna order starting with refant
+    # spwDic    : SPW dictionary ['spw', 'freq', 'chNum', 'chRange', 'BW']
     # uvw          : baseline vector [m]
-    # scanDic      : scan dictionary
-    # BandbpSPW    : SPW dictionary
+    # scanDic      : scan dictionary ['msfile', 'source', 'mjdSec', 'EL', 'PA', 'I', 'QCpUS', 'Tau', 'Tsys', 'Gain']
     # SSODic       : SSO dictionary
-    # BPList       : Bandpass List [spw]
     # XPspecList   : Cross Correlation XspecList[spw][pol, ch, bl, time]
-    from interferometry import GetAntD, subArrayIndex, ANT0, ANT1, kb, ParaPolBL, gainComplexVec
+    from interferometry import GetAntD, Bl2Ant, ANT0, ANT1, kb, gainComplexVec
     SSOname = scanDic['source']
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
     if np.median(scanDic['EL']) < ELshadow : return              # filter QSO out
@@ -169,45 +167,42 @@ def SSOAe(antList, refantID, blMap, blInv, uvw, scanDic, BandbpSPW, SSODic, BPLi
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     #-------- Check usable antenna/baselines
     uvFlag = np.ones(blNum)
-    for spw_index, spw in enumerate(BandbpSPW['spw']):
-        chRange = BandbpSPW['chRange'][spw_index]
-        centerFreq = np.mean(BandbpSPW['freq'][spw_index][chRange])
+    for spw_index, spw in enumerate(spwDic['spw']):
+        chRange = spwDic['chRange'][spw_index]
+        centerFreq = np.mean(spwDic['freq'][spw_index][chRange])
         uvFlag[np.where( uvDist > UVlimit* 299792458 / centerFreq)[0].tolist()] *= 0.0
     #
-    SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag, refantID)
-    if len(SAantMap) < 4: return #  Too few antennas
+    SAant = [0] + [Bl2Ant(bl_index)[0] for bl_index in np.where(uvFlag > 0.1)[0].tolist() if Bl2Ant(bl_index)[1] == 0]
+    SAbl  = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] in SAant and Bl2Ant(bl_index)[1] in SAant]
+    if len(SAant) < 4: return #  Too few antennas
     #-------- Baseline map
-    print('Subarray : ',); print(antList[SAantMap])
+    print('Subarray : ',); print(antList[np.array(antMap)[SAant]])
     for ant_index in list(range(1, antNum)):
-        text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
-        blList = np.where(np.array(ANT0[0:blNum]) == ant_index)[0].tolist()
+        text_sd = antList[antMap[ant_index]] + ' : '; print(text_sd, end='')
+        blList = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] == ant_index]
         for bl_index in blList:
             if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
             else: text_sd = '%4.0f' % (uvDist[bl_index])
             print(text_sd, end=' ')
         print('')
     print('       ', end='')
-    for ant_index, ant in enumerate(antList): print(ant, end=' ')
+    for ant_index, ant in enumerate(antList[antMap[0:antNum-1]]): print(ant, end=' ')
     print('')
     AeSPW, WgSPW = [], []
     #-------- Aperture Efficiency
-    for spw_index, spw in enumerate(BandbpSPW['spw']):
+    for spw_index, spw in enumerate(spwDic['spw']):
         uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
         primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
         SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
-        #-------- Phase correction
-        BP_ant = BPList[spw_index].transpose(1,2,0)
-        scanPhase = scanDic['Gain']/abs(scanDic['Gain'])
-        VisChav = np.mean(ParaPolBL(XspecList[spw_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[:,:,ant0]* BP_ant[:,:,ant1].conjugate())
-        VisChav = np.mean(VisChav[:,chRange], axis=1) / abs(SSOmodelVis[blMap])
-        Gain = gainComplexVec(VisChav[:,np.array(blMap)[SAblMap].tolist()].T).T  # Gain[pol, ant]
-        Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[SAantMap]**2)
+        VisChav = np.mean(XSList[spw_index][:,chRange][:,:,SAbl], axis=(1,3)) / SSOmodelVis[SAbl]
+        Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
+        Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[np.array(antMap)[SAant]]**2)
         Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
-        for ant_index, SAant in enumerate(SAantMap):
-            Ae[SAant] = Aeff[:, ant_index]
-            Wg[SAant] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
+        for ant_index, SA in enumerate(np.array(antMap)[SAant]):
+            Ae[SA] = Aeff[:, ant_index]
+            Wg[SA] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
         #
-        AeSPW = AeSPW   + [Ae]
+        AeSPW = AeSPW + [Ae]
         WgSPW = WgSPW + [Wg]
     FscaleDic = {
         'Ae'    : AeSPW,
@@ -235,16 +230,16 @@ def averageAe(FscaleDic, antList, spwList):
     #
     return  (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
 #-------- Gain transfer and equalization
-'''
-def AeTransfer(Aeff, antList, refantID, blMap, blInv, BP_ant, scanPhase, Xspec):
-    from interferometry import ANT0, ANT1, ParaPolBL, gainComplexVec
-    blNum = len(blMap)
-    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
-    VisChav = np.mean(ParaPolBL(Xspec[:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3) / (BP_ant[:,:,ant0]* BP_ant[:,:,ant1].conjugate())
-
-    return Aeff
+def AeTransfer(VisChav, Aeff, antDia):
+    from interferometry import Bl2Ant, gainComplexVec
+    blNum = VisChav.shape[1]
+    SAant = np.where(np.min(Aeff, axis=1) > 0.25)[0].tolist()
+    SAbl  = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] in SAant and Bl2Ant(bl_index)[1] in SAant]
+    GainSA  = gainComplexVec(VisChav[:,SAbl].T)
+    GainAll = gainComplexVec(VisChav.T)
+    scaleFlux = np.median(abs(GainSA**2).T / (antDia**2* Aeff.T), axis=1)
+    return ((abs(GainAll)**2 / scaleFlux).T / (antDia**2)).T
 #
-'''
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:
