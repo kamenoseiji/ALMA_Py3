@@ -71,7 +71,7 @@ for spw_index, spwID in enumerate(spwList):
         DT = []
         for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
     #
-    BBPL = figBB.add_subplot(int((spwNum + 1) / int(np.sqrt(spwNum))), int(np.sqrt(spwNum)), spw_index + 1)
+    BBPL = figBB.add_subplot(int(np.ceil(spwNum / int(np.sqrt(spwNum)))), int(np.sqrt(spwNum)), spw_index + 1)
     BBPL.step( DT, BBPower[0,0], where='mid'); BBPL.plot( DT, BBPower[0,0], 'bo', label=text_X)
     BBPL.step( DT, BBPower[1,0], where='mid'); BBPL.plot( DT, BBPower[1,0], 'go', label=text_Y)
     BBPL.legend(loc='best', prop={'size' :7}, numpoints=1)
