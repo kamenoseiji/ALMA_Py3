@@ -545,15 +545,16 @@ def GetAeff(URI, antMap, band, refMJD):
 #
 def GetDterm(URI, antMap, band, refMJD):
     print('GetDterm : %sDtermB%d.%s.table' % (URI,  band, antMap[0]))
+    context = ssl._create_unverified_context()
     if band == 4 : band = 3
     antNum = len(antMap)
     Dterm  = np.zeros([antNum, 2, 4], dtype=complex)    # Dterm[ant, pol, spw]
     for ant_index in range(antNum):
         ant = antMap[ant_index]
         try:
-            response =  urllib.request.urlopen(url = '%sDtermB%d.%s.table' % (URI,  band, ant))
+            response =  urllib.request.urlopen(url = '%sDtermB%d.%s.table' % (URI,  band, ant), context=context)
         except:
-            response =  urllib.request.urlopen(url = '%sDtermB%d.%s00.table' % (URI,  band, ant[0:2]))
+            response =  urllib.request.urlopen(url = '%sDtermB%d.%s00.table' % (URI,  band, ant[0:2]), context=context)
         #
         fileLines = response.readlines()
         lineLength = len(fileLines)
@@ -596,10 +597,10 @@ def GetSourceList(msfile):              # source list
     #
     return sourceList, posList
 #
-def GetSunAngle(msfile):
+def GetSunAngle(msfile):    # Output sun angle for source
     sunAngleList = []
     sourceList, posList = GetSourceList(msfile)
-    for source_index in list(range(len(sourceList))):
+    for source_index, source in enumerate(sourceList):
         sunAngleList = sunAngleList + [au.angleToSun(vis=msfile, field=source_index, verbose=False)]
     #
     return sunAngleList

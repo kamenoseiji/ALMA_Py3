@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, BPaverage, delay_search
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -63,7 +63,12 @@ FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList))
 #azelTime_index = np.where( AntID == 0 )[0].tolist() 
 #-------- Loop for Bands
 for BandName in RXList:
+    logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
+    text_corr = 'BLCORR' if BLCORR else 'ACACORR'
+    logfile.write(text_corr + '\n')
     print('-----%s----' % (BandName))
+    #-------- D-term from history
+    Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), np.mean(azelTime))
     #-------- Load Aeff file
     etaA = 0.01* GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
     #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
@@ -81,6 +86,7 @@ for BandName in RXList:
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
+        scanDic[scan]['SA'] = SunAngleSourceList[sourceList.index(scanDic[scan]['source'])]
     #-------- Trx and Zenith optical depth
     TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
     atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
@@ -105,12 +111,12 @@ for BandName in RXList:
                 Tant = Tant + (SSODic[source][1][spw_index]* etaA* np.pi* antDia**2 / (2.0* kb)).T    # Tant[ch, ant, pol] Antenna temperature of SSO
             SP = tauSMTH(atmReltime, TauE[spw_index] )
             Tau0SP = Tau0[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
-            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))
-            zenithTau = Tau0SP + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ
-            scanTau = scanTau + [zenithTau * secZ]
-            exp_Tau = np.exp(-zenithTau * secZ )
-            atmCorrect = 1.0 / exp_Tau
-            TsysScan = atmCorrect* TrxAnt.transpose(1,2,0) + (Tcmb + Tant.transpose(1, 2, 0))*exp_Tau + tempAtm* (1.0 - exp_Tau)
+            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))                           # Airmass
+            zenithTau = Tau0SP + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ   # Smoothed zenith optical depth
+            scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
+            exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
+            atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
+            TsysScan = atmCorrect* (TrxAnt.transpose(1,2,0) + (Tcmb + Tant.transpose(1, 2, 0))*exp_Tau + tempAtm* (1.0 - exp_Tau))
             #-------- Tsys correction
             Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
             XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
@@ -144,7 +150,6 @@ for BandName in RXList:
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist)
-    refantID = 12
     print('Use %s as refant' % (antList[UseAnt[refantID]]))
     antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
     for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
@@ -259,12 +264,7 @@ for BandName in RXList:
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
-    #---- 
-    # Now we have
-    #  Visibilities : XspecList [spw][scan][pol, ch, bl, time]
-    #  Bandpass     : BPSPWList [spw][ant, pol, ch]
-    #  scanDic      : 
-    #-------- Apply Bandpass and Gain Correction
+    #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             print('---Applying Gain and Bandpass Correction for scan %d, spw %d' % (scan, spw))
@@ -273,7 +273,6 @@ for BandName in RXList:
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate())
             XspecList[spw_index][scan_index] = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         #
-    #
     #-------- Aperture Efficiencies Determination using Solar System Objects
     AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
@@ -287,13 +286,71 @@ for BandName in RXList:
         for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA.T
     else:
         Aeff = averageAe(FscaleDic, antList, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
-    #
     #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
     scan_index = list(scanDic.keys()).index(checkScan)
     newAeff = np.ones([antNum, 2, spwNum])
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-        newAeff[antMap][:,:,spw_index] = AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[antMap][:,:,spw_index], antDia[antMap] )
+        newAeff[:,:,spw_index] = AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[antMap][:,:,spw_index], antDia[antMap] )
+    for ant_index in antMap: Aeff[antMap[ant_index]] = newAeff[ant_index]
+    #-------- Stokes visibilities for each scan
+    ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4])
+    text_Stokes = np.repeat('',spwNum).tolist()
+    for scan_index, scan in enumerate(BandScanList[BandName]):
+        timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
+        uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)[blMap]
+        text_src  = ' %02d %010s EL=%4.1f deg' % (scan, scanDic[scan]['source'], 180.0* np.median(scanDic[scan]['EL'])/np.pi)
+        timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]))
+            visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
+            StokesVis = Vis2Stokes(visChav, Dcat[antMap][:,:,spw_index], scanDic[scan]['PA'])
+            #---- Zero-baseline Stokes Parameters
+            percent75 = np.percentile(StokesVis[0].real, 75); sdvis = np.std(StokesVis[0].real)
+            visFlag = np.where(abs(StokesVis[0].real - percent75) < 3.0* sdvis )[0]      # 3-sigma critesion
+            if len(visFlag) < 2 : continue
+            weight = np.zeros(blNum); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
+            P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
+            PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
+            solution, solerr = PtWP_inv.dot(P.T.dot(weight* StokesVis[0].real)),  np.sqrt(np.diag(PtWP_inv)) # solution[0]:intercept, solution[1]:slope
+            if abs(solution[1]) < 2.0* solerr[1]: solution[0], solution[1] = np.median(StokesVis[0][visFlag].real), 0.0
+            ScanFlux[scan_index, spw_index, 0], ScanSlope[scan_index, spw_index, 0], ErrFlux[scan_index, spw_index, 0] = solution[0], solution[1], solerr[0]
+            #if ScanFlux[scan_index, spw_index, 0] < 0.3: scanDic[sourceName][1] *= 0.0      # Too weak to determine D-term
+            for pol_index in list(range(1,4)):
+                ScanSlope[scan_index, spw_index, pol_index] = ScanSlope[scan_index, spw_index, 0] * np.median(StokesVis[pol_index].real)/ScanFlux[scan_index, spw_index, 0]
+                solution[0] = (weight.dot(StokesVis[pol_index].real) - ScanSlope[scan_index, spw_index, pol_index]* weight.dot(uvDist))/(np.sum(weight))
+                ScanFlux[scan_index, spw_index, pol_index] = solution[0]
+                resid = StokesVis[pol_index].real - ScanSlope[scan_index, spw_index, pol_index]* uvDist - solution[0]; ErrFlux[scan_index, spw_index, pol_index] = np.sqrt(weight.dot(resid**2)/np.sum(weight))
+            #
+            for pol_index in list(range(4)):
+                if len(visFlag) < 4:
+                    DcalFlag = False; scanFlag = False
+                    text_Stokes[spw_index] = text_Stokes[spw_index] + ' Only %d vis.    ' % (len(visFlag))
+                else:
+                    text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])
+                #
+            #
+            text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[scan_index, spw_index, 1]**2 + ScanFlux[scan_index, spw_index, 2]**2)/ScanFlux[scan_index, spw_index, 0], np.arctan2(ScanFlux[scan_index, spw_index, 2],ScanFlux[scan_index, spw_index, 1])*90.0/np.pi)
+        #
+        uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[scan_index,:,0])
+        refFreq = 1.0e-9* np.mean(BandbpSPW[BandName]['freq'])
+        relFreq = 1.0e-9* np.array([np.median( BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]) - refFreq
+        text_mean = ' mean  %5.1f GHz ' % (refFreq)
+        pflux, pfluxerr = np.zeros(4), np.zeros(4)
+        for pol_index in list(range(4)):
+            sol, solerr = linearRegression(relFreq, ScanFlux[scan_index, :, pol_index], ErrFlux[scan_index, :, pol_index] )
+            pflux[pol_index], pfluxerr[pol_index] = sol[0], solerr[0]
+            text_mean = text_mean + ' %7.4f (%.4f) ' % (pflux[pol_index], pfluxerr[pol_index])
+        text_mean = text_mean + '%6.3f   %6.1f' % (100.0* np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi) 
+        text_sd = text_src + ' ' + timeLabel
+        logfile.write(text_sd +'\n'); print(text_sd)
+        text_sd = ' SPW  Frequency     I                 Q                 U                 V             |  %Pol     EVPA '; logfile.write(text_sd + '\n'); print(text_sd)
+        text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
+        for spw_index in list(range(spwNum)): logfile.write(text_Stokes[spw_index] + '\n'); print(text_Stokes[spw_index])
+        text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
+        if spwNum > 1: logfile.write(text_mean + '\n'); print(text_mean)
+        text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
     #
+    logfile.close()
 #

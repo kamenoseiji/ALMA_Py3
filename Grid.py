@@ -152,10 +152,10 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
     # antList   : List of antenna name
     # antMap    : Antenna order starting with refant
     # spwDic    : SPW dictionary ['spw', 'freq', 'chNum', 'chRange', 'BW']
-    # uvw          : baseline vector [m]
-    # scanDic      : scan dictionary ['msfile', 'source', 'mjdSec', 'EL', 'PA', 'I', 'QCpUS', 'Tau', 'Tsys', 'Gain']
-    # SSODic       : SSO dictionary
-    # XPspecList   : Cross Correlation XspecList[spw][pol, ch, bl, time]
+    # uvw       : baseline vector [m]
+    # scanDic   : scan dictionary ['msfile', 'source', 'mjdSec', 'EL', 'PA', 'I', 'QCpUS', 'Tau', 'Tsys', 'Gain']
+    # SSODic    : SSO dictionary
+    # XSList    : Cross Correlation XspecList[spw][pol, ch, bl, time]
     from interferometry import GetAntD, Bl2Ant, ANT0, ANT1, kb, gainComplexVec
     SSOname = scanDic['source']
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
@@ -229,7 +229,7 @@ def averageAe(FscaleDic, antList, spwList):
             print(text_sd)
     #
     return  (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
-#-------- Gain transfer and equalization
+#-------- Transfer and equalize aperture efficiencies
 def AeTransfer(VisChav, Aeff, antDia):
     from interferometry import Bl2Ant, gainComplexVec
     blNum = VisChav.shape[1]
@@ -240,6 +240,32 @@ def AeTransfer(VisChav, Aeff, antDia):
     scaleFlux = np.median(abs(GainSA**2).T / (antDia**2* Aeff.T), axis=1)
     return ((abs(GainAll)**2 / scaleFlux).T / (antDia**2)).T
 #
+#-------- Gain scaling
+def GainScale(Aeff, antDia, polVis):
+    # Aeff :    Aperure Efficiency Table
+    # antDia :  Antenna diameter
+    # polVis[pol,bl,time] :    cross power spectra
+    from interferometry import kb, ANT0, ANT1
+    polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
+    blNum = polVis.shape[1]
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    fluxScale = np.sqrt( 2.0* kb / (0.25* np.pi* antDia**2* Aeff.T))
+    return (polVis.transpose(2,0,1)* fluxScale[polYindex][:,ant0]* fluxScale[polXindex][:,ant1]).transpose(1,2,0)
+#-------- Stokes parameters
+def Vis2Stokes(VisChav, Dcat, PA):
+    # VisChav   : channel-averaged visibiliities [pol, bl, time]
+    # Dcat      : D-term [ant, pol]
+    # PA        : Parallactic Angle with respect to X-feed [time]
+    from interferometry import ANT0, ANT1, InvMullerMatrix, InvPAVector
+    PAnum = len(PA)
+    PS = InvPAVector(PA, np.ones(PAnum))
+    blNum = VisChav.shape[1]
+    Stokes = np.zeros([4,blNum], dtype=complex)
+    for bl_index in list(range(blNum)):
+        Minv = InvMullerMatrix(Dcat[ANT1[bl_index], 0], Dcat[ANT1[bl_index], 1], Dcat[ANT0[bl_index], 0], Dcat[ANT0[bl_index], 1])
+        Stokes[:,bl_index] = PS.reshape(4, 4*PAnum).dot(Minv.dot( VisChav[:,bl_index]).reshape(4*PAnum)) / PAnum
+    #
+    return Stokes
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:
@@ -257,8 +283,6 @@ def tauSMTH( timeSample, TauE ):
     return smthTau
 #
 '''
-#-------- Load D-term file
-#Dcat = GetDterm(TBL_DIR, antList,int(UniqBands[band_index][3:5]), np.mean(timeStamp))
 #-------- Load Tsys table
 Tau0spec, TrxList, Tau0Coef = [], [], []
 for spw in spwList:
