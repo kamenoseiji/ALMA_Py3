@@ -1174,7 +1174,7 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
     PTP[0:antNum][:,2*antNum:3*antNum] = PTP[2*antNum:3*antNum][:,0:antNum]            # P20
     PTP[antNum:2*antNum][:,3*antNum:4*antNum] = -PTP[2*antNum:3*antNum][:,0:antNum]    # P31
     PTY = np.zeros(4* antNum)
-    for ant_index in range(antNum):
+    for ant_index in list(range(antNum)):
         index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
         residXY[index0] -= newDx[ant_index]* (I - QCpUS)
         residXY[index1] -= newDy[ant_index].conjugate()* (I + QCpUS)
@@ -1182,7 +1182,7 @@ def VisMuiti_solveD(Vis, QCpUS, UCmQS, Dx=[], Dy=[], I=1.0):
         residYX[index1] -= newDx[ant_index].conjugate()* (I - QCpUS)
     #
     #-------- PTR vector
-    for ant_index in range(antNum):
+    for ant_index in list(range(antNum)):
         index0, index1 = np.where(ant0 == ant_index)[0].tolist(), np.where(ant1 == ant_index)[0].tolist()
         PTY[ant_index] += (I - QCpUS).dot(np.sum(residXY[index0].real, axis=0))
         PTY[ant_index] += (I - QCpUS).dot(np.sum(residYX[index1].real, axis=0))

@@ -161,8 +161,8 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
     if np.median(scanDic['EL']) < ELshadow : return              # filter QSO out
     uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    UVlimit = 0.05 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
-    text_sd = ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
+    UVlimit = 0.5 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+    text_sd = text_sd + ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
     antNum, blNum, antDia = len(antList), len(uvDist), GetAntD(antList)
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     #-------- Check usable antenna/baselines
@@ -212,6 +212,7 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
 def averageAe(FscaleDic, antList, spwList):
     AeList, WgList = [], []
     for SSO_index, SSOname in enumerate(FscaleDic.keys()):
+        if FscaleDic[SSOname] is None: continue
         AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
         WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
         text_sd = ' Aeff: '

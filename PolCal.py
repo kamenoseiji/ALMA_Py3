@@ -82,7 +82,8 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElS
             'EL'    : ElScan,
             'PA'    : PA,
             'I'     : StokesI,
-            'QCpUS' : np.median(QCpUS)}
+            'QCpUS' : QCpUS,
+            'UCmQS' : UCmQS}
     msmd.close(); msmd.done()
     return scanDic
 #

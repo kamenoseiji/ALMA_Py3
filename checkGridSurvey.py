@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD
 import matplotlib.pyplot as plt
 from Plotters import plotSP, plotXYP
 from Grid import *
@@ -267,7 +267,7 @@ for BandName in RXList:
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            print('---Applying Gain and Bandpass Correction for scan %d, spw %d' % (scan, spw))
+            # print('---Applying Gain and Bandpass Correction for scan %d, spw %d' % (scan, spw))
             BP_ant = BPSPWList[spw_index].transpose(1,2,0)
             scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate())
@@ -302,9 +302,11 @@ for BandName in RXList:
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)[blMap]
         text_src  = ' %02d %010s EL=%4.1f deg' % (scan, scanDic[scan]['source'], 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
+        visChavList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]))
             visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
+            visChavList = visChavList + [visChav]
             StokesVis = Vis2Stokes(visChav, Dcat[antMap][:,:,spw_index], scanDic[scan]['PA'])
             #---- Zero-baseline Stokes Parameters
             percent75 = np.percentile(StokesVis[0].real, 75); sdvis = np.std(StokesVis[0].real)
@@ -333,6 +335,12 @@ for BandName in RXList:
             #
             text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[scan_index, spw_index, 1]**2 + ScanFlux[scan_index, spw_index, 2]**2)/ScanFlux[scan_index, spw_index, 0], np.arctan2(ScanFlux[scan_index, spw_index, 2],ScanFlux[scan_index, spw_index, 1])*90.0/np.pi)
         #
+        #---- Update scanDic record entry
+        CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
+        scanDic[scan]['I'] = [ScanFlux[scan_index, spw_index, 0]* np.ones(len(CS)) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['QCpUS'] = [ScanFlux[scan_index, spw_index, 1]* CS + ScanFlux[scan_index, spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['UCmQS'] = [ScanFlux[scan_index, spw_index, 2]* CS - ScanFlux[scan_index, spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['visChav'] = visChavList
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[scan_index,:,0])
         refFreq = 1.0e-9* np.mean(BandbpSPW[BandName]['freq'])
         relFreq = 1.0e-9* np.array([np.median( BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]) - refFreq
@@ -352,5 +360,44 @@ for BandName in RXList:
         if spwNum > 1: logfile.write(text_mean + '\n'); print(text_mean)
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
     #
+    #-------- Review D-term
+    Dterm = np.zeros([antNum, spwNum, 2], dtype=complex)
+    DtermDic = {'mjdSec': np.median(timeStamp)}
+    DtermDic['Freq'] = [np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+    text_sd = 'D-term        '; logfile.write(text_sd); print(text_sd, end='')
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        IList, QCpUSList, UCmQSList, visChavList = [], [], [], []
+        for scan_index, scan in enumerate(BandScanList[BandName]):
+            if min(scanDic[scan]['EL']) < ELshadow : continue
+            IList       = IList + scanDic[scan]['I'][spw_index].tolist()
+            QCpUSList   = QCpUSList + scanDic[scan]['QCpUS'][spw_index].tolist()
+            UCmQSList   = UCmQSList + scanDic[scan]['UCmQS'][spw_index].tolist()
+            visChavList = visChavList + scanDic[scan]['visChav'][spw_index].transpose(2, 0, 1).tolist()
+        #
+        Dterm[:,spw_index, 0], Dterm[:,spw_index,1] = VisMuiti_solveD(np.array(visChavList).transpose(1, 2, 0), np.array(QCpUSList), np.array(UCmQSList), Dcat[:,0,spw_index], Dcat[:,1,spw_index], np.array(IList))
+    #
+    for ant_index, ant in enumerate(antList[antMap]): DtermDic[ant] = Dterm[ant_index]
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        text_sd = '    SPW%02d                    ' % (spw);  logfile.write(text_sd); print(text_sd, end=' ')
+    logfile.write('\n'); print('')
+    text_sd = 'Ant  '; logfile.write(text_sd); print(text_sd, end='')
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        text_sd = '       Dx             Dy     ';  logfile.write(text_sd); print(text_sd, end='')
+    logfile.write('\n'); print('')
+    for ant_index, ant in enumerate(antList[antMap]):
+        text_sd = '%s  ' % (ant)
+        text_fd = text_sd
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            for pol_index in list(range(2)):
+                if abs(Dterm[ant_index,spw_index,pol_index]) > 0.1:
+                    text_sd = text_sd + '\033[91m %+.3f%+.3fi \033[0m' % (Dterm[ant_index,spw_index,pol_index].real, Dterm[ant_index,spw_index,pol_index].imag)
+                else:
+                    text_sd = text_sd + ' %+.3f%+.3fi ' % (Dterm[ant_index,spw_index,pol_index].real, Dterm[ant_index,spw_index,pol_index].imag)
+                #
+                text_fd = text_fd + ' %+.3f%+.3fi ' % (Dterm[ant_index,spw_index,pol_index].real, Dterm[ant_index,spw_index,pol_index].imag)
+            #
+        #
+        logfile.write(text_fd + '\n'); print(text_sd)
+    #----
     logfile.close()
 #
