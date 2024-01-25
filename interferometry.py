@@ -1475,9 +1475,9 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[polYindex][:,ant0] / delayCalTable[polXindex][:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[3,chRange], axis=0))])
-            GainPhase = Gain / abs(Gain)
             del delayCaledXspec
         #
+        GainPhase = Gain / abs(Gain)
         CaledXspec = (GainPhase[polYindex][:,ant0].conjugate()* GainPhase[polXindex][:,ant1]* Xspec.transpose(1,0,2,3) ).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
@@ -1512,9 +1512,9 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
             delayCaledXspec = (Xspec.transpose(3,0,2,1) * delayCalTable[:,ant0] / delayCalTable[:,ant1]).transpose(1, 3, 2, 0)
             #---- Gain Cal
             Gain = np.array([gainComplexVec(np.mean(delayCaledXspec[0,chRange], axis=0)), gainComplexVec(np.mean(delayCaledXspec[1,chRange], axis=0))])
-            GainPhase = Gain / abs(Gain)
             del delayCaledXspec
         #
+        GainPhase = Gain / abs(Gain)
         CaledXspec = (GainPhase[:,ant0].conjugate()* GainPhase[:,ant1]* Xspec.transpose(1,0,2,3)).transpose(1,0,2,3)
         del Xspec
         #---- Coherent time-averaging
