@@ -109,14 +109,54 @@ def AeNominal(msfile, antList):
     msmd.done()
     return 0.7* 0.25* np.pi* antDia**2      # Nominal Collecting Area
 #
-def TsysLoad(BandatmSPW, BandName):
-    Tau0spec, TrxList, Tau0Coef = [], [], []
-    for spw_index, spw in enumerate(BandbpSPW[BandName][0]):
-        TrxList = TrxList + [np.median(np.load('%s-%s-SPW%d.Trx.npy' % (prefix, UniqBands[band_index], spw)), axis=3) + np.median(np.load('%s-%s-SPW%d.TantN.npy' % (prefix, UniqBands[band_index], spw)), axis=1)]   # TrxList[spw][pol, ch, ant]
-        Tau0spec = Tau0spec + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]  # Tau0spec[spw][ch]
-        Tau0Coef = Tau0Coef + [np.load('%s-%s-SPW%d.Tau0C.npy' % (prefix, BandName, spw))] # Tau0Coef[spw][2] --- intercept + slope
-    Tau0E    = np.load(prefix +  '-' + BandName + '.TauE.npy') # Tau0E[spw, atmScan]
-    return TrxList, Tau0spec, Tau0Coef, Tau0E
+#-------- Apply Tsys calibration to visibilities
+def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
+    from interferometry import ANT0, ANT1, kb, Tcmb, GetAntD, GetTemp
+    tempAtm = GetTemp(prefix + '.ms')
+    TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
+    atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
+    atmReltime = atmTime - atmTime[0]
+    TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName))
+    antNum= len(TrxAntList)
+    blNum = XspecList[0][0].shape[2]
+    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
+    polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
+    antDia = GetAntD(TrxAntList)
+    nominalAe = 0.72
+    Tau0List, Tau0CList, TrxList, TaNList, TrxFreq = [], [], [], [], []
+    for spw_index, spw in enumerate(BandbpSPW['spw']):
+        Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
+        Tau0CList= Tau0CList+ [np.load('%s-%s-SPW%d.Tau0C.npy'% (prefix, BandName, spw))]   # Tau0CList[spw] [intercept,slope]
+        TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
+        TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
+        TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
+    for scan_index, scan in enumerate(scanDic.keys()):
+        scanTau = []
+        TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
+        source = scanDic[scan]['source']
+        for spw_index, spw in enumerate(BandbpSPW['spw']):
+            chNum = BandbpSPW['chNum'][spw_index]
+            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
+            StokesI = SSODic[source][1][spw_index] if source in SSOCatalog else scanDic[scan]['I'] 
+            Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
+            SP = tauSMTH(atmReltime, TauE[spw_index] )
+            Tau0SP = Tau0List[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
+            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))                           # Airmass
+            zenithTau = Tau0SP + Tau0CList[spw_index][0] + Tau0CList[spw_index][1]*secZ   # Smoothed zenith optical depth
+            scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
+            exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
+            atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
+            TsysScan = (atmCorrect* (TrxAnt.transpose(2,1,0) + np.outer(Tcmb + Tant, exp_Tau) + tempAtm* (1.0 - exp_Tau))).transpose(1,0,2)
+            #-------- Tsys correction
+            Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
+            XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
+            for ant_index, ant in enumerate(TrxAntList):
+                TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
+        #
+        scanDic[scan]['Tau']  = scanTau
+        scanDic[scan]['Tsys'] = TsysScanDic
+    #
+    return scanDic, XspecList
 #
 def aprioriSEFD(Ae, EL, TrxSpec, Tau0Spec):
     secZ = 1.0 / np.sin(EL)
@@ -201,7 +241,6 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
         for ant_index, SA in enumerate(np.array(antMap)[SAant]):
             Ae[SA] = Aeff[:, ant_index]
             Wg[SA] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
-        #
         AeSPW = AeSPW + [Ae]
         WgSPW = WgSPW + [Wg]
     FscaleDic = {
@@ -215,20 +254,6 @@ def averageAe(FscaleDic, antList, spwList):
         if FscaleDic[SSOname] is None: continue
         AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
         WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
-        text_sd = ' Aeff: '
-        for spw_index, spw in enumerate(spwList): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
-        text_sd = text_sd + '--- %s' % (SSOname)
-        print(text_sd)
-        for ant_index, ant in enumerate(antList):
-            text_sd = '%s : ' % (ant)
-            for spw_index, spw in enumerate(spwList):
-                for pol_index in [0,1]:
-                    if WgSPW[spw_index][ant_index][pol_index] == 0.0:
-                        text_sd = text_sd + '  ----- '
-                    else:
-                        text_sd = text_sd + '  %4.1f%% ' % (100.0* AeSPW[spw_index][ant_index][pol_index])
-            print(text_sd)
-    #
     return  (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
 #-------- Transfer and equalize aperture efficiencies
 def AeTransfer(VisChav, Aeff, antDia):

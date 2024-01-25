@@ -58,9 +58,6 @@ print('---Checking source list')
 sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
 FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
-#-------- Check AZEL
-#azelTime, AntID, AZ, EL = GetAzEl(msfile)
-#azelTime_index = np.where( AntID == 0 )[0].tolist() 
 #-------- Loop for Bands
 for BandName in RXList:
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
@@ -71,7 +68,6 @@ for BandName in RXList:
     Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), np.mean(azelTime))
     #-------- Load Aeff file
     etaA = 0.01* GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
-    #Ae = 0.0025* np.pi* etaA* antDia[antMap]**2
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName]['spw'], BandScanList[BandName])
@@ -87,48 +83,10 @@ for BandName in RXList:
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
         scanDic[scan]['SA'] = SunAngleSourceList[sourceList.index(scanDic[scan]['source'])]
-    #-------- Trx and Zenith optical depth
-    TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
-    atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
-    Tau0List, TrxList, TaNList, TrxFreq = [], [], [], []
-    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-        Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
-        TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
-        TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
-        TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
-    TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName)) 
-    #-------- Put Tsys into scanDic and Tsys correction
-    atmReltime = atmTime - atmTime[0]
-    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
-    for scan_index, scan in enumerate(scanDic.keys()):
-        scanTau = []
-        TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
-        source = scanDic[scan]['source']
-        for spw_index in range(spwNum):
-            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
-            Tant = np.zeros([chNum, antNum, 2])
-            if source in SSOCatalog:
-                Tant = Tant + (SSODic[source][1][spw_index]* etaA* np.pi* antDia**2 / (2.0* kb)).T    # Tant[ch, ant, pol] Antenna temperature of SSO
-            SP = tauSMTH(atmReltime, TauE[spw_index] )
-            Tau0SP = Tau0[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
-            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))                           # Airmass
-            zenithTau = Tau0SP + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ   # Smoothed zenith optical depth
-            scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
-            exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
-            atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
-            TsysScan = atmCorrect* (TrxAnt.transpose(1,2,0) + (Tcmb + Tant.transpose(1, 2, 0))*exp_Tau + tempAtm* (1.0 - exp_Tau))
-            #-------- Tsys correction
-            Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
-            XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
-            for ant_index, ant in enumerate(TrxAntList):
-                TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
-        #
-        scanDic[scan]['Tau']  = scanTau
-        scanDic[scan]['Tsys'] = TsysScanDic
-    #
+    #-------- Apply Tsys calibration
+    scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas and determine reference antenna')
-    #chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     chRange = BandbpSPW[BandName]['chRange'][0]
     checkScan   = QSOscanList[np.argmax(np.array([scanDic[scan]['I'] for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
@@ -184,7 +142,6 @@ for BandName in RXList:
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             chRange = BandbpSPW[BandName]['chRange'][spw_index]
             BP_ant = BPList[spw_index]
-            #medBP = np.median(abs(BP_ant), axis=(0,1))
             BPcaledSpec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)[[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
             chAvgList = chAvgList + [np.mean( BPcaledSpec[:,:,:,chRange], axis=(2,3))]
         #
@@ -286,6 +243,16 @@ for BandName in RXList:
         for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA.T
     else:
         Aeff = averageAe(FscaleDic, antList, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
+    text_sd = ' Aeff: '
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
+    for source in FscaleDic.keys() : text_sd = text_sd + ' %s' % (source)
+    logfile.write(text_sd +'\n'); print(text_sd)
+    for ant_index, ant in enumerate(antList):
+        text_sd = '%s : ' % (ant)
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            for pol_index in [0,1]:
+                text_sd = text_sd + '  ----- ' if Aeff[ant_index][pol_index][spw_index] < 0.1 else text_sd + '  %4.1f%% ' % (100.0* Aeff[ant_index][pol_index][spw_index])
+        logfile.write(text_sd +'\n'); print(text_sd)
     #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
