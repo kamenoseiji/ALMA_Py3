@@ -49,8 +49,8 @@ figBB.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/BB_scan.
 scanNum = len(scanList)
 panelNum_X = int(math.sqrt(scanNum + 1))
 panelNum_Y = math.ceil( scanNum / panelNum_X )
-DT = []
 for scan_index, scanID in enumerate(scanList):
+    DT = []
     timeStamp, BBPower = GetPSpecScan(msfile, ant_index, spwID, scanID)
     subscanDic['OFF'], subscanDic['ON'],subscanDic['AMB'],subscanDic['HOT'],subscanDic['TEST'] = indexList(timeOFF, timeStamp), indexList(timeON, timeStamp), indexList(timeAMB, timeStamp), indexList(timeHOT, timeStamp), indexList(timeTEST, timeStamp)
     subscanDic = medianATM(subscanDic, BBPower[:,0])
