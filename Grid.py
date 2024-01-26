@@ -297,8 +297,8 @@ def lmStokes(StokesVis, uvDist):
     # StokesVis  : Stokes visibilities [Stokes, bl]
     # uvDist     : Projected baseline length [bl]
     StokesFlux, StokesSlope, StokesErr = np.zeros([4]), np.zeros([4]), np.ones([4])
-    percent75, sdvis = np.percentile(StokesVis[0].real, 75),  np.std(StokesVis[0].real)
-    visFlag = np.where(abs(StokesVis[0].real - percent75) < 3.0* sdvis )[0]      # 3-sigma critesion
+    percent80, sdvis = np.percentile(StokesVis[0].real, 80),  np.std(StokesVis[0].real)
+    visFlag = np.where(abs(StokesVis[0].real - percent75) < 2.0* sdvis )[0]      # 3-sigma critesion
     weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
     P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
     PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
