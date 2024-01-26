@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ptick
+from matplotlib.backends.backend_pdf import PdfPages
 from Plotters import plotSP, plotXYP
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
@@ -60,8 +62,10 @@ SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
 FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
 #-------- Loop for Bands
 for BandName in RXList:
+    #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
-    text_corr = 'BLCORR' if BLCORR else 'ACACORR'
+    ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
+    text_corr = ' %s BLCORR' % (prefix) if BLCORR else ' %s ACACORR' % (prefix)
     logfile.write(text_corr + '\n')
     print('-----%s----' % (BandName))
     #-------- D-term from history
@@ -117,7 +121,6 @@ for BandName in RXList:
         Xspec = CrossPolBL(XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,blMap], blInv)
         BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr = CrossPolBP(Xspec)
         BPList = BPList + [BP_ant]
-        #-------- Bandpass-corrected cross-power spectrum
         spwGainList = spwGainList + [Gain]
     #-------- SPW phase offsets
     spwTwiddle = SPWalign(np.array(spwGainList))
@@ -220,6 +223,17 @@ for BandName in RXList:
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
+    #-------- XY sign in checkScan
+    for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        BP_ant = BPSPWList[spw_index].transpose(1,2,0)
+        scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
+        Xspec = CrossPolBL(XspecList[spw_index][list(scanDic.keys()).index(checkScan)][:,:,blMap], blInv)* (scanPhase[ant1]* scanPhase[ant0].conjugate())
+        BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
+        BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
+        XYphase = np.angle(scanDic[checkScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
+        XYsign = np.sign(np.cos(XYphase))
+        print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
+        BPSPWList[spw_index][:,1] *= XYsign
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -244,14 +258,20 @@ for BandName in RXList:
         Aeff = averageAe(FscaleDic, antList, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     text_sd = ' Aeff: '
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
-    for source in FscaleDic.keys() : text_sd = text_sd + ' %s' % (source)
+    fluxCalText = ''
+    for source in FscaleDic.keys() : fluxCalText = fluxCalText + ' %s,' % (source)
+    text_sd = text_sd + fluxCalText
     logfile.write(text_sd +'\n'); print(text_sd)
+    logjy = open(prefix + '-' + BandName + '-JyK.log', 'w')
+    timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0]
     for ant_index, ant in enumerate(antList):
         text_sd = '%s : ' % (ant)
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            for pol_index in [0,1]:
+            for pol_index, polName in enumerate(['X','Y']):
                 text_sd = text_sd + '  ----- ' if Aeff[ant_index][pol_index][spw_index] < 0.1 else text_sd + '  %4.1f%% ' % (100.0* Aeff[ant_index][pol_index][spw_index])
+                text_jy = '%s %s %d %s %f %s %s %e %e %5.1f' % (prefix, ant, spw, polName, 2.0* kb / (0.25* Aeff[ant_index][pol_index][spw_index]* np.pi*antDia[ant_index]**2), timeLabel, BandName, np.median(BandbpSPW[BandName]['freq'][spw_index]), abs(BandbpSPW[BandName]['BW'][spw_index]), tempAtm); logjy.write(text_jy + '\n')
         logfile.write(text_sd +'\n'); print(text_sd)
+    logjy.write('\n'); logjy.close()
     #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
@@ -263,7 +283,16 @@ for BandName in RXList:
     #-------- Stokes visibilities for each scan
     ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4])
     text_Stokes = np.repeat('',spwNum).tolist()
+    #-------- Prepare plot files
+    pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf')
+    polLabel = ['I', 'Q', 'U', 'V']
+    Pcolor   = ['black', 'blue', 'red', 'green']
     for scan_index, scan in enumerate(BandScanList[BandName]):
+        figFL, axes = plt.subplots(3, 4, figsize = (11, 8))
+        figFL.suptitle(prefix + ' ' + BandName)
+        figFL.text(0.45, 0.05, 'Projected baseline [m]')
+        figFL.text(0.03, 0.85, 'Phase [deg]', rotation=90)
+        figFL.text(0.03, 0.45, 'Stokes visibility amplitude [Jy]', rotation=90)
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)[blMap]
         text_src  = ' %02d %010s EL=%4.1f deg' % (scan, scanDic[scan]['source'], 180.0* np.median(scanDic[scan]['EL'])/np.pi)
@@ -278,6 +307,12 @@ for BandName in RXList:
             for pol_index in list(range(4)):
                 text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])
             text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[scan_index, spw_index, 1]**2 + ScanFlux[scan_index, spw_index, 2]**2)/ScanFlux[scan_index, spw_index, 0], np.arctan2(ScanFlux[scan_index, spw_index, 2],ScanFlux[scan_index, spw_index, 1])*90.0/np.pi)
+            #-------- Plot Stokes visibilities
+            axes[0,spw_index].plot( uvDist, 180.0* np.angle(StokesVis[0])/ np.pi, '.', label=polLabel[0], color=Pcolor[0])
+            axes[1,spw_index].plot( uvDist, StokesVis[0].real, '.', label=polLabel[0], color=Pcolor[0])
+            axes[2,spw_index].plot( uvDist, StokesVis[1].real, '.', label=polLabel[1], color=Pcolor[1])
+            axes[2,spw_index].plot( uvDist, StokesVis[2].real, '.', label=polLabel[2], color=Pcolor[2])
+            axes[2,spw_index].plot( uvDist, StokesVis[3].real, '.', label=polLabel[3], color=Pcolor[3])
         #---- Update scanDic record entry
         CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
         scanDic[scan]['I'] = [ScanFlux[scan_index, spw_index, 0]* np.ones(len(CS)) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
@@ -286,6 +321,24 @@ for BandName in RXList:
         scanDic[scan]['visChav'] = visChavList
         #---- Display results
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[scan_index,:,0])
+        axes[0,0].text(0.0, 1.15*180, text_src)
+        axes[0,3].text(0.0, 1.15*180, timeLabel)
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+            axes[0,spw_index].plot( np.array([0.0, uvMax]), np.array([0.0, 0.0]), '-', color='grey')
+            axes[1,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[scan_index, spw_index, 0], ScanFlux[scan_index, spw_index, 0]+ uvMax* ScanSlope[scan_index, spw_index, 0]]), '-', color=Pcolor[0])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[scan_index, spw_index, 1], ScanFlux[scan_index, spw_index, 1]+ uvMax* ScanSlope[scan_index, spw_index, 1]]), '-', color=Pcolor[1])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[scan_index, spw_index, 2], ScanFlux[scan_index, spw_index, 2]+ uvMax* ScanSlope[scan_index, spw_index, 2]]), '-', color=Pcolor[2])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[scan_index, spw_index, 3], ScanFlux[scan_index, spw_index, 3]+ uvMax* ScanSlope[scan_index, spw_index, 3]]), '-', color=Pcolor[3])
+            axes[0,spw_index].axis([0.0, uvMax, -180, 180])
+            axes[1,spw_index].axis([0.0, uvMax, 0.0, 1.25*IMax])
+            axes[2,spw_index].axis([0.0, uvMax, -0.25*IMax, 0.25*IMax])
+            axes[2,spw_index].text(0.0, 1.02*180, 'SPW%2d %5.1f GHz' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index])))
+        #
+        axes[1,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+        axes[2,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+        plt.show()
+        figFL.savefig(pp, format='pdf')
+        #
         refFreq = 1.0e-9* np.mean(BandbpSPW[BandName]['freq'])
         relFreq = 1.0e-9* np.array([np.median( BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]) - refFreq
         text_mean = ' mean  %5.1f GHz ' % (refFreq)
@@ -303,6 +356,7 @@ for BandName in RXList:
         text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
         if spwNum > 1: logfile.write(text_mean + '\n'); print(text_mean)
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
+        text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
     #
     #-------- Review D-term
     Dterm = np.zeros([antNum, spwNum, 2], dtype=complex)
@@ -344,4 +398,7 @@ for BandName in RXList:
         logfile.write(text_fd + '\n'); print(text_sd)
     #----
     logfile.close()
+    ingestFile.close()
+    plt.close('all')
+    pp.close()
 #
