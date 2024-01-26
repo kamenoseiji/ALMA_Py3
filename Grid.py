@@ -292,6 +292,26 @@ def Vis2Stokes(VisChav, Dcat, PA):
         Stokes[:,bl_index] = PS.reshape(4, 4*PAnum).dot(Minv.dot( VisChav[:,bl_index]).reshape(4*PAnum)) / PAnum
     #
     return Stokes
+#-------- Linear regression for visibility-baseline relation
+def lmStokes(StokesVis, uvDist):
+    # StokesVis  : Stokes visibilities [Stokes, bl]
+    # uvDist     : Projected baseline length [bl]
+    StokesFlux, StokesSlope, StokesErr = np.zeros([4]), np.zeros([4]), np.ones([4])
+    percent75, sdvis = np.percentile(StokesVis[0].real, 75),  np.std(StokesVis[0].real)
+    visFlag = np.where(abs(StokesVis[0].real - percent75) < 3.0* sdvis )[0]      # 3-sigma critesion
+    weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
+    P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
+    PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
+    solution, solerr = PtWP_inv.dot(P.T.dot(weight* StokesVis[0].real)),  np.sqrt(np.diag(PtWP_inv)) # solution[0]:intercept, solution[1]:slope
+    if abs(solution[1]) < 2.0* solerr[1]: solution[0], solution[1] = np.median(StokesVis[0][visFlag].real), 0.0
+    StokesFlux[0], StokesSlope[0], StokesErr[0] = solution[0], solution[1], solerr[0]
+    for pol_index in [1,2,3]:
+        StokesFlux[pol_index] = StokesSlope[0] * np.median(StokesVis[pol_index].real)/StokesFlux[0]
+        solution[0] = (weight.dot(StokesVis[pol_index].real) - StokesSlope[pol_index]* weight.dot(uvDist))/(np.sum(weight))
+        StokesFlux[pol_index] = solution[0]
+        resid = StokesVis[pol_index].real - StokesSlope[pol_index]* uvDist - solution[0]
+        StokesErr[pol_index] = np.sqrt(weight.dot(resid**2)/np.sum(weight))
+    return StokesFlux, StokesSlope, StokesErr
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:

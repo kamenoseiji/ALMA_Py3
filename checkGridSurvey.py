@@ -72,8 +72,7 @@ for BandName in RXList:
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName]['spw'], BandScanList[BandName])
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
-    if len(SSOList) > 0:
-        StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
+    StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
@@ -275,39 +274,17 @@ for BandName in RXList:
             visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
             visChavList = visChavList + [visChav]
             StokesVis = Vis2Stokes(visChav, Dcat[antMap][:,:,spw_index], scanDic[scan]['PA'])
-            #---- Zero-baseline Stokes Parameters
-            percent75 = np.percentile(StokesVis[0].real, 75); sdvis = np.std(StokesVis[0].real)
-            visFlag = np.where(abs(StokesVis[0].real - percent75) < 3.0* sdvis )[0]      # 3-sigma critesion
-            if len(visFlag) < 2 : continue
-            weight = np.zeros(blNum); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
-            P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
-            PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
-            solution, solerr = PtWP_inv.dot(P.T.dot(weight* StokesVis[0].real)),  np.sqrt(np.diag(PtWP_inv)) # solution[0]:intercept, solution[1]:slope
-            if abs(solution[1]) < 2.0* solerr[1]: solution[0], solution[1] = np.median(StokesVis[0][visFlag].real), 0.0
-            ScanFlux[scan_index, spw_index, 0], ScanSlope[scan_index, spw_index, 0], ErrFlux[scan_index, spw_index, 0] = solution[0], solution[1], solerr[0]
-            #if ScanFlux[scan_index, spw_index, 0] < 0.3: scanDic[sourceName][1] *= 0.0      # Too weak to determine D-term
-            for pol_index in list(range(1,4)):
-                ScanSlope[scan_index, spw_index, pol_index] = ScanSlope[scan_index, spw_index, 0] * np.median(StokesVis[pol_index].real)/ScanFlux[scan_index, spw_index, 0]
-                solution[0] = (weight.dot(StokesVis[pol_index].real) - ScanSlope[scan_index, spw_index, pol_index]* weight.dot(uvDist))/(np.sum(weight))
-                ScanFlux[scan_index, spw_index, pol_index] = solution[0]
-                resid = StokesVis[pol_index].real - ScanSlope[scan_index, spw_index, pol_index]* uvDist - solution[0]; ErrFlux[scan_index, spw_index, pol_index] = np.sqrt(weight.dot(resid**2)/np.sum(weight))
-            #
+            ScanFlux[scan_index, spw_index], ScanSlope[scan_index, spw_index], ErrFlux[scan_index, spw_index] = lmStokes(StokesVis, uvDist)
             for pol_index in list(range(4)):
-                if len(visFlag) < 4:
-                    DcalFlag = False; scanFlag = False
-                    text_Stokes[spw_index] = text_Stokes[spw_index] + ' Only %d vis.    ' % (len(visFlag))
-                else:
-                    text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])
-                #
-            #
+                text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])
             text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[scan_index, spw_index, 1]**2 + ScanFlux[scan_index, spw_index, 2]**2)/ScanFlux[scan_index, spw_index, 0], np.arctan2(ScanFlux[scan_index, spw_index, 2],ScanFlux[scan_index, spw_index, 1])*90.0/np.pi)
-        #
         #---- Update scanDic record entry
         CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
         scanDic[scan]['I'] = [ScanFlux[scan_index, spw_index, 0]* np.ones(len(CS)) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['QCpUS'] = [ScanFlux[scan_index, spw_index, 1]* CS + ScanFlux[scan_index, spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['UCmQS'] = [ScanFlux[scan_index, spw_index, 2]* CS - ScanFlux[scan_index, spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['visChav'] = visChavList
+        #---- Display results
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[scan_index,:,0])
         refFreq = 1.0e-9* np.mean(BandbpSPW[BandName]['freq'])
         relFreq = 1.0e-9* np.array([np.median( BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]) - refFreq
@@ -342,7 +319,7 @@ for BandName in RXList:
             visChavList = visChavList + scanDic[scan]['visChav'][spw_index].transpose(2, 0, 1).tolist()
         #
         Dterm[:,spw_index, 0], Dterm[:,spw_index,1] = VisMuiti_solveD(np.array(visChavList).transpose(1, 2, 0), np.array(QCpUSList), np.array(UCmQSList), Dcat[:,0,spw_index], Dcat[:,1,spw_index], np.array(IList))
-    #
+    #---- Display D-terms
     for ant_index, ant in enumerate(antList[antMap]): DtermDic[ant] = Dterm[ant_index]
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         text_sd = '    SPW%02d                    ' % (spw);  logfile.write(text_sd); print(text_sd, end=' ')
@@ -355,7 +332,7 @@ for BandName in RXList:
         text_sd = '%s  ' % (ant)
         text_fd = text_sd
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-            for pol_index in list(range(2)):
+            for pol_index in [0,1]:
                 if abs(Dterm[ant_index,spw_index,pol_index]) > 0.1:
                     text_sd = text_sd + '\033[91m %+.3f%+.3fi \033[0m' % (Dterm[ant_index,spw_index,pol_index].real, Dterm[ant_index,spw_index,pol_index].imag)
                 else:

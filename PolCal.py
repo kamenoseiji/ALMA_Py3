@@ -37,6 +37,7 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
     sourceList = list(StokesDic.keys())
     SSOList = [source for source in sourceList if not str.isdigit(source[1])]
     SSODic = dict(zip(SSOList, [[]]*len(SSOList)))
+    if len(SSOList) == 0: return StokesDic, SSODic
     for SSO in SSOList:
         flux, major, minor, pa = [], [], [], []
         for spw_index, freq in enumerate(FreqGHz):
