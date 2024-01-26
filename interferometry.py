@@ -1900,27 +1900,6 @@ def GridData( value, samp_x, samp_y, grid_x, grid_y, kernel ):
     #
     return results
 #
-'''
-#-------- Disk Visibility
-def diskVis(diskRadius, u):
-    # diskRadius : radius of planet disk [rad]
-    # u          : spatial frequency (= baseline / wavelength)
-    argument = 2.0* pi* u* diskRadius
-    return 2.0* scipy.special.jn(1, argument) / argument
-#
-#-------- Disk Visibility with primary beam correction, u must be smaller than 0.3/diskRadius
-def diskVisBeam(diskShape, u, v, primaryBeam):
-    # diskShape  : planet disk diameter [MajorAxis, MinorAxis, PA] (rad)
-    # u,v        : spatial frequency (= baseline / wavelength) 
-    # primaryBeam: FWHM of primary beam [rad]
-    cs, sn = np.cos(diskShape[2]), np.sin(diskShape[2])
-    diskRadius = 0.5* np.sqrt(diskShape[0]* diskShape[1])
-    DSmaj = 1.0 / np.sqrt( (0.30585 / diskShape[0])**2 + 2.0* log(2.0)/(pi* primaryBeam)**2 )    # Primary-beam correction
-    DSmin = 1.0 / np.sqrt( (0.30585 / diskShape[1])**2 + 2.0* log(2.0)/(pi* primaryBeam)**2 )    # Primary-beam correction
-    uvDisp = (DSmin*(u* cs - v* sn))**2 + (DSmaj*(u* sn + v* cs))**2 
-    return beamF(diskRadius/primaryBeam)* np.exp(-0.5* uvDisp)
-#
-'''
 #-------- ArrayCenterAntenna
 def bestRefant(uvDist, useantList=[]):
     blNum = len(uvDist)
