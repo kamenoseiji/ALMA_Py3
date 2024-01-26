@@ -51,7 +51,6 @@ if 'antFlag' not in locals(): antFlag = []
 antList = GetAntName(msfile)
 antDia = GetAntD(antList)
 antNum = len(antList)
-antDic = dict(zip(antList, [[]]* len(antList)))
 blNum = int(antNum* (antNum - 1) / 2)
 flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -128,8 +127,8 @@ for BandName in RXList:
     print('-----SPW-aligned bandpass')
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
-    pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
-    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
+    #pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
+    #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
     os.system('rm -rf B0')
     bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[antMap[0]], solnorm=True)
     #-------- SPW-combined phase calibration
@@ -190,10 +189,10 @@ for BandName in RXList:
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
-        pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
-        pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
-        plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
+        #pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
+        #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
+        #pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
+        #plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
     #
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
@@ -244,7 +243,6 @@ for BandName in RXList:
             XspecList[spw_index][scan_index] = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         #
     #-------- Aperture Efficiencies Determination using Solar System Objects
-    AeList, WgList = [], []
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
@@ -401,4 +399,5 @@ for BandName in RXList:
     ingestFile.close()
     plt.close('all')
     pp.close()
+    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,SPWQ,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList
 #
