@@ -976,7 +976,6 @@ def clcomplex_solve(bl_vis, bl_error):
 	#
 	#---- Initial solution
 	solution[0] = sqrt(abs(bl_vis[0]))		# Refant has only real part
-	#solution[0] = sqrt(np.median(abs(bl_vis)))		# Refant has only real part
 	for ant_index in range(1, antnum) :
 		solution[ant_index]			= bl_vis[Ant2Bl(0, ant_index )].real / solution[0]
 		solution[antnum + ant_index - 1]= bl_vis[Ant2Bl(0, ant_index )].imag / solution[0]
@@ -992,8 +991,6 @@ def clcomplex_solve(bl_vis, bl_error):
 			else:
 				resid[bl_index]			= bl_vis[bl_index].real - (solution[ants[0]]* solution[0])	# Real part
 				resid[blnum + bl_index] = bl_vis[bl_index].imag - (solution[antnum + ants[0] - 1]* solution[0])	# Imag part
-		#print 'Iteration ' + `niter` + '  Resid = ' + `np.dot(resid, resid)`
-		#
 		#---- Partial Matrix
 		for bl_index in range(blnum):
 			ants = Bl2Ant(bl_index)
