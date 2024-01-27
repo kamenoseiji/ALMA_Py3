@@ -111,18 +111,22 @@ def AeNominal(msfile, antList):
 #
 #-------- Apply Tsys calibration to visibilities
 def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
-    from interferometry import ANT0, ANT1, kb, Tcmb, GetAntD, GetTemp
+    from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList
+    #---- Check antenna list
+    antList = GetAntName(prefix + '.ms')
+    antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
+    TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName))
+    antDia = GetAntD(TrxAntList)
+    useAnt = indexList(TrxAntList,antList); useAntNum = len(useAnt); useBlNum = int(useAntNum* (useAntNum - 1)/2)
+    ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
+    useBlMap = [Ant2Bl(useAnt[ant0[bl_index]], useAnt[ant1[bl_index]])  for bl_index in list(range(useBlNum))]
+    nominalAe = 0.72
+    #---- Load Tsys data
     tempAtm = GetTemp(prefix + '.ms')
     TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
     atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
     atmReltime = atmTime - atmTime[0]
-    TrxAntList = np.load('%s-%s.TrxAnt.npy' % (prefix, BandName))
-    antNum= len(TrxAntList)
-    blNum = XspecList[0][0].shape[2]
-    ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
-    antDia = GetAntD(TrxAntList)
-    nominalAe = 0.72
     Tau0List, Tau0CList, TrxList, TaNList, TrxFreq = [], [], [], [], []
     for spw_index, spw in enumerate(BandbpSPW['spw']):
         Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
@@ -148,8 +152,8 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
             TsysScan = (atmCorrect* (TrxAnt.transpose(2,1,0) + np.outer(Tcmb + Tant, exp_Tau) + tempAtm* (1.0 - exp_Tau))).transpose(1,0,2)
             #-------- Tsys correction
-            Xspec = XspecList[spw_index][scan_index].transpose(3, 2, 0, 1)
-            XspecList[spw_index][scan_index] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
+            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3, 2, 0, 1)
+            XspecList[spw_index][scan_index][:,:,useBlMap] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
             for ant_index, ant in enumerate(TrxAntList):
                 TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
         #
@@ -188,9 +192,8 @@ def diskVisBeam(diskShape, u, v, primaryBeam):
     return beamF(diskRadius/primaryBeam)* np.exp(-0.5* uvDisp)
 #
 #-------- Apertue effciency measurements using Solar System Objects
-def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
+def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     # antList   : List of antenna name
-    # antMap    : Antenna order starting with refant
     # spwDic    : SPW dictionary ['spw', 'freq', 'chNum', 'chRange', 'BW']
     # uvw       : baseline vector [m]
     # scanDic   : scan dictionary ['msfile', 'source', 'mjdSec', 'EL', 'PA', 'I', 'QCpUS', 'Tau', 'Tsys', 'Gain']
@@ -216,9 +219,9 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
     SAbl  = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] in SAant and Bl2Ant(bl_index)[1] in SAant]
     if len(SAant) < 4: return #  Too few antennas
     #-------- Baseline map
-    print('Subarray : ',); print(antList[np.array(antMap)[SAant]])
+    print('Subarray : ',); print(antList[SAant])
     for ant_index in list(range(1, antNum)):
-        text_sd = antList[antMap[ant_index]] + ' : '; print(text_sd, end='')
+        text_sd = antList[ant_index] + ' : '; print(text_sd, end='')
         blList = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] == ant_index]
         for bl_index in blList:
             if uvFlag[bl_index] < 1.0: text_sd = '\033[91m%4.0f\033[0m' % (uvDist[bl_index])
@@ -226,7 +229,7 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
             print(text_sd, end=' ')
         print('')
     print('       ', end='')
-    for ant_index, ant in enumerate(antList[antMap[0:antNum-1]]): print(ant, end=' ')
+    for ant_index, ant in enumerate(antList[0:antNum-1]): print(ant, end=' ')
     print('')
     AeSPW, WgSPW = [], []
     #-------- Aperture Efficiency
@@ -236,9 +239,9 @@ def SSOAe(antList, antMap, spwDic, uvw, scanDic, SSODic, XSList):
         SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
         VisChav = np.mean(XSList[spw_index][:,chRange][:,:,SAbl], axis=(1,3)) / SSOmodelVis[SAbl]
         Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
-        Aeff = 2.0* kb* abs(Gain)**2 / (0.25* np.pi* antDia[np.array(antMap)[SAant]]**2)
+        Aeff = 8.0* kb* abs(Gain)**2 / (np.pi* antDia[SAant]**2)
         Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
-        for ant_index, SA in enumerate(np.array(antMap)[SAant]):
+        for ant_index, SA in enumerate(SAant):
             Ae[SA] = Aeff[:, ant_index]
             Wg[SA] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
         AeSPW = AeSPW + [Ae]
@@ -298,7 +301,7 @@ def lmStokes(StokesVis, uvDist):
     # uvDist     : Projected baseline length [bl]
     StokesFlux, StokesSlope, StokesErr = np.zeros([4]), np.zeros([4]), np.ones([4])
     percent80, sdvis = np.percentile(StokesVis[0].real, 80),  np.std(StokesVis[0].real)
-    visFlag = np.where(abs(StokesVis[0].real - percent75) < 2.0* sdvis )[0]      # 3-sigma critesion
+    visFlag = np.where(abs(StokesVis[0].real - percent80) < 2.0* sdvis )[0]      # 3-sigma critesion
     weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
     P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
     PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
