@@ -60,6 +60,7 @@ SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
 FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
 #-------- Loop for Bands
 for BandName in RXList:
+    if BandName not in ['RB_03', 'RB_06', 'RB_07']: continue
     #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
     ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
