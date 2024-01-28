@@ -14,7 +14,6 @@ from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
 msfile = wd + prefix + '.ms'
-#
 #-------- Check Correlator Type
 BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
@@ -46,7 +45,6 @@ BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
 exec(open(SCR_DIR + 'TsysCal.py').read())
 #-------- Check Antenna List
-if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 if 'antFlag' not in locals(): antFlag = []
 antList = GetAntName(msfile)
 antDia = GetAntD(antList)
@@ -256,6 +254,7 @@ for BandName in RXList:
         if scan in QSOscanList : continue              # filter QSO out
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
+        if FscaleDic[scanDic[scan]['source']] is None: del FscaleDic[scanDic[scan]['source']]
     #-------- A priori Aperture Efficiencies (if no SSO) 
     if len(FscaleDic.keys()) == 0:
         Aeff = np.ones([useAntNum, 2, spwNum])
