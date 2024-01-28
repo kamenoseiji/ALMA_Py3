@@ -254,13 +254,12 @@ for BandName in RXList:
     #-------- Aperture Efficiencies Determination using Solar System Objects
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan in QSOscanList : continue              # filter QSO out
-        #timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
     #-------- A priori Aperture Efficiencies (if no SSO) 
     if len(FscaleDic.keys()) == 0:
         Aeff = np.ones([useAntNum, 2, spwNum])
-        for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA.T
+        for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA[:,antMap].T
     else:
         Aeff = averageAe(FscaleDic, antList[antMap], BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     text_sd = ' Aeff: '
