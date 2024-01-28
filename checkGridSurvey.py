@@ -93,7 +93,7 @@ for BandName in RXList:
     chRange = BandbpSPW[BandName]['chRange'][0]
     checkScan   = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS'])) for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
-    Xspec       = XspecList[0][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
+    Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
     checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1) / scanDic[checkScan]['I']
     Gain =  np.array([gainComplexVec(checkVis[0]), gainComplexVec(checkVis[1])])
     antCoh = np.array([abs(Gain[1,ant_index].dot(Gain[0,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)]) / Gain.shape[2]
