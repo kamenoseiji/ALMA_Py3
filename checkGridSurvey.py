@@ -138,7 +138,7 @@ for BandName in RXList:
     #pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
     #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
     os.system('rm -rf B0')
-    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[refantID], solnorm=True)
+    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[refantID], solnorm=True, minblperant=3)
     #-------- SPW-combined phase calibration
     print('-----Antenna-based gain correction')
     text_sd = '        coherence loss % :'
@@ -187,7 +187,7 @@ for BandName in RXList:
             XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
             XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
             text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName]['BW'][spw_index]*1.0e-9), XYsnr)
-            XYsnrList = XYsnrList + [XYsnr**2]
+            XYsnrList = XYsnrList + [(XYsnr - 7.0 if XYsnr > 7.0 else 0.0001)**2]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
@@ -210,23 +210,26 @@ for BandName in RXList:
         for scan_index, scan in enumerate(BPavgScanList):
             #-------- average BP
             BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
+            BPW[ np.where(BPW < 3.0)[0].tolist() ] *= 0.0     # Threshold : SNR = 3.0
             BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW**2).transpose(2,0,1)
             #-------- average XY
             XYspec = XYList[scan_index][spw_index]
-            Weight = XYW[scan_index][spw_index] * np.sign( XYspec.dot(refXY.conjugate()))
+            Weight = XYW[scan_index][spw_index] * np.sign( XYspec[chRange].dot(refXY[chRange].conjugate()))
             XY     = XY + Weight* XYspec
         #---- Save averaged BP
         BPSPWList[spw_index] = (BP.transpose(2,0,1) / np.mean(abs(BP[:,:,chRange]), axis=2)).transpose(1,2,0)
         BPSPWList[spw_index][:,1] *= (XY / abs(XY))
         #---- Save into CASA caltable
-        tb.open('B0', nomodify=False)
-        SPWQ = tb.query('SPECTRAL_WINDOW_ID == %d'%(spw))
-        BPtable = SPWQ.getcol('CPARAM')
-        for ant_index, ant in enumerate(antMap): BPtable[:,:,ant] = BPSPWList[spw_index][ant_index]
-        SPWQ.putcol('CPARAM', BPtable)
-        SPWQ.close()
+        if os.path.isfile('B0'):
+            tb.open('B0', nomodify=False)
+            SPWQ = tb.query('SPECTRAL_WINDOW_ID == %d'%(spw))
+            BPtable = SPWQ.getcol('CPARAM')
+            for ant_index, ant in enumerate(antMap): BPtable[:,:,ant] = BPSPWList[spw_index][ant_index]
+            SPWQ.putcol('CPARAM', BPtable)
+            SPWQ.close()
+            tb.close()
+        #
     #
-    tb.close()
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
@@ -408,5 +411,5 @@ for BandName in RXList:
     ingestFile.close()
     plt.close('all')
     pp.close()
-    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,SPWQ,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,RXList,OnScanList,antList
+    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,RXList,OnScanList,antList
 #
