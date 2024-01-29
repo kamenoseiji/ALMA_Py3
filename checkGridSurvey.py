@@ -260,13 +260,16 @@ for BandName in RXList:
         if scan in QSOscanList : continue              # filter QSO out
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
-        #if FscaleDic[scanDic[scan]['source']] is None: del FscaleDic[scanDic[scan]['source']]
     #-------- A priori Aperture Efficiencies (if no SSO) 
-    if len(FscaleDic.keys()) == 0:
+    WgSum = 0.0
+    for SSO in FscaleDic.keys():
+        SSOWG = 1.0
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): SSOWG *= np.median(FscaleDic[SSO]['Wg'][spw_index])
+        WgSum += SSOWG
+    if WgSum > 1.0e-8: Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
+    else: 
         Aeff = np.ones([useAntNum, 2, spwNum])
         for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA[:,antMap].T
-    else:
-        Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     text_sd = ' Aeff: '
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
     fluxCalText = ''
