@@ -187,7 +187,7 @@ for BandName in RXList:
             XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
             XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
             text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName]['BW'][spw_index]*1.0e-9), XYsnr)
-            XYsnrList = XYsnrList + [(XYsnr - 7.0 if XYsnr > 7.0 else 0.0001)**2]
+            XYsnrList = XYsnrList + [XYsnr if XYsnr > 7.0 else 0.001]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
@@ -196,10 +196,12 @@ for BandName in RXList:
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
-        #pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
-        #pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
-        #plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
+        '''
+        pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
+        plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
+        pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
+        plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
+        '''
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -210,7 +212,7 @@ for BandName in RXList:
         for scan_index, scan in enumerate(BPavgScanList):
             #-------- average BP
             BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
-            BPW[ np.where(BPW < 3.0)[0].tolist() ] *= 0.0     # Threshold : SNR = 3.0
+            BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.1 
             BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW**2).transpose(2,0,1)
             #-------- average XY
             XYspec = XYList[scan_index][spw_index]
