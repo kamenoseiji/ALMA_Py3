@@ -261,7 +261,7 @@ for BandName in RXList:
         Aeff = np.ones([useAntNum, 2, spwNum])
         for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA[:,antMap].T
     else:
-        Aeff = averageAe(FscaleDic, antList[antMap], BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
+        Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     text_sd = ' Aeff: '
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
     fluxCalText = ''

@@ -251,7 +251,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
         'Wg'    : WgSPW}
     return FscaleDic
 #-------- Average Ae among multiple SSOs
-def averageAe(FscaleDic, antList, spwList):
+def averageAe(FscaleDic, spwList):
     AeList, WgList = [], []
     for SSO_index, SSOname in enumerate(FscaleDic.keys()):
         if FscaleDic[SSOname] is None: continue
@@ -266,7 +266,7 @@ def AeTransfer(VisChav, Aeff, antDia):
     SAbl  = [bl_index for bl_index in list(range(blNum)) if Bl2Ant(bl_index)[0] in SAant and Bl2Ant(bl_index)[1] in SAant]
     GainSA  = gainComplexVec(VisChav[:,SAbl].T)
     GainAll = gainComplexVec(VisChav.T)
-    scaleFlux = np.median(abs(GainSA**2).T / (antDia**2* Aeff.T), axis=1)
+    scaleFlux = np.median(abs(GainSA**2).T / (antDia[SAant]**2 * Aeff[SAant].T), axis=1)
     return ((abs(GainAll)**2 / scaleFlux).T / (antDia**2)).T
 #
 #-------- Gain scaling
