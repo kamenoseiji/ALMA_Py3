@@ -260,7 +260,7 @@ for BandName in RXList:
         if scan in QSOscanList : continue              # filter QSO out
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
-        if FscaleDic[scanDic[scan]['source']] is None: del FscaleDic[scanDic[scan]['source']]
+        #if FscaleDic[scanDic[scan]['source']] is None: del FscaleDic[scanDic[scan]['source']]
     #-------- A priori Aperture Efficiencies (if no SSO) 
     if len(FscaleDic.keys()) == 0:
         Aeff = np.ones([useAntNum, 2, spwNum])
@@ -307,7 +307,8 @@ for BandName in RXList:
         UVW = scanDic[scan]['UVW']; uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         #timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][1], scan)
         #uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)[blMap]
-        text_src  = ' %02d %010s EL=%4.1f deg' % (scan, scanDic[scan]['source'], 180.0* np.median(scanDic[scan]['EL'])/np.pi)
+        sourceName = scanDic[scan]['source']
+        text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
         visChavList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -315,6 +316,9 @@ for BandName in RXList:
             visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
             visChavList = visChavList + [visChav]
             StokesVis = Vis2Stokes(visChav, Dcat[antMap][:,:,spw_index], scanDic[scan]['PA'])
+            #-------- SSO visibility to correct by model
+            if sourceName in FscaleDic.keys(): StokesVis *= (SSODic[sourceName][1][spw_index] / FscaleDic[sourceName]['model'][spw_index])
+            #-------- Linear regression to determine zero-spacing visibilities
             ScanFlux[scan_index, spw_index], ScanSlope[scan_index, spw_index], ErrFlux[scan_index, spw_index] = lmStokes(StokesVis, uvDist)
             for pol_index in list(range(4)):
                 text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])

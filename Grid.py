@@ -202,7 +202,6 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     from interferometry import GetAntD, Bl2Ant, ANT0, ANT1, kb, gainComplexVec
     SSOname = scanDic['source']
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
-    if np.median(scanDic['EL']) < ELshadow : return              # filter QSO out
     uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     UVlimit = 0.5 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
     text_sd = text_sd + ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
@@ -231,7 +230,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     print('       ', end='')
     for ant_index, ant in enumerate(antList[0:antNum-1]): print(ant, end=' ')
     print('')
-    AeSPW, WgSPW = [], []
+    AeSPW, WgSPW, SSOmodel = [], [], []
     #-------- Aperture Efficiency
     for spw_index, spw in enumerate(spwDic['spw']):
         uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
@@ -244,17 +243,21 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
         for ant_index, SA in enumerate(SAant):
             Ae[SA] = Aeff[:, ant_index]
             Wg[SA] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
+        if np.median(scanDic['EL']) < ELshadow : Wg *= 0.0
         AeSPW = AeSPW + [Ae]
         WgSPW = WgSPW + [Wg]
+        SSOmodel = SSOmodel + [SSOmodelVis]
     FscaleDic = {
         'Ae'    : AeSPW,
-        'Wg'    : WgSPW}
+        'Wg'    : WgSPW,
+        'model' : SSOmodel}
     return FscaleDic
 #-------- Average Ae among multiple SSOs
 def averageAe(FscaleDic, spwList):
     AeList, WgList = [], []
     for SSO_index, SSOname in enumerate(FscaleDic.keys()):
         if FscaleDic[SSOname] is None: continue
+        if np.median(np.array(FscaleDic[SSOname]['Wg'])) < 1.0e-9: continue
         AeSPW = FscaleDic[SSOname]['Ae']; AeList = AeList + [np.array(AeSPW)]
         WgSPW = FscaleDic[SSOname]['Wg']; WgList = WgList + [np.array(WgSPW)]
     return  (np.sum(np.array(WgList) * np.array(AeList), axis=0)/(np.sum(np.array(WgList), axis=0)+1.0e-9)).transpose(1,2,0)   # Aeff[ant, pol, spw]
@@ -302,7 +305,7 @@ def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesSlope, StokesErr = np.zeros([4]), np.zeros([4]), np.ones([4])
     percent80, sdvis = np.percentile(StokesVis[0].real, 80),  np.std(StokesVis[0].real)
     visFlag = np.where(abs(StokesVis[0].real - percent80) < 2.0* sdvis )[0]      # 3-sigma critesion
-    weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/np.var(StokesVis[0][visFlag].real)
+    weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/(np.var(StokesVis[0][visFlag].real)* uvDist[visFlag])
     P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
     PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
     solution, solerr = PtWP_inv.dot(P.T.dot(weight* StokesVis[0].real)),  np.sqrt(np.diag(PtWP_inv)) # solution[0]:intercept, solution[1]:slope
