@@ -45,16 +45,21 @@ for BandName in RXList:
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
-    BandPassScan = msmd.scansforintent('*BANDPASS*')[0]
-    chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(BandPassScan)))
-    timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [BandPassScan])  # XspecList[spw][scan] [corr, ch, bl, time]
-    checkVis = XspecList[0][0][0::3][:,0]
     def AV2(vis): return AllanVarPhase(np.angle(vis), 2)
-    AV_bl = np.apply_along_axis(AV2, 1, checkVis[0]) + np.apply_along_axis(AV2, 1, checkVis[1])
-    errBL = np.where(AV_bl > 0.5)[0].tolist()
-    errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
-    for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
-    antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
+    checkScan = msmd.scansforintent('*BANDPASS*')
+    if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
+    checkScan = checkScan[-1]
+    chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
+    timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
+    parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
+    for spw_index, spw in enumerate(chavSPWs):
+        checkVis = XspecList[spw_index][0][parapolIndex][:,0]
+        AV_bl = np.apply_along_axis(AV2, 1, checkVis[0]) + np.apply_along_axis(AV2, 1, checkVis[1])
+        errBL = np.where(AV_bl > 0.6)[0].tolist()
+        errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
+        for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
+        antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
+    #
 #
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]

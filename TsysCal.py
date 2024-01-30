@@ -17,7 +17,7 @@
 import analysisUtils as au
 import scipy
 import numpy as np
-from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetSourceList, GetSunAngle, GetChNum
+from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetSourceList, GetSunAngle, GetChNum
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys
 from ASDM_XML import BandList
