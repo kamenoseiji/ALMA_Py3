@@ -45,7 +45,7 @@ for BandName in RXList:
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
-    def AV2(vis): return AllanVarPhase(np.angle(vis), 2)
+    def AV1(vis): return AllanVarPhase(np.angle(vis), 1)
     checkScan = msmd.scansforintent('*BANDPASS*')
     if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
     checkScan = checkScan[-1]
@@ -54,7 +54,7 @@ for BandName in RXList:
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
     for spw_index, spw in enumerate(chavSPWs):
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
-        AV_bl = np.apply_along_axis(AV2, 1, checkVis[0]) + np.apply_along_axis(AV2, 1, checkVis[1])
+        AV_bl = np.apply_along_axis(AV1, 1, checkVis[0]) + np.apply_along_axis(AV1, 1, checkVis[1])
         errBL = np.where(AV_bl > 0.6)[0].tolist()
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
