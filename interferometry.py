@@ -90,7 +90,7 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     for bl_index in list(range(SAblNum)): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
     return SAantMap, SAblMap, SAblInv
 #
-def angFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant antennas out
+def antFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant antennas out
     timeStamp, UVW = GetUVW(msfile, spw, scan)
     UVW = np.mean(UVW, axis=2); BLlength = np.sqrt(np.diag(UVW.T.dot(UVW)))
     blNum = len(BLlength)
@@ -659,10 +659,17 @@ def isoDateTime( integerTime ):
 	return( qa.time(TU[0]+'s', form="fits")[0] + '.' + TU[1])
 
 def AllanVar(x, lag):
-	vecSize = len(x);	diffSize = vecSize - lag;	avSize = diffSize - lag
-	temp = x[lag:vecSize] - x[0:diffSize]
-	temp2= temp[lag:diffSize] - temp[0:avSize]
-	return np.dot( temp2, temp2) / (2* avSize* lag* lag)
+    vecSize = len(x);	diffSize = vecSize - lag;	avSize = diffSize - lag
+    temp = x[lag:vecSize] - x[0:diffSize]
+    temp2= temp[lag:diffSize] - temp[0:avSize]
+    return np.dot( temp2, temp2) / (2* avSize* lag* lag)
+#
+def AllanVarPhase(phase, lag):  # phase in radian
+    vecSize = len(phase);	diffSize = vecSize - lag;	avSize = diffSize - lag
+    x = np.exp((0.0 + 1.0j)* phase)
+    temp = x[lag:vecSize] * x[0:diffSize].conjugate()
+    temp2= temp[lag:diffSize] * temp[0:avSize].conjugate()
+    return np.angle(temp2).dot(np.angle(temp2)) / (2* avSize* lag* lag)
 #
 def GetLoadTemp(msfile, AntID, spw):
 	Out = msfile + '/' + 'CALDEVICE'

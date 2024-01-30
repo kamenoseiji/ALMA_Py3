@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
@@ -19,6 +19,7 @@ BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 #-------- Check Receivers
 RXList = BandList(prefix)
+antList = GetAntName(msfile)
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
@@ -35,6 +36,7 @@ BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
 BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 #
 OnScanList = GetOnSource(msfile)
+if 'antFlag' not in locals(): antFlag = []
 msmd.open(msfile)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
@@ -42,6 +44,17 @@ for BandName in RXList:
     BandatmSPW[BandName] = {'spw': np.array(atmSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()}
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
+    #---- Bandpass scan to check Allan Variance
+    BandPassScan = msmd.scansforintent('*BANDPASS*')[0]
+    chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(BandPassScan)))
+    timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [BandPassScan])  # XspecList[spw][scan] [corr, ch, bl, time]
+    checkVis = XspecList[0][0][0::3][:,0]
+    def AV2(vis): return AllanVarPhase(np.angle(vis), 2)
+    AV_bl = np.apply_along_axis(AV2, 1, checkVis[0]) + np.apply_along_axis(AV2, 1, checkVis[1])
+    errBL = np.where(AV_bl > 0.5)[0].tolist()
+    errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
+    for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
+    antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
 #
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
@@ -49,8 +62,6 @@ BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
 exec(open(SCR_DIR + 'TsysCal.py').read())
 #-------- Check Antenna List
-if 'antFlag' not in locals(): antFlag = []
-antList = GetAntName(msfile)
 antDia = GetAntD(antList)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
