@@ -19,10 +19,6 @@ BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 #-------- Check Receivers
 RXList = BandList(prefix)
-BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
-BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
-BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
-BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
@@ -30,6 +26,14 @@ if 'spwFlag' in locals():
     atmSPWs = list(set(atmSPWs)- set(spwFlag));atmSPWs.sort()
     bpSPWs  = list(set(bpSPWs) - set(spwFlag)); bpSPWs.sort()
 bandNameList = GetBandNames(msfile, atmSPWs)
+for BandName in RXList:
+    if BandName not in bandNameList: RXList.remove(BandName)
+#
+BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
+BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
+BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
+BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
+#
 OnScanList = GetOnSource(msfile)
 msmd.open(msfile)
 for BandName in RXList:
@@ -196,12 +200,10 @@ for BandName in RXList:
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
-        '''
-        pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
-        pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
-        plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
-        '''
+        #pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
+        #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
+        #pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
+        #plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -376,7 +378,6 @@ for BandName in RXList:
         if spwNum > 1: logfile.write(text_mean + '\n'); print(text_mean)
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
         text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
-    #
     #-------- Review D-term
     Dterm = np.zeros([useAntNum, spwNum, 2], dtype=complex)
     DtermDic = {'mjdSec': np.median(timeStamp)}
