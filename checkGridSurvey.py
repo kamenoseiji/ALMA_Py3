@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase
+from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceList, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
@@ -45,7 +45,7 @@ for BandName in RXList:
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
-    def AV1(vis): return AllanVarPhase(np.angle(vis), 1)
+    def AV(vis): return AllanVarPhase(np.angle(vis), 1)
     checkScan = msmd.scansforintent('*BANDPASS*')
     if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
     checkScan = checkScan[-1]
@@ -54,8 +54,10 @@ for BandName in RXList:
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
     for spw_index, spw in enumerate(chavSPWs):
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
-        AV_bl = np.apply_along_axis(AV1, 1, checkVis[0]) + np.apply_along_axis(AV1, 1, checkVis[1])
-        errBL = np.where(AV_bl > 0.6)[0].tolist()
+        timeRange = list(range(checkVis.shape[2] % 6, checkVis.shape[2]))
+        checkVis = [specBunch(checkVis[0][:,timeRange], 1, 6), specBunch(checkVis[1][:,timeRange], 1, 6)]
+        AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
+        errBL = np.where(AV_bl > 1.2)[0].tolist()
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
         antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
