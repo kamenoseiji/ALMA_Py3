@@ -53,7 +53,7 @@ for BandName in RXList:
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
-    bunchNum = 8
+    bunchNum = 8 if XspecList[0][0].shape[3] > 30 else int(XspecList[0][0].shape[3]/3)
     for spw_index, spw in enumerate(chavSPWs):
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
