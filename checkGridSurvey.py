@@ -48,28 +48,29 @@ for BandName in RXList:
     def AV(vis): return AllanVarPhase(np.angle(vis), 1)
     checkScan = msmd.scansforintent('*BANDPASS*')
     if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
+    if len(checkScan) == 0: checkScan = [msmd.scansforintent('*PHASE*')[0]]
     checkScan = checkScan[-1]
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
-    bunchNum = 6
+    bunchNum = 8
     for spw_index, spw in enumerate(chavSPWs):
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
         checkVis = [specBunch(checkVis[0][:,timeRange], 1, bunchNum), specBunch(checkVis[1][:,timeRange], 1, bunchNum)]
         AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
-        errBL = np.where(AV_bl > 1.2)[0].tolist()
+        errBL = np.where(AV_bl > 2.0)[0].tolist()
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
         antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
     #
 #
 msmd.close()
-if len(antFlag) < len(antList) - 4:
-    BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
-    BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
-    #-------- Tsys measurement
-    exec(open(SCR_DIR + 'TsysCal.py').read())
+BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
+BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
+#-------- Tsys measurement
+if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
+else: RXList = []
 #-------- Check Antenna List
 antDia = GetAntD(antList)
 antNum = len(antList)
@@ -114,7 +115,7 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    checkScan   = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS'])) for scan in QSOscanList]))]
+    checkScan   = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS']*scanDic[scan]['I'])) for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
     checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1) / scanDic[checkScan]['I']
@@ -442,3 +443,4 @@ for BandName in RXList:
     plt.close('all')
     pp.close()
     del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,RXList,OnScanList,antList
+#
