@@ -36,6 +36,7 @@ BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
 BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 #
 OnScanList = GetOnSource(msfile)
+if len(OnScanList) == 0: RXList = []
 if 'antFlag' not in locals(): antFlag = []
 msmd.open(msfile)
 for BandName in RXList:
@@ -64,10 +65,10 @@ for BandName in RXList:
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
         antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
     #
-#
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
+#
 #-------- Tsys measurement
 if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
 else: RXList = []
@@ -300,7 +301,7 @@ for BandName in RXList:
     text_sd = text_sd + fluxCalText
     logfile.write(text_sd +'\n'); print(text_sd)
     logjy = open(prefix + '-' + BandName + '-JyK.log', 'w')
-    timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0]
+    timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0]
     for ant_index, ant in enumerate(antList[antMap]):
         text_sd = '%s : ' % (ant)
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -335,7 +336,7 @@ for BandName in RXList:
         #uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)[blMap]
         sourceName = scanDic[scan]['source']
         text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
-        timeLabel = qa.time('%fs' % np.median(timeStamp), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
+        timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
         visChavList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]))

@@ -449,6 +449,7 @@ def GetBPcalSPWs(msfile):
 def GetSPWFreq(msfile, SPWdic):
     RXList = list(SPWdic.keys())
     for BandName in RXList:
+        if SPWdic[BandName] == []: continue
         #-------- SPW and Frequency List
         chNumList, chRangeList, BWList, FreqList = [], [], [], []
         for spw in SPWdic[BandName]['spw']:
