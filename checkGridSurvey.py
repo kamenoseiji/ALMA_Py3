@@ -171,7 +171,6 @@ for BandName in RXList:
     for antName in antList[antMap]: text_sd = text_sd + ' ' +  antName
     print(text_sd)
     for scan_index, scan in enumerate(BandScanList[BandName]):
-        #if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         chAvgList = []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -181,7 +180,15 @@ for BandName in RXList:
             chAvgList = chAvgList + [np.mean( BPcaledSpec[:,:,:,chRange], axis=(2,3))]
         #
         scanGain = gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)
-        scanDic[scan]['Gain'] = scanGain
+        scanFlag              = np.unique(np.where( abs(scanGain) < 5.0* np.median(abs(scanGain)))[1]).tolist()
+        scanDic[scan]['Flag'] = scanFlag
+        scanDic[scan]['Gain'] = scanGain[:,scanFlag]
+        scanDic[scan]['mjdSec'] = scanDic[scan]['mjdSec'][scanFlag]
+        scanDic[scan]['EL']     = scanDic[scan]['EL'][scanFlag]
+        scanDic[scan]['PA']     = scanDic[scan]['PA'][scanFlag]
+        scanDic[scan]['QCpUS']  = scanDic[scan]['QCpUS'][scanFlag]
+        scanDic[scan]['UCmQS']  = scanDic[scan]['UCmQS'][scanFlag]
+        scanDic[scan]['UVW']    = scanDic[scan]['UVW'][:,:,scanFlag]
         coh = abs(np.mean(scanGain, axis=1)) / np.mean(abs(scanGain), axis=1)
         for ant_index, ant in enumerate(antList[antMap]): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
         print(text_sd)
@@ -197,11 +204,12 @@ for BandName in RXList:
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
+        scanFlag  = scanDic[scan]['Flag']
         scanPhase = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
         BPSPWList, XYSPWList, XYsnrList = [], [], []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             chRange = BandbpSPW[BandName]['chRange'][spw_index]
-            Xspec = XspecList[spw_index][scan_index]         # Xspec[pol, ch, bl, time]
+            Xspec = XspecList[spw_index][scan_index][:,:,:,scanFlag]         # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/ (scanPhase[ant0]* scanPhase[ant1].conjugate()), axis=3)   # antenna-based phase correction
             BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
             #---- Amplitude normalization
@@ -262,8 +270,9 @@ for BandName in RXList:
     #-------- XY sign in checkScan
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BP_ant = BPSPWList[spw_index].transpose(1,2,0)
-        scanPhase = scanDic[checkScan]['Gain']/abs(scanDic[checkScan]['Gain'])
-        Xspec = XspecList[spw_index][list(scanDic.keys()).index(checkScan)]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
+        scanFlag  = scanDic[checkScan]['Flag']
+        scanPhase = scanDic[checkScan]['Gain'] / abs(scanDic[checkScan]['Gain'])
+        Xspec = XspecList[spw_index][list(scanDic.keys()).index(checkScan)][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[checkScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
@@ -272,11 +281,12 @@ for BandName in RXList:
         BPSPWList[spw_index][:,1] *= XYsign
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
+        scanPhase = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
+        scanFlag  = scanDic[scan]['Flag']
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             # print('---Applying Gain and Bandpass Correction for scan %d, spw %d' % (scan, spw))
             BP_ant = BPSPWList[spw_index].transpose(1,2,0)
-            scanPhase = scanDic[scan]['Gain']/abs(scanDic[scan]['Gain'])
-            Xspec = XspecList[spw_index][scan_index]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
+            Xspec = XspecList[spw_index][scan_index][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
             XspecList[spw_index][scan_index] = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         #
     #-------- Aperture Efficiencies Determination using Solar System Objects
