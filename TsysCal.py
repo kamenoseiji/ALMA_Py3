@@ -17,7 +17,7 @@
 import analysisUtils as au
 import scipy
 import numpy as np
-from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetSourceList, GetSunAngle, GetChNum
+from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys
 from ASDM_XML import BandList
@@ -44,7 +44,7 @@ atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames)
 if UniqBands == []: UniqBands = BandList(prefix)
 NumBands = len(UniqBands)
 msmd.open(msfile)
-atmspwLists, atmscanLists = [], []
+atmspwLists, atmscanLists, sqldspwLists, OnScanLists = [], [], [], []
 for band_index in list(range(NumBands)):
     bandAtmSPWs = np.array(atmSPWs)[indexList(np.array([UniqBands[band_index]]), np.array(atmBandNames))].tolist()
     if atmBandNames == []: bandAtmSPWs = np.array(atmSPWs)
@@ -57,6 +57,9 @@ for band_index in list(range(NumBands)):
     atmscanList = list(set(msmd.scansforspw(atmspwLists[band_index][0]))& set(msmd.scansforintent("CALIBRATE_ATMOSPHERE*")))
     atmscanList.sort()
     atmscanLists = atmscanLists + [atmscanList]
+    #---- SQLD SPWs and scans
+    sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    OnScanLists  = OnScanLists  + [list(set(msmd.scansforintent('*ON_SOURCE')) & set(msmd.scansforspw(sqldspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
 #
 # atmSPWs[band] : SPWs used in atmCal scans
@@ -85,6 +88,19 @@ if len(timeAMB) == 0:
         timeHOT = np.append(timeHOT, timeXY[hotTimeIndex])
 #
 azelTime, AntID, AZ, EL = GetAzEl(msfile)
+#-------- Check SQLD power measurements
+for band_index, bandName in enumerate(UniqBands):
+    onSQLD, offSQLD = [], []
+    for scan_index, scan in enumerate(OnScanLists[band_index]):
+        for ant_index, ant in enumerate(antList):
+            timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspwLists[band_index][0], scan)
+            onSQLD = onSQLD + [SQLD[0,0] + SQLD[1,0]]
+    for scan_index, scan in enumerate(atmscanLists[band_index]):
+        for ant_index, ant in enumerate(antList):
+            timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspwLists[band_index][0], scan)
+            offIndex = indexList(timeOFF, timeScan)
+            offSQLD = offSQLD + [SQLD[0,0,offIndex] + SQLD[1,0,offIndex]]
+    #
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
 # timeAMB : mjd of CALIBRATE_ATMOSPHERE#AMBIENT (after Cycle 3)
