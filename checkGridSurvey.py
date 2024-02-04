@@ -51,6 +51,7 @@ for BandName in RXList:
     if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
     if len(checkScan) == 0: checkScan = [msmd.scansforintent('*PHASE*')[0]]
     checkScan = checkScan[-1]
+    print('---Checking usable antennas by ASD in Scan %d' % (checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
@@ -116,8 +117,9 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    checkScan   = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS']*scanDic[scan]['I'])* np.sin(scanDic[scan]['EL'] - ELshadow)) for scan in QSOscanList]))]
+    checkScan   = QSOscanList[np.argmax(np.array([np.median( (abs(scanDic[scan]['UCmQS']) - abs(scanDic[scan]['QCpUS']))* scanDic[scan]['I']* np.sin(scanDic[scan]['EL'] - ELshadow)) for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
+    print('-----Check Scan %d : %s' % (checkScan, checkSource))
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
     checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1) / scanDic[checkScan]['I']
     Gain =  np.array([gainComplexVec(checkVis[0]), gainComplexVec(checkVis[1])])
@@ -158,7 +160,7 @@ for BandName in RXList:
     #-------- SPW phase offsets
     spwTwiddle = SPWalign(np.array(spwGainList))
     #-------- Phase-aligned bandpass table
-    print('-----SPW-aligned bandpass')
+    print('-----SPW-aligned bandpass in scan %d : %s' % (checkScan, scanDic[checkScan]['source']))
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
     #pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
