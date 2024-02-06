@@ -117,7 +117,7 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    checkScan   = QSOscanList[np.argmax(np.array([np.median( abs(scanDic[scan]['UCmQS'])*scanDic[scan]['I']*np.sin(scanDic[scan]['EL'] - ELshadow)) for scan in QSOscanList]))]
+    checkScan   = QSOscanList[np.argmax(np.array([np.median( abs(scanDic[scan]['UCmQS'])*scanDic[scan]['I'] + np.sin(scanDic[scan]['EL'] - ELshadow)) for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
@@ -324,7 +324,7 @@ for BandName in RXList:
     logjy.write('\n'); logjy.close()
     #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
-    checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
+    if len(QSONonShadowScanList) > 0: checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
     scan_index = list(scanDic.keys()).index(checkScan)
     newAeff = np.ones([useAntNum, 2, spwNum])
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
