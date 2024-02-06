@@ -89,6 +89,7 @@ if len(timeAMB) == 0:
 #
 azelTime, AntID, AZ, EL = GetAzEl(msfile)
 #-------- Check SQLD power measurements
+'''
 for band_index, bandName in enumerate(UniqBands):
     onSQLD, offSQLD, onTime, offTime = [], [], [], []
     for scan_index, scan in enumerate(OnScanLists[band_index]):
@@ -119,6 +120,7 @@ for band_index, bandName in enumerate(UniqBands):
         offSQLDCont += offSQLD[scan_index].tolist()
     offTimaCont, offSQLDCont = np.array(offTimaCont), np.array(offSQLDCont)
     scaleFact = np.median(scipy.interpolate.splev(offTimaCont,smthON) / offSQLDCont)
+'''
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
 # timeAMB : mjd of CALIBRATE_ATMOSPHERE#AMBIENT (after Cycle 3)
