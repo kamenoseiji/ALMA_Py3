@@ -18,7 +18,7 @@ import analysisUtils as au
 import scipy
 import numpy as np
 from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
-from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx
+from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys
 from ASDM_XML import BandList
 SunAngleTsysLimit = 5.0 # [deg] 
@@ -88,10 +88,15 @@ if len(timeAMB) == 0:
         timeHOT = np.append(timeHOT, timeXY[hotTimeIndex])
 #
 azelTime, AntID, AZ, EL = GetAzEl(msfile)
+#-------- Get Load Temperature
+tempAmb, tempHot  = np.zeros([useAntNum]), np.zeros([useAntNum])
+for ant_index in list(range(useAntNum)):
+    tempAmb[ant_index], tempHot[ant_index] = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
+    if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
+    if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
 #-------- Check SQLD power measurements
-'''
 for band_index, bandName in enumerate(UniqBands):
-    onSQLD, offSQLD, onTime, offTime = [], [], [], []
+    onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
     for scan_index, scan in enumerate(OnScanLists[band_index]):
         scanOn = []
         for ant_index, ant in enumerate(antList):
@@ -100,26 +105,24 @@ for band_index, bandName in enumerate(UniqBands):
         onSQLD = onSQLD + [np.median(np.array(scanOn), axis=0)]
         onTime = onTime + [timeScan]
     for scan_index, scan in enumerate(atmscanLists[band_index]):
-        scanOff = []
+        scanOff, scanAmb, scanHot = [], [], []
         for ant_index, ant in enumerate(antList):
             timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspwLists[band_index][0], scan)
-            offIndex = indexList(timeOFF, timeScan)
-            scanOff = scanOff + [SQLD[0,0,offIndex] + SQLD[1,0,offIndex]]
-        offSQLD = offSQLD + [np.median(np.array(scanOff), axis=0)]
-        offTime = offTime + [timeScan[offIndex]]
+            offIndex = indexList(timeOFF, timeScan); scanOff = scanOff + [SQLD[0,0,offIndex] + SQLD[1,0,offIndex]]
+            ambIndex = indexList(timeAMB, timeScan); scanAmb = scanAmb + [SQLD[0,0,ambIndex] + SQLD[1,0,ambIndex]]
+            hotIndex = indexList(timeHOT, timeScan); scanHot = scanHot + [SQLD[0,0,hotIndex] + SQLD[1,0,hotIndex]]
+        offSQLD = offSQLD + [np.median(np.array(scanOff), axis=0)]; offTime = offTime + [timeScan[offIndex]]
+        ambSQLD = ambSQLD + [np.median(np.array(scanAmb), axis=0)]; ambTime = ambTime + [timeScan[ambIndex]]
+        hotSQLD = hotSQLD + [np.median(np.array(scanHot), axis=0)]; hotTime = hotTime + [timeScan[hotIndex]]
     #
-    onTimaCont, onSQLDCont = [], []
-    for scan_index, scan in enumerate(onTime):
-        onTimaCont += scan.tolist()
-        onSQLDCont += onSQLD[scan_index].tolist()
-    onTimaCont, onSQLDCont = np.array([onTimaCont[0] - 180, onTimaCont[0] - 120, onTimaCont[0] - 60] +  onTimaCont + [onTimaCont[-1] + 60, onTimaCont[-1] + 120, onTimaCont[-1] + 180]), np.array([onSQLDCont[0], onSQLDCont[0], onSQLDCont[0]] + onSQLDCont + [onSQLDCont[-1], onSQLDCont[-1], onSQLDCont[-1]])
-    smthON = scipy.interpolate.splrep(onTimaCont, onSQLDCont, k=3, s=0.01)
-    offTimaCont, offSQLDCont = [], []
-    for scan_index, scan in enumerate(offTime):
-        offTimaCont += scan.tolist()
-        offSQLDCont += offSQLD[scan_index].tolist()
-    offTimaCont, offSQLDCont = np.array(offTimaCont), np.array(offSQLDCont)
-    scaleFact = np.median(scipy.interpolate.splev(offTimaCont,smthON) / offSQLDCont)
+    onTimeCont,  onSQLDCont  = concatScans(onTime,  onSQLD)
+    offTimeCont, offSQLDCont = concatScans(offTime, offSQLD)
+    ambTimeCont, ambSQLDCont = concatScans(ambTime, ambSQLD)
+    hotTimeCont, hotSQLDCont = concatScans(hotTime, hotSQLD)
+    medTrx = (np.median(tempHot)* np.median(ambSQLDCont) - np.median(hotSQLDCont)* np.median(tempAmb)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
+    scaleFact = ATTatm(onTimeCont, onSQLDCont, offTimeCont, offSQLDCont)
+    TskyOff= (offSQLDCont* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
+    TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
 '''
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
@@ -127,12 +130,6 @@ for band_index, bandName in enumerate(UniqBands):
 # timeHOT : mjd of CALIBRATE_ATMOSPHERE#HOT (after Cycle 3)
 # timeTEST: mjd of CALIBRATE_ATMOSPHERE#TEST (ON_SOURCE since Cycle 10)
 #
-#-------- Get Load Temperature
-tempAmb, tempHot  = np.zeros([useAntNum]), np.zeros([useAntNum])
-for ant_index in list(range(useAntNum)):
-    tempAmb[ant_index], tempHot[ant_index] = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
-    if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
-    if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
 #
 #-------- Trx, TantN, and Tau0
 Tau0Max = np.zeros(NumBands)
@@ -197,6 +194,7 @@ for band_index in list(range(NumBands)):
         if len(atmscanLists[band_index]) > 5: plotTau0E(prefix + '_' + UniqBands[band_index], atmTimeRef, atmspwLists[band_index], Tau0, Tau0Excess, np.min(scanFlag, axis=(1,2))) 
     if PLOTTSYS: plotTsys(prefix + '_' + UniqBands[band_index], antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
 #
+'''
 #-------- Plot optical depth
 msmd.close()
 msmd.done()

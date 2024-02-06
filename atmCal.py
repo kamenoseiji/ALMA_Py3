@@ -23,6 +23,22 @@ def residTskyTransfer2( param, Tamb, Tau0, secz, Tsky, weight ):
     exp_Tau = np.exp( -Tau0* secz )
     return weight* (Tsky - (param[0] + au.Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
 #
+def concatScans(timeList, dataList):
+    TimeCont, DataCont = [], []
+    for scan_index, scan in enumerate(timeList):
+        TimeCont += scan.tolist()
+        DataCont += dataList[scan_index].tolist()
+    return np.array(TimeCont), np.array(DataCont)
+#
+def ATTatm(onTime, onData, offTime, offData):
+    if min(onTime) > min(offTime):
+        onData = np.array((np.ones(int(min(onTime)) - int(min(offTime)))* onData[0]).tolist() + onData.tolist())
+        onTime = np.array(np.arange(int(min(offTime)), int(min(onTime))).tolist() + onTime.tolist())
+    if max(onTime) < max(offTime):
+        onData = np.array(onData.tolist() + (np.ones(int(max(offTime)) - int(max(onTime)))* onData[-1]).tolist())
+        onTime = np.array(onTime.tolist() + np.arange(int(max(offTime)), int(max(onTime))).tolist())
+    smthData = scipy.interpolate.splrep(onTime, onData, k=3, s=0.01)
+    return np.median(scipy.interpolate.splev(offTime, smthData) / offData)
 #-------- Get atmCal scans
 def scanAtmSpec(msfile, useAnt, scanList, spwList, timeOFF=0, timeON=0, timeAMB=0, timeHOT=0):
     timeList, offSpecList, ambSpecList, hotSpecList = [], [], [], []
