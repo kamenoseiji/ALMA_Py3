@@ -95,6 +95,7 @@ for ant_index in list(range(useAntNum)):
     if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
     if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
 #-------- Check SQLD power measurements
+'''
 for band_index, bandName in enumerate(UniqBands):
     onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
     for scan_index, scan in enumerate(OnScanLists[band_index]):
@@ -132,11 +133,10 @@ for band_index, bandName in enumerate(UniqBands):
 #
 #
 #-------- Trx, TantN, and Tau0
-Tau0Max = np.zeros(NumBands)
 sourceList, posList = GetSourceList(msfile)
 SunAngleSourceList = GetSunAngle(msfile)
-for band_index in list(range(NumBands)):
-    tsysLog = open(prefix + '-' + UniqBands[band_index] + '-Tsys.log', 'w')
+for band_index, bandName in enumerate(UniqBands):
+    tsysLog = open(prefix + '-' + bandName + '-Tsys.log', 'w')
     #-------- Trx
     atmTimeRef, offSpec, ambSpec, hotSpec, scanList = scanAtmSpec(msfile, useAnt, atmscanLists[band_index], atmspwLists[band_index], timeOFF, timeON, timeAMB, timeHOT)
     atmscanLists[band_index] = scanList; scanList.sort()
@@ -144,31 +144,30 @@ for band_index in list(range(NumBands)):
     atmscanNum, spwNum = len(atmscanLists[band_index]), len(atmspwLists[band_index])
     TrxList, TskyList, scanFlag = TrxTskySpec(useAnt, tempAmb, tempHot, atmspwLists[band_index], atmscanLists[band_index], ambSpec, hotSpec, offSpec)
     #-------- Check sun angle 
-    for scan_index in list(range(len(scanList))):
-        sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scanList[scan_index])[0])
+    for scan_index, scan in enumerate(scanList):
+        sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])
         SunAngle = SunAngleSourceList[sourceID]
         print('Sun Angle : %.1f' % (SunAngle))
         if SunAngle < SunAngleTsysLimit: scanFlag[:,:,:,scan_index] *= 0.01
     #
-    for spw_index in list(range(spwNum)):
-        np.save('%s-%s-SPW%d.Trx.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), TrxList[spw_index])    # TxList[spw][pol,ch,ant,scan]
+    for spw_index, spw in enumerate(atmspwLists[band_index]):
+        np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # TxList[spw][pol,ch,ant,scan]
     #-------- Az and El position at atmCal and onsource scans
     AtmEL = np.ones([useAntNum, atmscanNum])
-    for ant_index in list(range(useAntNum)):
-        azelTime_index = np.where( AntID == useAnt[ant_index] )[0].tolist()
+    for ant_index, ant in enumerate(useAnt):
+        azelTime_index = np.where( AntID == ant )[0].tolist()
         if len(azelTime_index) == 0: azelTime_index = np.where( AntID == useAnt[ant_index + 1] )[0].tolist()
-        for scan_index in list(range(atmscanNum)): AtmEL[ant_index, scan_index] = EL[azelTime_index[np.argmin(abs(azelTime[azelTime_index] - atmTimeRef[scan_index]))]]
+        for scan_index, scan in enumerate(atmscanLists[band_index]):
+            AtmEL[ant_index, scan_index] = EL[azelTime_index[np.argmin(abs(azelTime[azelTime_index] - atmTimeRef[scan_index]))]]
     #
     atmsecZ  = 1.0 / np.sin( np.median(AtmEL, axis=0) )
     #-------- Tsky and TantN
     Tau0, Tau0Excess, Tau0Coef, TantN = tau0SpecFit(tempAtm, atmsecZ, useAnt, atmspwLists[band_index], TskyList, scanFlag)
-    SPWfreqList, freqList = [], []
-    Tau0med = np.zeros(spwNum)
-    for spw_index in list(range(spwNum)):
-        chNum, chWid, freq = GetChNum(msfile, atmspwLists[band_index][spw_index]); freqList = freqList + [freq*1.0e-9]; SPWfreqList = SPWfreqList + [np.median(freq)*1.0e-9]
-        Tau0med[spw_index] = np.median(Tau0[spw_index])
-    #
-    Tau0Max[band_index] = np.max(Tau0med)
+    SPWfreqList, freqList, Tau0med = [], [], []
+    for spw_index, spw in enumerate(atmspwLists[band_index]):
+        chNum, chWid, freq = GetChNum(msfile, spw)
+        freqList = freqList + [freq*1.0e-9]; SPWfreqList = SPWfreqList + [np.median(freq)*1.0e-9]; Tau0med = Tau0med + [np.median(Tau0[spw_index])]
+    Tau0med = np.array(Tau0med)
     #-------- Log Tau0 (mean opacity at zenith)
     LogTrx(antList[useAnt], atmspwLists[band_index], SPWfreqList, scanList, atmTimeRef, TrxList, TantN, tsysLog)
     text_sd = 'Tau0 :  '
@@ -176,25 +175,24 @@ for band_index in list(range(NumBands)):
     tsysLog.write(text_sd + '\n'); print(text_sd)
     tsysLog.close()
     #-------- Save to npy files
-    np.save('%s-%s.TrxAnt.npy' % (prefix, UniqBands[band_index]), antList[useAnt])     # antList[ant]
-    np.save('%s-%s.atmTime.npy' % (prefix, UniqBands[band_index]), atmTimeRef)     # antList[ant]
-    np.save('%s-%s.TauE.npy' % (prefix, UniqBands[band_index]), Tau0Excess)     # antList[ant]
-    for spw_index in list(range(spwNum)):
-        np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), freqList[spw_index])    # freqList[spw]
-        np.save('%s-%s-SPW%d.Trx.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), TrxList[spw_index])    # freqList[spw]
-        np.save('%s-%s-SPW%d.TantN.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), TantN[spw_index])    # freqList[spw]
-        np.save('%s-%s-SPW%d.Tau0.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), Tau0[spw_index])    # freqList[spw]
-        np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, UniqBands[band_index], atmspwLists[band_index][spw_index]), Tau0Coef[spw_index])    # freqList[spw]
+    np.save('%s-%s.TrxAnt.npy' % (prefix, bandName), antList[useAnt])     # antList[ant]
+    np.save('%s-%s.atmTime.npy' % (prefix, bandName), atmTimeRef)     # antList[ant]
+    np.save('%s-%s.TauE.npy' % (prefix, bandName), Tau0Excess)     # antList[ant]
+    for spw_index, spw in enumerate(atmspwLists[band_index]):
+        np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), freqList[spw_index])    # freqList[spw]
+        np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # freqList[spw]
+        np.save('%s-%s-SPW%d.TantN.npy' % (prefix, bandName, spw), TantN[spw_index])    # freqList[spw]
+        np.save('%s-%s-SPW%d.Tau0.npy' % (prefix, bandName, spw), Tau0[spw_index])    # freqList[spw]
+        np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
     #
     #---- Plots
     if not 'PLOTFMT' in locals():   PLOTFMT = 'pdf'
     if PLOTTAU:
-        plotTauSpec(prefix + '_' + UniqBands[band_index], atmspwLists[band_index], freqList, Tau0) 
-        plotTauFit(prefix + '_' + UniqBands[band_index], antList[useAnt], atmspwLists[band_index], atmsecZ, tempAtm, Tau0, TantN, TskyList, np.min(scanFlag, axis=1)) 
-        if len(atmscanLists[band_index]) > 5: plotTau0E(prefix + '_' + UniqBands[band_index], atmTimeRef, atmspwLists[band_index], Tau0, Tau0Excess, np.min(scanFlag, axis=(1,2))) 
-    if PLOTTSYS: plotTsys(prefix + '_' + UniqBands[band_index], antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
+        plotTauSpec(prefix + '_' + bandName, atmspwLists[band_index], freqList, Tau0) 
+        plotTauFit(prefix + '_'  + bandName, antList[useAnt], atmspwLists[band_index], atmsecZ, tempAtm, Tau0, TantN, TskyList, np.min(scanFlag, axis=1)) 
+        if len(atmscanLists[band_index]) > 5: plotTau0E(prefix + '_' + bandName, atmTimeRef, atmspwLists[band_index], Tau0, Tau0Excess, np.min(scanFlag, axis=(1,2))) 
+    if PLOTTSYS: plotTsys(prefix + '_' + bandName, antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
 #
-'''
 #-------- Plot optical depth
 msmd.close()
 msmd.done()
