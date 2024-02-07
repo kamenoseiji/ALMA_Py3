@@ -1,3 +1,4 @@
+import os
 import math
 import numpy as np
 import scipy
@@ -127,13 +128,18 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
     atmReltime = atmTime - atmTime[0]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
-    Tau0List, Tau0CList, TrxList, TaNList, TrxFreq = [], [], [], [], []
+    Tau0List, Tau0CList, TrxList, TaNList, TrxFreq, TauEonList = [], [], [], [], [], []
     for spw_index, spw in enumerate(BandbpSPW['spw']):
         Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
         Tau0CList= Tau0CList+ [np.load('%s-%s-SPW%d.Tau0C.npy'% (prefix, BandName, spw))]   # Tau0CList[spw] [intercept,slope]
         TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
         TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
         TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
+        TauEonPath = '%s-%s-SPW%d.TauEon.npy' % (prefix, BandName, spw)
+        if os.path.isfile(TauEonPath): 
+            TauEonList = TauEonList + [np.load(TauEonPath)]
+        else:
+            TauEonList = TauEonList + [np.array([])]
     for scan_index, scan in enumerate(scanDic.keys()):
         scanTau = []
         TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
@@ -143,19 +149,23 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
             StokesI = SSODic[source][1][spw_index] if source in SSOCatalog else scanDic[scan]['I'] 
             Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
-            SP = tauSMTH(atmReltime, TauE[spw_index] )
-            Tau0SP = Tau0List[spw_index] + np.median(scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP))
-            secZ = np.mean(1.0 / np.sin(scanDic[scan]['EL']))                           # Airmass
+            Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
+            if TauEonList[spw_index].shape[0] == 2:
+                Tau0SP = Tau0SP + TauEonList[spw_index][1][indexList(scanDic[scan]['mjdSec'], TauEonList[spw_index][0])]
+            else: 
+                SP = tauSMTH(atmReltime, TauE[spw_index] )
+                Tau0SP = Tau0SP + scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP)
+            secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             zenithTau = Tau0SP + Tau0CList[spw_index][0] + Tau0CList[spw_index][1]*secZ   # Smoothed zenith optical depth
             scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
             exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
             atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
-            TsysScan = (atmCorrect* (TrxAnt.transpose(2,1,0) + np.outer(Tcmb + Tant, exp_Tau) + tempAtm* (1.0 - exp_Tau))).transpose(1,0,2)
+            Tacmb = Tcmb* np.ones([antNum, 2, chNum, len(scanDic[scan]['mjdSec'])])
+            TsysScan = atmCorrect* ((((((Tacmb.transpose(1,2,3,0) + Tant)).transpose(3,0,1,2)* exp_Tau + tempAtm*(1.0 - exp_Tau)).transpose(3,2,0,1) + TrxAnt).transpose(2,3,1,0)))
             #-------- Tsys correction
-            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3, 2, 0, 1)
-            XspecList[spw_index][scan_index][:,:,useBlMap] = (Xspec * np.sqrt(TsysScan[ant0][:,polXindex] * TsysScan[ant1][:,polYindex])).transpose(2,3,1,0)
-            for ant_index, ant in enumerate(TrxAntList):
-                TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
+            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(2,0,1,3)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])
+            XspecList[spw_index][scan_index][:,:,useBlMap] = Xspec.transpose(1,2,0,3)
+            for ant_index, ant in enumerate(TrxAntList): TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
         #
         scanDic[scan]['Tau']  = scanTau
         scanDic[scan]['Tsys'] = TsysScanDic

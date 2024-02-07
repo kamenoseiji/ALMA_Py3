@@ -17,7 +17,7 @@
 import analysisUtils as au
 import scipy
 import numpy as np
-from interferometry import indexList, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
+from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys
 from ASDM_XML import BandList
@@ -94,37 +94,6 @@ for ant_index in list(range(useAntNum)):
     tempAmb[ant_index], tempHot[ant_index] = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
     if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
     if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
-#-------- Check SQLD power measurements
-'''
-for band_index, bandName in enumerate(UniqBands):
-    onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
-    for scan_index, scan in enumerate(OnScanLists[band_index]):
-        scanOn = []
-        for ant_index, ant in enumerate(antList):
-            timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspwLists[band_index][0], scan)
-            scanOn = scanOn + [SQLD[0,0] + SQLD[1,0]]
-        onSQLD = onSQLD + [np.median(np.array(scanOn), axis=0)]
-        onTime = onTime + [timeScan]
-    for scan_index, scan in enumerate(atmscanLists[band_index]):
-        scanOff, scanAmb, scanHot = [], [], []
-        for ant_index, ant in enumerate(antList):
-            timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspwLists[band_index][0], scan)
-            offIndex = indexList(timeOFF, timeScan); scanOff = scanOff + [SQLD[0,0,offIndex] + SQLD[1,0,offIndex]]
-            ambIndex = indexList(timeAMB, timeScan); scanAmb = scanAmb + [SQLD[0,0,ambIndex] + SQLD[1,0,ambIndex]]
-            hotIndex = indexList(timeHOT, timeScan); scanHot = scanHot + [SQLD[0,0,hotIndex] + SQLD[1,0,hotIndex]]
-        offSQLD = offSQLD + [np.median(np.array(scanOff), axis=0)]; offTime = offTime + [timeScan[offIndex]]
-        ambSQLD = ambSQLD + [np.median(np.array(scanAmb), axis=0)]; ambTime = ambTime + [timeScan[ambIndex]]
-        hotSQLD = hotSQLD + [np.median(np.array(scanHot), axis=0)]; hotTime = hotTime + [timeScan[hotIndex]]
-    #
-    onTimeCont,  onSQLDCont  = concatScans(onTime,  onSQLD)
-    offTimeCont, offSQLDCont = concatScans(offTime, offSQLD)
-    ambTimeCont, ambSQLDCont = concatScans(ambTime, ambSQLD)
-    hotTimeCont, hotSQLDCont = concatScans(hotTime, hotSQLD)
-    medTrx = (np.median(tempHot)* np.median(ambSQLDCont) - np.median(hotSQLDCont)* np.median(tempAmb)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-    scaleFact = ATTatm(onTimeCont, onSQLDCont, offTimeCont, offSQLDCont)
-    TskyOff= (offSQLDCont* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-    TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-'''
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
 # timeAMB : mjd of CALIBRATE_ATMOSPHERE#AMBIENT (after Cycle 3)
@@ -184,7 +153,45 @@ for band_index, bandName in enumerate(UniqBands):
         np.save('%s-%s-SPW%d.TantN.npy' % (prefix, bandName, spw), TantN[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0.npy' % (prefix, bandName, spw), Tau0[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
-    #
+    #-------- Violently variable Tau0
+    for spw_index, spw in enumerate(sqldspwLists[band_index]):
+        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.1:        # variability > 10%
+            print('SPW%d : sd(Tau0) = %.3f / median(Tau0) = %.3f' % (atmspwLists[band_index][spw_index], np.std(Tau0Excess[spw_index]), Tau0med[spw_index]))
+            onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
+            for scan_index, scan in enumerate(OnScanLists[band_index]):
+                scanOn = []
+                for ant_index, ant in enumerate(antList):
+                    timeScan, SQLD = GetPSpecScan(msfile, ant_index, spw, scan)
+                    scanOn  = scanOn + [SQLD[0,0] + SQLD[1,0]]
+                onSQLD = onSQLD + [np.median(np.array(scanOn), axis=0)]
+                onTime = onTime + [timeScan]
+            TauSQLD = []
+            for scan_index, scan in enumerate(atmscanLists[band_index]):
+                scanOff, scanAmb, scanHot = [], [], []
+                for ant_index, ant in enumerate(antList):
+                    timeScan, SQLD = GetPSpecScan(msfile, ant_index, spw, scan)
+                    offIndex = indexList(timeOFF, timeScan); scanOff = scanOff + [SQLD[0,0,offIndex] + SQLD[1,0,offIndex]]
+                    ambIndex = indexList(timeAMB, timeScan); scanAmb = scanAmb + [SQLD[0,0,ambIndex] + SQLD[1,0,ambIndex]]
+                    hotIndex = indexList(timeHOT, timeScan); scanHot = scanHot + [SQLD[0,0,hotIndex] + SQLD[1,0,hotIndex]]
+                offSQLD = offSQLD + [np.median(np.array(scanOff), axis=0)]; offTime = offTime + [timeScan[offIndex]]
+                ambSQLD = ambSQLD + [np.median(np.array(scanAmb), axis=0)]; ambTime = ambTime + [timeScan[ambIndex]]
+                hotSQLD = hotSQLD + [np.median(np.array(scanHot), axis=0)]; hotTime = hotTime + [timeScan[hotIndex]]
+            #
+            onTimeCont,  onSQLDCont  = concatScans(onTime,  onSQLD)
+            offTimeCont, offSQLDCont = concatScans(offTime, offSQLD)
+            ambTimeCont, ambSQLDCont = concatScans(ambTime, ambSQLD)
+            hotTimeCont, hotSQLDCont = concatScans(hotTime, hotSQLD)
+            medTrx = (np.median(tempHot)* np.median(ambSQLDCont) - np.median(hotSQLDCont)* np.median(tempAmb)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
+            scaleFact = ATTatm(onTimeCont, onSQLDCont, offTimeCont, offSQLDCont)
+            TskyOff= (offSQLDCont* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
+            TauOff = -np.log( (TskyOff - tempAtm) / (au.Tcmb - tempAtm) )
+            az, el = AzElMatch(offTimeCont, azelTime, AntID, ant_index, AZ, EL )
+            Tau0Off = TauOff * np.sin(el)
+            TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
+            TauOn  = -np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )
+            az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
+            TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
+            np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]
     #---- Plots
     if not 'PLOTFMT' in locals():   PLOTFMT = 'pdf'
     if PLOTTAU:

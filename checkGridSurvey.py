@@ -114,6 +114,7 @@ for BandName in RXList:
         scanDic[scan]['SA'] = SunAngleSourceList[sourceList.index(scanDic[scan]['source'])]
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
+    '''
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
@@ -456,4 +457,5 @@ for BandName in RXList:
     plt.close('all')
     pp.close()
     del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,RXList,OnScanList,antList
+    '''
 #
