@@ -19,7 +19,7 @@ import scipy
 import numpy as np
 from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
-from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys
+from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
 SunAngleTsysLimit = 5.0 # [deg] 
 if 'PLOTTAU'  not in locals(): PLOTTAU  = False
@@ -193,6 +193,7 @@ for band_index, bandName in enumerate(UniqBands):
             az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
             TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
             np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]
+            if PLOTTAU: plotTauEOn(prefix, bandName, spw, onTimeCont, onSQLDCont, TauEOn+Tau0med[spw_index])
     #---- Plots
     if not 'PLOTFMT' in locals():   PLOTFMT = 'pdf'
     if PLOTTAU:

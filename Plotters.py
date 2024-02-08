@@ -66,6 +66,22 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
     plt.close('all')
     return
 #
+#-------- Plot plotTauEOn
+def plotTauEOn(prefix, bandName, spw, onTime, onData, TauEOn):
+    DT = []
+    for mjdSec in onTime.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
+    figTau = plt.figure(0, figsize = (11,8))
+    figTau.suptitle('%s %s SPW %d CHAV data and zenith optical depth' % (prefix, bandName, spw))
+    figTau.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
+    CHAVPL = figTau.add_subplot(2, 1, 1)
+    CHAVPL.plot(DT, onData, 'k.')
+    CHAVPL.set_ylabel('Channel-Averaded Power')
+    TAU0PL = figTau.add_subplot(2, 1, 2)
+    TAU0PL.plot(DT, TauEOn, 'b.')
+    TAU0PL.set_ylabel('Estimated Zenith Optical Depth')
+    figTau.savefig('TauEOn_%s-%s-SPW%d.pdf' % (prefix, bandName, spw))
+    plt.close('all')
+    return
 #-------- Plot Tau0-Excess
 def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
     spwNum = len(spwList)
