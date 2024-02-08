@@ -159,12 +159,11 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             zenithTau = Tau0SP + Tau0CList[spw_index][0] + Tau0CList[spw_index][1]*secZ   # Smoothed zenith optical depth
             scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
             exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
-            atmCorrect = 1.0 / exp_Tau              # Correction for atmospheric attenuation
-            Tacmb = Tcmb* np.ones([antNum, 2, chNum, len(scanDic[scan]['mjdSec'])])
-            TsysScan = atmCorrect* ((((((Tacmb.transpose(1,2,3,0) + Tant)).transpose(3,0,1,2)* exp_Tau + tempAtm*(1.0 - exp_Tau)).transpose(3,2,0,1) + TrxAnt).transpose(2,3,1,0)))
+            atmCorrect = np.mean(1.0 / exp_Tau, axis=1)              # Correction for atmospheric attenuation
+            TsysScan = (Tcmb + Tant + (TrxAnt.transpose(2,1,0)* atmCorrect + tempAtm* (atmCorrect - 1.0)).transpose(0,2,1)).transpose(2,0,1)
             #-------- Tsys correction
-            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(2,0,1,3)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])
-            XspecList[spw_index][scan_index][:,:,useBlMap] = Xspec.transpose(1,2,0,3)
+            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3,2,0,1)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])
+            XspecList[spw_index][scan_index][:,:,useBlMap] = Xspec.transpose(2,3,1,0)
             for ant_index, ant in enumerate(TrxAntList): TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
         scanDic[scan]['Tau']  = scanTau
         scanDic[scan]['Tsys'] = TsysScanDic
