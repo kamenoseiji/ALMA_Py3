@@ -132,6 +132,7 @@ for BandName in RXList:
     text_sd = '  Usable antennas (%d) : ' % (len(useAntMap))
     for ants in antList[useAntMap].tolist(): text_sd = text_sd + ants + ' '
     print(text_sd)
+    if useAntNum < 4: continue
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2); uvDist[useBlMap] *= 0.001
