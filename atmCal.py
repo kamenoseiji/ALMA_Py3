@@ -37,8 +37,8 @@ def ATTatm(onTime, onData, offTime, offData):
     if max(onTime) < max(offTime):
         onData = np.array(onData.tolist() + (np.ones(int(max(offTime)) - int(max(onTime)))* onData[-1]).tolist())
         onTime = np.array(onTime.tolist() + np.arange(int(max(offTime)), int(max(onTime))).tolist())
-    smthData = scipy.interpolate.splrep(onTime, onData, k=3, s=0.01)
-    return np.median(scipy.interpolate.splev(offTime, smthData) / offData)
+    smthData = scipy.interpolate.interp1d(onTime, onData, kind='linear')
+    return np.median(smthData(offTime) / offData)
 #-------- Get atmCal scans
 def scanAtmSpec(msfile, useAnt, scanList, spwList, timeOFF=0, timeON=0, timeAMB=0, timeHOT=0):
     timeList, offSpecList, ambSpecList, hotSpecList = [], [], [], []
