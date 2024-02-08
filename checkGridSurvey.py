@@ -73,7 +73,6 @@ BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
 if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
 else: RXList = []
-RXList = []
 if 'Tau0med' in locals():
     if any(Tau0med < 0.0): RXList = []
 #-------- Check Antenna List
