@@ -57,8 +57,9 @@ for band_index in list(range(NumBands)):
     atmscanList = list(set(msmd.scansforspw(atmspwLists[band_index][0]))& set(msmd.scansforintent("CALIBRATE_ATMOSPHERE*")))
     atmscanList.sort()
     atmscanLists = atmscanLists + [atmscanList]
-    #---- SQLD SPWs and scans
-    sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    #---- CHAV SPWs and scans
+    #sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
     OnScanLists  = OnScanLists  + [list(set(msmd.scansforintent('*ON_SOURCE')) & set(msmd.scansforspw(sqldspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
 #

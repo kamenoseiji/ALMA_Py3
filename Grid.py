@@ -166,7 +166,6 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(2,0,1,3)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])
             XspecList[spw_index][scan_index][:,:,useBlMap] = Xspec.transpose(1,2,0,3)
             for ant_index, ant in enumerate(TrxAntList): TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
-        #
         scanDic[scan]['Tau']  = scanTau
         scanDic[scan]['Tsys'] = TsysScanDic
     #
@@ -175,10 +174,8 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
 def aprioriSEFD(Ae, EL, TrxSpec, Tau0Spec):
     secZ = 1.0 / np.sin(EL)
     zenithTau = Tau0spec + scipy.interpolate.splev(np.median(timeStamp), exTauSP) + Tau0Coef[spw_index][0] + Tau0Coef[spw_index][1]*secZ
-
     exp_Tau = np.exp(-zenithTau * secZ )
     TsysEQScan = np.mean(TrxList[spw_index].transpose(2,0,1)[:,:,chRange] + Tcmb*exp_Tau[chRange] + tempAtm* (1.0 - exp_Tau[chRange]), axis=2)[Trx2antMap] # [antMap, pol]
-
     return 2.0* kb* TsysEQScan.T / Ae
 #
 #-------- Disk Visibility
