@@ -183,10 +183,11 @@ for BandName in RXList:
             chRange = BandbpSPW[BandName]['chRange'][spw_index]
             BP_ant = BPList[spw_index]
             BPcaledSpec = XspecList[spw_index][scan_index][[0,3]].transpose(3,2,0,1) / (BP_ant[ant0]* BP_ant[ant1].conjugate())
-            chAvgList = chAvgList + [np.mean( BPcaledSpec[:,:,:,chRange], axis=(2,3))]
+            chAvgVis    = np.mean(BPcaledSpec[:,:,:,chRange], axis=(2,3))
+            chAvgList = chAvgList + [chAvgVis]
         #
         scanGain = gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)
-        scanFlag              = np.unique(np.where( abs(scanGain) < 5.0* np.median(abs(scanGain)))[1]).tolist()
+        scanFlag = np.unique(np.where(np.max(abs(scanGain), axis=0)  <  min([1.0, 5.0*np.median(abs(scanGain))]))).tolist()
         scanDic[scan]['Flag'] = scanFlag
         scanDic[scan]['Gain'] = scanGain[:,scanFlag]
         scanDic[scan]['mjdSec'] = scanDic[scan]['mjdSec'][scanFlag]
@@ -211,6 +212,7 @@ for BandName in RXList:
         if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
         scanFlag  = scanDic[scan]['Flag']
+        if len(scanFlag) == 0: continue
         scanPhase = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
         BPSPWList, XYSPWList, XYsnrList = [], [], []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -248,6 +250,7 @@ for BandName in RXList:
         XY = 0.0* refXY
         BP = 0.0* BPList[0][spw_index]
         for scan_index, scan in enumerate(BPavgScanList):
+            if len(scanDic[scan]['Flag']) == 0: continue
             #-------- average BP
             BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
             BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.1 
@@ -287,8 +290,9 @@ for BandName in RXList:
         BPSPWList[spw_index][:,1] *= XYsign
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
-        scanPhase = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
         scanFlag  = scanDic[scan]['Flag']
+        if len(scanFlag) == 0: continue
+        scanPhase = scanDic[scan]['Gain'] / abs(scanDic[scan]['Gain'])
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             # print('---Applying Gain and Bandpass Correction for scan %d, spw %d' % (scan, spw))
             BP_ant = BPSPWList[spw_index].transpose(1,2,0)
@@ -297,6 +301,7 @@ for BandName in RXList:
         #
     #-------- Aperture Efficiencies Determination using Solar System Objects
     for scan_index, scan in enumerate(BandScanList[BandName]):
+        if len(scanDic[scan]['Flag']) == 0: continue
         if scan in QSOscanList : continue              # filter QSO out
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
@@ -342,6 +347,7 @@ for BandName in RXList:
     polLabel = ['I', 'Q', 'U', 'V']
     Pcolor   = ['black', 'blue', 'red', 'green']
     for scan_index, scan in enumerate(BandScanList[BandName]):
+        if len(scanDic[scan]['Flag']) == 0: continue
         figFL, axes = plt.subplots(3, 4, figsize = (11, 8))
         figFL.suptitle(prefix + ' ' + BandName)
         figFL.text(0.45, 0.05, 'Projected baseline [m]')
@@ -424,6 +430,7 @@ for BandName in RXList:
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         IList, QCpUSList, UCmQSList, visChavList = [], [], [], []
         for scan_index, scan in enumerate(BandScanList[BandName]):
+            if len(scanDic[scan]['Flag']) == 0: continue
             if min(scanDic[scan]['EL']) < ELshadow : continue
             IList       = IList + scanDic[scan]['I'][spw_index].tolist()
             QCpUSList   = QCpUSList + scanDic[scan]['QCpUS'][spw_index].tolist()
