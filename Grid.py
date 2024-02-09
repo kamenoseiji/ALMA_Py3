@@ -150,12 +150,12 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             StokesI = SSODic[source][1][spw_index] if source in SSOCatalog else scanDic[scan]['I'] 
             Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
             Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
+            secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             if TauEonList[spw_index].shape[0] == 2:
                 Tau0SP = Tau0SP + TauEonList[spw_index][1][indexList(scanDic[scan]['mjdSec'], TauEonList[spw_index][0])]
             else: 
                 SP = tauSMTH(atmReltime, TauE[spw_index] )
                 Tau0SP = Tau0SP + scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP)
-            secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             zenithTau = Tau0SP + Tau0CList[spw_index][0] + Tau0CList[spw_index][1]*secZ   # Smoothed zenith optical depth
             scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
             exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation

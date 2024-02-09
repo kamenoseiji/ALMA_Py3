@@ -156,7 +156,7 @@ for band_index, bandName in enumerate(UniqBands):
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
     #-------- Violently variable Tau0
     for spw_index, spw in enumerate(sqldspwLists[band_index]):
-        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.1:        # variability > 10%
+        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.25:        # variability > 10%
             print('SPW%d : sd(Tau0) = %.3f / median(Tau0) = %.3f' % (atmspwLists[band_index][spw_index], np.std(Tau0Excess[spw_index]), Tau0med[spw_index]))
             onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
             for scan_index, scan in enumerate(OnScanLists[band_index]):
@@ -191,7 +191,8 @@ for band_index, bandName in enumerate(UniqBands):
             TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
             TauOn  = -np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )
             az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
-            TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
+            TauEOn = TauOn* np.sin(el)
+            # TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
             np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]
             if PLOTTAU: plotTauEOn(prefix, bandName, spw, onTimeCont, onSQLDCont, TauEOn+Tau0med[spw_index])
     #---- Plots
