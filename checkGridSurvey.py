@@ -250,7 +250,7 @@ for BandName in RXList:
         XY = 0.0* refXY
         BP = 0.0* BPList[0][spw_index]
         for scan_index, scan in enumerate(BPavgScanList):
-            if len(scanDic[scan]['Flag']) == 0: continue
+            if len(scanDic[scan]['Flag']) < 3: continue
             #-------- average BP
             BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
             BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.1 
