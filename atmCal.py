@@ -28,15 +28,16 @@ def concatScans(timeList, dataList):
     for scan_index, scan in enumerate(timeList):
         TimeCont += scan.tolist()
         DataCont += dataList[scan_index].tolist()
-    return np.array(TimeCont), np.array(DataCont)
+    index = np.argsort(TimeCont)
+    return np.array(TimeCont)[index], np.array(DataCont)[index]
 #
 def ATTatm(onTime, onData, offTime, offData):
     if min(onTime) > min(offTime):
-        onData = np.array((np.ones(int(min(onTime)) - int(min(offTime)))* onData[0]).tolist() + onData.tolist())
-        onTime = np.array(np.arange(int(min(offTime)), int(min(onTime))).tolist() + onTime.tolist())
+        onData = np.array((np.ones(int(min(onTime)) - int(min(offTime)) + 10)* onData[0]).tolist() + onData.tolist())
+        onTime = np.array(np.arange(int(min(offTime)) - 10, int(min(onTime))).tolist() + onTime.tolist())
     if max(onTime) < max(offTime):
-        onData = np.array(onData.tolist() + (np.ones(int(max(offTime)) - int(max(onTime)))* onData[-1]).tolist())
-        onTime = np.array(onTime.tolist() + np.arange(int(max(offTime)), int(max(onTime))).tolist())
+        onData = np.array(onData.tolist() + (np.ones(int(max(offTime)) + 10 - int(max(onTime)))* onData[-1]).tolist())
+        onTime = np.array(onTime.tolist() + np.arange(int(max(onTime)), int(max(offTime)) + 10 ).tolist())
     smthData = scipy.interpolate.interp1d(onTime, onData, kind='linear')
     return np.median(smthData(offTime) / offData)
 #-------- Get atmCal scans
