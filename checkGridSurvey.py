@@ -61,7 +61,7 @@ for BandName in RXList:
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
         checkVis = [specBunch(checkVis[0][:,timeRange], 1, bunchNum), specBunch(checkVis[1][:,timeRange], 1, bunchNum)]
         AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
-        errBL = np.where(AV_bl > 2.0)[0].tolist()
+        errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 15.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 15.0*np.median(abs(checkVis[1])))[0]))
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
         antFlag = list(set(antFlag + antList[np.where(errCount > len(antFlag)+2 )[0].tolist()].tolist()))
@@ -167,8 +167,8 @@ for BandName in RXList:
     print('-----SPW-aligned bandpass in scan %d : %s' % (checkScan, scanDic[checkScan]['source']))
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
-    #pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
-    #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
+    pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
+    plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
     os.system('rm -rf B0')
     bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[refantID], solnorm=True, minblperant=3)
     #-------- SPW-combined phase calibration
