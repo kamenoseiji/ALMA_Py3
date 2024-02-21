@@ -325,7 +325,7 @@ for BandName in RXList:
     text_sd = text_sd + fluxCalText
     logfile.write(text_sd +'\n'); print(text_sd)
     logjy = open(prefix + '-' + BandName + '-JyK.log', 'w')
-    timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0]
+    timeLabel = qa.time('%fs' % np.median(scanDic[checkScan]['mjdSec']), form='ymd')[0]
     for ant_index, ant in enumerate(antList[antMap]):
         text_sd = '%s : ' % (ant)
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
