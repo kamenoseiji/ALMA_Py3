@@ -23,9 +23,6 @@ antList = GetAntName(msfile)
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
-if 'spwFlag' in locals():
-    atmSPWs = list(set(atmSPWs)- set(spwFlag));atmSPWs.sort()
-    bpSPWs  = list(set(bpSPWs) - set(spwFlag)); bpSPWs.sort()
 bandNameList = GetBandNames(msfile, atmSPWs)
 for BandName in RXList:
     if BandName not in bandNameList: RXList.remove(BandName)
@@ -61,7 +58,7 @@ for BandName in RXList:
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
         checkVis = [specBunch(checkVis[0][:,timeRange], 1, bunchNum), specBunch(checkVis[1][:,timeRange], 1, bunchNum)]
         AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
-        errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 15.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 15.0*np.median(abs(checkVis[1])))[0]))
+        errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
         antFlag = list(set(antFlag + antList[np.where(errCount > 0)[0].tolist()].tolist()))
