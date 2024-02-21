@@ -694,7 +694,10 @@ def GetTemp(msfile):
     tb.open(Out)
     temp = tb.getcol('TEMPERATURE')
     tb.close()
-    return np.median(temp)
+    if len(temp) == 0:
+        return GetLoadTemp(msfile, 0,0)[0]
+    else:
+        return np.median(temp)
 #
 def GetAntName(msfile):
 	tb.open(msfile+'/'+'ANTENNA')
