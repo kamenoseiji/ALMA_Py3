@@ -61,7 +61,7 @@ for BandName in RXList:
         errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
         errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
         for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
-        antFlag = list(set(antFlag + antList[np.where(errCount > 0)[0].tolist()].tolist()))
+        antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
     #
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
