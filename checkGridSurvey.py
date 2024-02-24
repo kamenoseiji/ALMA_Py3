@@ -44,9 +44,9 @@ for BandName in RXList:
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
     def AV(vis): return AllanVarPhase(np.angle(vis), 1)
-    checkScan = msmd.scansforintent('*BANDPASS*')
-    if len(checkScan) == 0: checkScan = msmd.scansforintent('*POINTING*')
-    if len(checkScan) == 0: checkScan = [msmd.scansforintent('*PHASE*')[0]]
+    checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
+    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
+    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
     checkScan = checkScan[-1]
     print('---Checking usable antennas by ASD in Scan %d' % (checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
@@ -66,7 +66,6 @@ for BandName in RXList:
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
-#
 #-------- Tsys measurement
 if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
 else: RXList = []
@@ -81,12 +80,12 @@ flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(fla
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 #-------- Check source list
 print('---Checking source list')
-sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
-SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
 #-------- Loop for Bands
 for BandName in RXList:
+    sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
+    SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
     if BandName not in ['RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
+    FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
     #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
     ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
@@ -466,5 +465,5 @@ for BandName in RXList:
     ingestFile.close()
     plt.close('all')
     pp.close()
-    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,FscaleDic,BandbpSPW,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,RXList,OnScanList,antList
-#
+    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
+del RXList, antList, BandbpSPW, bandNameList, atmSPWs, bpSPWs, sourceList, posList, SSOList, OnScanList
