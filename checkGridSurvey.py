@@ -22,10 +22,14 @@ RXList = BandList(prefix)
 antList = GetAntName(msfile)
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
-atmSPWs, bpSPWs = GetAtmSPWs(msfile), GetBPcalSPWs(msfile)
-bandNameList = GetBandNames(msfile, atmSPWs)
+bpSPWs  = GetBPcalSPWs(msfile)
+if 'atmSPWs' not in locals():
+    atmSPWs = GetAtmSPWs(msfile)
+    atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(bpSPWs) > 3 else atmSPWs.tolist()
+    atmSPWs.sort()
+bpBandNameList  = GetBandNames(msfile, bpSPWs)
 for BandName in RXList:
-    if BandName not in bandNameList: RXList.remove(BandName)
+    if BandName not in bpBandNameList:  RXList.remove(BandName)
 #
 BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
 BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
@@ -38,8 +42,8 @@ if 'antFlag' not in locals(): antFlag = []
 msmd.open(msfile)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
-    BandbpSPW[BandName]  = {'spw': np.array(bpSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()}
-    BandatmSPW[BandName] = {'spw': np.array(atmSPWs)[np.where(np.array(bandNameList) == BandName)[0].tolist()].tolist()}
+    BandbpSPW[BandName]  = {'spw': np.array(bpSPWs)[np.where(np.array(bpBandNameList) == BandName)[0].tolist()].tolist()}
+    BandatmSPW[BandName] = {'spw': np.array(atmSPWs)[np.where(np.array(bpBandNameList) == BandName)[0].tolist()].tolist()}
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
@@ -310,7 +314,7 @@ for BandName in RXList:
         SSOWG = 1.0
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): SSOWG *= np.median(FscaleDic[SSO]['Wg'][spw_index])
         WgSum += SSOWG
-    if WgSum > 1.0e-8: Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
+    if WgSum > 1.0e-2: Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     else: 
         Aeff = np.ones([useAntNum, 2, spwNum])
         for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA[:,antMap].T
@@ -465,5 +469,5 @@ for BandName in RXList:
     ingestFile.close()
     plt.close('all')
     pp.close()
-    del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
-del RXList, antList, BandbpSPW, bandNameList, atmSPWs, bpSPWs, sourceList, posList, SSOList, OnScanList
+    #del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
+#del RXList, antList, BandbpSPW, bpBandNameList, atmSPWs, bpSPWs, sourceList, posList, SSOList, OnScanList
