@@ -53,7 +53,7 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
     #
     return StokesDic, SSODic
 #-------- PA and polarization responses
-def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElScanList):
+def PolResponse(msfile, sourceList, StokesDic, BandPA, scanList, mjdList):
     scanDic = dict(zip(scanList, [[]]* len(scanList)))
     azelTime, AntID, AZ, EL = GetAzEl(msfile)
     msmd.open(msfile)
@@ -62,7 +62,8 @@ def PolResponse(msfile, StokesDic, BandPA, scanList, mjdList): # AzScanList, ElS
     print('        Source     :    I     p%     EVPA  QCpUS  UCmQS   EL  ')
     print('-------+-----------+-------+------+------+------+------+------')
     for scan_index, scan in enumerate(scanList):
-        sourceName = list(StokesDic.keys())[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
+        #sourceName = list(StokesDic.keys())[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
+        sourceName = sourceList[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
         probeAntID = 0
         while True:
             AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, probeAntID, AZ, EL)

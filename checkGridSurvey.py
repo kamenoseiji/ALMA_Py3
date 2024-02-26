@@ -53,12 +53,14 @@ for BandName in RXList:
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
-    checkScan = checkScan[-1]
-    print('---Checking usable antennas by ASD in Scan %d' % (checkScan))
+    checkScan.sort()
+    checkScan = checkScan[0]
+    print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
     parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
     bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
+    if BLCORR: bunchNum = 1
     for spw_index, spw in enumerate(chavSPWs):
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
@@ -108,7 +110,7 @@ for BandName in RXList:
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
-    scanDic = PolResponse(msfile, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
+    scanDic = PolResponse(msfile, sourceList, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
     AzScanList, ElScanList = [], []
     #-------- Check AZEL
@@ -128,7 +130,7 @@ for BandName in RXList:
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
     checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1) / scanDic[checkScan]['I']
     Gain =  np.array([gainComplexVec(checkVis[0]), gainComplexVec(checkVis[1])])
-    antCoh = np.array([abs(Gain[1,ant_index].dot(Gain[0,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)]) / Gain.shape[2]
+    antCoh = np.array([np.median(abs(Gain[0,ant_index]* Gain[1,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)])
     Aeff = 8.0* kb* antCoh / (np.pi* antDia[useAntMap]**2)
     for ant_index, ant in enumerate(useAntMap):
         if abs(Aeff[ant_index] - np.median(Aeff)) > 0.25: flagAnt[ant] *= 0.0
