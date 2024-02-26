@@ -54,7 +54,7 @@ for BandName in RXList:
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
     checkScan.sort()
-    checkScan = checkScan[0]
+    checkScan = checkScan[-1]
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
@@ -123,7 +123,8 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* np.sqrt(scanDic[scan]['I'])* np.median(np.sin(scanDic[scan]['EL'] - ELshadow)) for scan in QSOscanList]))]
+    #checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* np.sqrt(scanDic[scan]['I'])* np.median(np.sin(0.1*(scanDic[scan]['EL'] - ELshadow))) for scan in QSOscanList]))]
+    checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* np.sqrt(scanDic[scan]['I'])* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
