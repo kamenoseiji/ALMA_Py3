@@ -15,9 +15,10 @@
 #  They include all of antennas (even if flagged) in MS order
 #
 import analysisUtils as au
+import sys
 import scipy
 import numpy as np
-from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum
+from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceList, GetSunAngle, GetChNum, get_progressbar_str
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
@@ -167,6 +168,8 @@ for band_index, bandName in enumerate(UniqBands):
             for scan_index, scan in enumerate(OnScanLists[band_index]):
                 scanOn = []
                 for ant_index, ant in enumerate(antList):
+                    progress = (scan_index* antNum + ant_index + 1.0) / (antNum* len(OnScanLists[band_index]))
+                    sys.stderr.write('\r\033[K' + get_progressbar_str(progress)); sys.stderr.flush()
                     timeScan, SQLD = GetPSpecScan(msfile, ant_index, spw, scan)
                     scanOn  = scanOn + [SQLD[0,0] + SQLD[1,0]]
                 onSQLD = onSQLD + [np.median(np.array(scanOn), axis=0)]
@@ -196,8 +199,8 @@ for band_index, bandName in enumerate(UniqBands):
             TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
             TauOn  = -np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )
             az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
-            TauEOn = TauOn* np.sin(el)
-            # TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
+            #TauEOn = TauOn* np.sin(el)
+            TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
             np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]
             if PLOTTAU: plotTauEOn(prefix, bandName, spw, onTimeCont, onSQLDCont, TauEOn+Tau0med[spw_index])
     #---- Plots
