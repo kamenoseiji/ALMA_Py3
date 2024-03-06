@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -37,6 +38,8 @@ subscanDic = dict( zip(['OFF', 'ON', 'AMB', 'HOT', 'TEST'], [[]]* 5))
 DT = []
 antList = GetAntName(msfile)
 antNum = len(antList)
+plotXnum = math.ceil(math.sqrt(antNum))
+plotYnum = int(antNum / plotXnum) if antNum % plotXnum == 0 else int(antNum / plotXnum)+1 
 pp = PdfPages('SQLD_%s_SPW%d_Scan%d.pdf' % (prefix, spwID, scanID))
 figBB = plt.figure(0, figsize=(8,11))
 figBB.suptitle('%s SQLD Power SPW=%d Scan=%d' % (prefix, spwID, scanID))
@@ -67,7 +70,7 @@ for ant_index, antName in enumerate(antList):
         #
     text_X, text_Y = text_X[:len(text_X)-1], text_Y[:len(text_Y)-1]
     #-------- Plot
-    BBPL = figBB.add_subplot( int((antNum + 3)/4), 4, ant_index + 1)
+    BBPL = figBB.add_subplot( plotXnum, plotYnum, ant_index + 1)
     BBPL.step( DT, BBPower[0,0], where='mid'); BBPL.plot( DT, BBPower[0,0], 'b.', label=text_X)
     BBPL.step( DT, BBPower[1,0], where='mid'); BBPL.plot( DT, BBPower[1,0], 'g.', label=text_Y)
     BBPL.legend(loc='best', prop={'size' :3}, numpoints=1)
