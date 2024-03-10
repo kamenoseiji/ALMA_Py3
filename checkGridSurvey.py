@@ -191,8 +191,14 @@ for BandName in RXList:
             chAvgVis    = np.mean(BPcaledSpec[:,:,:,chRange], axis=(2,3))
             chAvgList = chAvgList + [chAvgVis]
         #
-        scanGain = gainComplexVec(np.mean(np.array(chAvgList), axis=0).T)
+        #-------- Filter outliners out
+        scanGain = np.ones([BP_ant.shape[0], chAvgVis.shape[0]], dtype=complex)
+        bl_vis = np.mean(np.array(chAvgList), axis=0).T
+        outLierVis = np.where(abs(bl_vis) > 0.5)
+        scanFlag = list(set(range(bl_vis.shape[1])) - set(np.unique(outLierVis[1]))); scanFlag.sort()
+        scanGain[:,scanFlag] = gainComplexVec(bl_vis[:,scanFlag])
         scanFlag = np.unique(np.where(np.max(abs(scanGain), axis=0)  <  min([1.0, 5.0*np.median(abs(scanGain))]))).tolist()
+        #-------- Store to scanDic
         scanDic[scan]['Flag'] = scanFlag
         scanDic[scan]['Gain'] = scanGain[:,scanFlag]
         scanDic[scan]['mjdSec'] = scanDic[scan]['mjdSec'][scanFlag]
