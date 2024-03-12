@@ -444,7 +444,8 @@ for BandName in RXList:
     text_sd = 'D-term        '; logfile.write(text_sd); print(text_sd, end='')
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         IList, QCpUSList, UCmQSList, visChavList = [], [], [], []
-        for scan_index, scan in enumerate(BandScanList[BandName]):
+        #for scan_index, scan in enumerate(BandScanList[BandName]):
+        for scan_index, scan in enumerate(QSOscanList):
             if len(scanDic[scan]['Flag']) == 0: continue
             if min(scanDic[scan]['EL']) < ELshadow : continue
             IList       = IList + scanDic[scan]['I'][spw_index].tolist()
