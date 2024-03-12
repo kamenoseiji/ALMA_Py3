@@ -18,7 +18,7 @@ import analysisUtils as au
 import sys
 import scipy
 import numpy as np
-from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetSunAngle, GetChNum, get_progressbar_str
+from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
@@ -107,9 +107,7 @@ for ant_index in list(range(useAntNum)):
 #
 #
 #-------- Trx, TantN, and Tau0
-#sourceList, posList = GetSourceList(msfile)
-#sourceDic = GetSourceList(msfile)
-SunAngleSourceList = GetSunAngle(msfile)
+srcDic = GetSourceDic(msfile)
 for band_index, bandName in enumerate(UniqBands):
     tsysLog = open(prefix + '-' + bandName + '-Tsys.log', 'w')
     #-------- Trx
@@ -120,12 +118,11 @@ for band_index, bandName in enumerate(UniqBands):
     TrxList, TskyList, scanFlag = TrxTskySpec(useAnt, tempAmb, tempHot, atmspwLists[band_index], atmscanLists[band_index], ambSpec, hotSpec, offSpec)
     #-------- Check sun angle 
     for scan_index, scan in enumerate(scanList):
-        #sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])
-        #SunAngle = SunAngleSourceList[sourceID]
-        SunAngle = SunAngleSourceList[msmd.fieldsforscan(scan)[0]]
-        print('Sun Angle : %.1f' % (SunAngle))
+        sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])
+        sourceName = srcDic[sourceID]['Name']
+        SunAngle = srcDic[sourceID]['SA']
+        print('%s : Sun Angle = %.1f' % (sourceName, SunAngle))
         if SunAngle < SunAngleTsysLimit: scanFlag[:,:,:,scan_index] *= 0.01
-    #
     for spw_index, spw in enumerate(atmspwLists[band_index]):
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # TxList[spw][pol,ch,ant,scan]
     #-------- Az and El position at atmCal and onsource scans

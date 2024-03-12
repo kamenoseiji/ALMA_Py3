@@ -46,7 +46,9 @@ for band_index in list(range(NumBands)):
         prefix = prefixList[file_index]; msfile = wd + prefix + '.ms'
         msmd.open(msfile)
         #print('---Checking source list for %s' % (prefix))
-        sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
+        srcDic = GetSourceDic(msfile)
+        sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
+        #sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
         PolScans = msmd.scansforintent("*CALIBRATE_BANDPASS*")
         PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_POLARIZATION*"))
         if PHASECAL: PolScans = np.append(PolScans, msmd.scansforintent("*CALIBRATE_PHASE*"))

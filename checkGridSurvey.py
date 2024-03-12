@@ -90,8 +90,8 @@ polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 print('---Checking source list')
 #-------- Loop for Bands
 for BandName in RXList:
-    sourceDic = GetSourceDic(msfile); sourceList = sourceRename(sourceDic.keys()); numSource = len(sourceList)
-    #sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList); numSource = len(sourceList)
+    srcDic = GetSourceDic(msfile)
+    sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
     if BandName not in ['RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
@@ -111,20 +111,18 @@ for BandName in RXList:
     StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
-    scanDic = PolResponse(msfile, sourceList, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
+    scanDic = PolResponse(msfile, srcDic, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
     AzScanList, ElScanList = [], []
     #-------- Check AZEL
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
-        scanDic[scan]['SA'] = SunAngleSourceList[sourceList.index(scanDic[scan]['source'])]
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    #checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* np.sqrt(scanDic[scan]['I'])* np.median(np.sin(0.1*(scanDic[scan]['EL'] - ELshadow))) for scan in QSOscanList]))]
     checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* np.sqrt(scanDic[scan]['I'])* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
@@ -195,7 +193,7 @@ for BandName in RXList:
         #-------- Filter outliners out
         scanGain = np.ones([BP_ant.shape[0], chAvgVis.shape[0]], dtype=complex)
         bl_vis = np.mean(np.array(chAvgList), axis=0).T
-        outLierVis = np.where(abs(bl_vis) > 0.5)
+        outLierVis = np.where(abs(bl_vis) > 10.0)
         scanFlag = list(set(range(bl_vis.shape[1])) - set(np.unique(outLierVis[1]))); scanFlag.sort()
         if len(scanFlag) > 1:
             scanGain[:,scanFlag] = gainComplexVec(bl_vis[:,scanFlag])
