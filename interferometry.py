@@ -582,6 +582,13 @@ def GetDterm(URI, antMap, band, refMJD):
     #
     return Dterm
 #
+def GetSourceDic(msfile):              # source Dictionary
+    tb.open( msfile + '/FIELD')
+    SourceName = tb.getcol('NAME')
+    SourcePos  = tb.getcol('PHASE_DIR')[:,0].T
+    tb.close()
+    return dict(zip(SourceName, SourcePos))
+#
 def GetSourceList(msfile):              # source list
     tb.open( msfile + '/FIELD')
     SourceID   = tb.getcol('SOURCE_ID')
@@ -600,8 +607,8 @@ def GetSourceList(msfile):              # source list
 #
 def GetSunAngle(msfile):    # Output sun angle for source
     sunAngleList = []
-    sourceList, posList = GetSourceList(msfile)
-    for source_index, source in enumerate(sourceList):
+    sourceDic = GetSourceDic(msfile)
+    for source_index, source in enumerate(sourceDic.keys()):
         sunAngleList = sunAngleList + [au.angleToSun(vis=msfile, field=source_index, verbose=False)]
     #
     return sunAngleList
