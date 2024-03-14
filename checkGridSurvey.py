@@ -318,6 +318,9 @@ for BandName in RXList:
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
     SSOList = list(FscaleDic.keys())
     for SSO in SSOList:
+        if FscaleDic[SSO] == None: del FscaleDic[SSO]
+    SSOList = list(FscaleDic.keys())
+    for SSO in SSOList:
         if len(FscaleDic[SSO]) == 0: del FscaleDic[SSO]
     #-------- A priori Aperture Efficiencies (if no SSO) 
     WgSum = 0.0
