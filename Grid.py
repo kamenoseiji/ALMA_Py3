@@ -241,7 +241,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     for spw_index, spw in enumerate(spwDic['spw']):
         uvWave = uvw[0:2,:] * centerFreq / 299792458    # UV distance in wavelength
         primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
-        SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2)))
+        SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2))) + 1.0e-9
         VisChav = np.mean(XSList[spw_index][:,chRange][:,:,SAbl], axis=(1,3)) / SSOmodelVis[SAbl]
         Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
         Aeff = 8.0* kb* abs(Gain)**2 / (np.pi* antDia[SAant]**2)
