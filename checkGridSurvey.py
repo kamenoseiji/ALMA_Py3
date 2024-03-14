@@ -65,11 +65,18 @@ for BandName in RXList:
         checkVis = XspecList[spw_index][0][parapolIndex][:,0]
         timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
         checkVis = [specBunch(checkVis[0][:,timeRange], 1, bunchNum), specBunch(checkVis[1][:,timeRange], 1, bunchNum)]
+        #---- Evaluation by AV
         AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
         errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
-        errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
-        for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
-        antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
+        if 0 < len(errBL) < 3 : # Single baseline error
+            flagSet = {}
+            for bl in errBL: flagSet = flagSet or set(Bl2Ant(bl))
+            antFlag = antList[list(flagSet)].tolist()
+        else:                   # antenna-based flagging
+            errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
+            for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
+            antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
+        #
     #
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
