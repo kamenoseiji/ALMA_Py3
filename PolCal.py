@@ -31,11 +31,13 @@ def GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, timeText, FreqGHz):    #
     return StokesDic
 #
 def GetSSOFlux(StokesDic, timeText, FreqGHz):
+    from Grid import SSOCatalog
     # StokesDic  : Stokes parameter dictionlary
     # timeText   : e.g. '2017/04/12/11:26:17'
     # FreqGHz    : frequency list in GHz
-    sourceList = list(StokesDic.keys())
-    SSOList = [source for source in sourceList if not str.isdigit(source[1])]
+    #sourceList = list(StokesDic.keys())
+    #SSOList = [source for source in sourceList if not str.isdigit(source[1])]
+    SSOList = [source for source in StokesDic.keys() if source in SSOCatalog]
     SSODic = dict(zip(SSOList, [[]]*len(SSOList)))
     if len(SSOList) == 0: return StokesDic, SSODic
     for SSO in SSOList:
