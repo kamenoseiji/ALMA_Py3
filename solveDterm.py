@@ -17,23 +17,22 @@ msfile = wd + prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
-sources, posList = GetSourceList(msfile); sourceList = sourceList + sourceRename(sources)
-sourceList = unique(sourceList).tolist()
+srcDic = GetSourceDic(msfile)
+sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ])); numSource = len(sourceList)
 sourceScan = []
-scanDic   = dict(zip(sourceList, [[]]*len(sourceList))) # Scan list index for each source
-timeDic   = dict(zip(sourceList, [[]]*len(sourceList))) # Time index list for each source
-StokesDic = dict(zip(sourceList, [[]]*len(sourceList))) # Stokes parameters for each source
+scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
+timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
+StokesDic = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters for each source
 scanIndex = 0
 print('-- Checking %s ' % (msfile))
 #-------- Flagging status of antennas
 flagTimeIndex = []
 if 'FGprefix' in locals():  # Flag table
     antSPWFlag  = []
-    for spw_index in list(range(spwNum)):
-        spw = spwList[spw_index]
+    for spw_index, spw in enumerate(spwList):
         TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
         FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
-        newFlagIndex = np.where( np.percentile(FG, 0.25, axis=1) == 0)[0].tolist()
+        newFlagIndex = np.where( np.median(FG, axis=1) == 0)[0].tolist()
         useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
         antSPWFlag = antSPWFlag + [antFlag + antList[newFlagIndex].tolist()]
         flagTimeIndex = flagTimeIndex + np.where(np.min(FG[useAntIndex], axis=0) == 0.0)[0].tolist()
@@ -72,7 +71,7 @@ for scan in scanLS:
     else:
         scanLS = list( set(scanLS) - set([scan]) )
     #
-    sourceName = sourceRename(sources)[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
+    sourceName = sourceRename(sourceList)[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
     sourceScan = sourceScan + [sourceName]
     scanDic[sourceName] = scanDic[sourceName] + [scanIndex]
     if 'AprioriDic' in locals(): 
@@ -124,8 +123,7 @@ for spw_index in list(range(spwNum)):
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
     #-------- For visibilities in each scan
     scanST = scanST + [0]
-    for scan_index in list(range(len(scanList))):
-        scan = scanList[scan_index]
+    for scan_index, scan in enumerate(scanList):
         print('-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan))
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)  # Xspec[POL, CH, BL, TIME]
         del Pspec
