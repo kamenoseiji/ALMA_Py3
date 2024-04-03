@@ -42,7 +42,7 @@ print('---Checking spectral windows and scans with atmCal for ' + prefix)
 if 'atmSPWs' not in locals():
     bpSPWs  = GetBPcalSPWs(msfile)
     atmSPWs = GetAtmSPWs(msfile)
-    atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(bpSPWs) > 3 else atmSPWs
+    atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(set(bpSPWs) & set(atmSPWs)) > 3 else atmSPWs
     atmSPWs.sort()
 atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames))
 if UniqBands == []: UniqBands = BandList(prefix)

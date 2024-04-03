@@ -18,6 +18,7 @@ msfile = wd + prefix + '.ms'
 BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 if BLCORR: ELshadow = 30.0* np.pi/180.0
+if BLCORR: CorrFactor = 1.15
 #-------- Check Receivers
 RXList = BandList(prefix)
 antList = GetAntName(msfile)
