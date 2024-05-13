@@ -54,9 +54,11 @@ else:
 #
 msmd.open(msfile)
 if 'scanList' in locals():
+    scanList.sort()
     scanLS = scanList
 else:
     scanLS = msmd.scannumbers().tolist()
+    scanLS.sort()
 #
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
@@ -87,6 +89,7 @@ for scan in scanLS:
     scanIndex += 1
 #
 scanList = scanLS
+scanList.sort()
 #-------- Check source list and Stokes Parameters
 msmd.done()
 antMap = [refAntID] + list(trkAntSet - set([refAntID]))
@@ -106,10 +109,9 @@ if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
 timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 #-------- Loop for SPW
 DxList, DyList, FreqList = [], [], []
-for spw_index in list(range(spwNum)):
+for spw_index, spw in enumerate(spwList):
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
-    spw = spwList[spw_index]
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
     DxSpec, DySpec = np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex), np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex)
     caledVis = np.ones([4,blNum, 0], dtype=complex)
@@ -144,13 +146,13 @@ for spw_index in list(range(spwNum)):
     timeIndex = 0
     if chNum == 1:
         print('  -- Channel-averaged data: no BP and delay cal')
-        for scan_index in list(range(len(scanList))):
+        for scan_index, scan in enumerate(scanList):
             chAvgVis[:, :, timeIndex:timeIndex + timeNum[scan_index]] =  CrossPolBL(XspecList[scan_index][:,:,blMap], blInv)[:,0]
             timeIndex = timeIndex + timeNum[scan_index]
     else:
         print('  -- Apply bandpass cal')
-        for scan_index in list(range(len(scanList))):
-            print('   Scan %d : %d records' % (scanList[scan_index], timeNum[scan_index]))
+        for scan_index, scan in enumerate(scanList):
+            print('   Scan %d : %d records' % (scan, timeNum[scan_index]))
             VisSpec[:,:,:,timeIndex:timeIndex + timeNum[scan_index]] = (CrossPolBL(XspecList[scan_index][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0)
             timeIndex = timeIndex + timeNum[scan_index]
         #
