@@ -32,6 +32,7 @@ for BBIndex1 in list(range(BBNum)):
 msmd.open(msfile)
 BPScanList = msmd.scansforintent("CALIBRATE_BANDPASS*").tolist()
 BPspwList  = list((set(msmd.fdmspws()) | set(msmd.tdmspws()) ) & set(msmd.spwsforintent("CALIBRATE_BANDPASS*")))
+if len(BPspwList) == 0: BPspwList  = list((set(msmd.fdmspws()) | set(msmd.tdmspws()) ) & set(msmd.spwsforintent("OBSERVE_TARGET*")))
 if 'spwFlag' in locals():
     flagIndex = indexList(np.array(spwFlag), np.array(BPspwList))
     for index in flagIndex: del BPspwList[index]
