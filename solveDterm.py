@@ -4,6 +4,9 @@ exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 #----------------------------------------- Procedures
+def flagOutLier(value, thresh=5.0):
+    return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
+#
 if 'antFlag' not in locals():   antFlag = []
 spwNum = len(spwList)
 polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
@@ -185,6 +188,8 @@ for spw_index, spw in enumerate(spwList):
         if QUmodel:
             QUsol = np.array(StokesDic[sourceName])[[1,2]]/StokesDic[sourceName][0]
         else:
+            timeIndex = list(set(timeIndex) - set(flagOutLier(Vis[0].real, 5.0) + flagOutLier(Vis[0].imag, 5.0) + flagOutLier(Vis[3].real, 5.0) + flagOutLier(Vis[3].imag, 5.0)))
+            timeDic[sourceName] = timeIndex
             QUsol   = XXYY2QU(PA[timeIndex], Vis[[0,3]][:,timeIndex])             # XX*, YY* to estimate Q, U
             text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/pi); print(text_sd)
         #
@@ -228,9 +233,13 @@ for spw_index, spw in enumerate(spwList):
     print(text_Dx + ' ' + text_Dy)
     figXY = plt.figure(figsize = (8, 8))
     XYP = figXY.add_subplot( 1, 1, 1 )
-    plotY = DtotP + DtotM* QCpUS + UCmQS* np.exp((0.0 + 1.0j)*XYphase)
-    XYP.plot( UCmQS, plotY.real, '-', label=text_Dx); XYP.plot( UCmQS, plotY.imag, '-', label=text_Dy)
-    XYP.plot( UCmQS, XYV.real, '.', label='Re <XY*>'); XYP.plot( UCmQS, XYV.imag, '.', label='Im <XY*>')
+    for sourceName in sourceList:
+        timeIndex = timeDic[sourceName]
+        if len(timeIndex) < 3 : continue
+        plotY = DtotP + DtotM* QCpUS + UCmQS* np.exp((0.0 + 1.0j)*XYphase)
+        XYP.plot( UCmQS[timeIndex], plotY[timeIndex].real, '-', label=text_Dx); XYP.plot( UCmQS[timeIndex], plotY[timeIndex].imag, '-', label=text_Dy)
+        XYP.plot( UCmQS[timeIndex], XYV[timeIndex].real, '.', label='Re <XY*>'); XYP.plot( UCmQS[timeIndex], XYV[timeIndex].imag, '.', label='Im <XY*>')
+    #
     XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, refantName))
     XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
     XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
@@ -333,16 +342,16 @@ for spw_index, spw in enumerate(spwList):
         UCmQS, QCpUS = QUsol[1]*CSrange - QUsol[0]* SNrange, QUsol[0]*CSrange + QUsol[1]* SNrange
         ThetaRange[ThetaRange >  1.56] = np.inf
         ThetaRange[ThetaRange < -1.56] = -np.inf
-        plt.plot(RADDEG* ThetaRange,  QCpUS, '-', color=colorIndex, linestyle='dashed', label=sourceName + ' XX* - I')     # XX* - 1.0
-        plt.plot(RADDEG* ThetaRange, -QCpUS, '-', color=colorIndex, linestyle='dashdot', label=sourceName + ' YY* - I')     # YY* - 1.0
-        plt.plot(RADDEG* ThetaRange,  UCmQS, '-', color=colorIndex, linestyle='solid', label=sourceName + ' ReXY*')
-        plt.plot(RADDEG* ThetaRange,  np.zeros(len(ThetaRange)), '-', color=colorIndex, linestyle='dotted', label=sourceName + ' ImXY*')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - StokesDic[sourceName][0], 'k,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].real, 'k,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].imag, 'k,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, 'k,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, 'k,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k,')
+        plt.plot(RADDEG* ThetaRange,  QCpUS, '-', color=colorIndex, linestyle='dashed', label=sourceName + ' XX* - I')    # XX* - 1.0
+        plt.plot(RADDEG* ThetaRange, -QCpUS, '-', color=colorIndex, linestyle='dashdot',label=sourceName + ' YY* - I')   # YY* - 1.0
+        plt.plot(RADDEG* ThetaRange,  UCmQS, '-', color=colorIndex, linestyle='solid')
+        plt.plot(RADDEG* ThetaRange,  np.zeros(len(ThetaRange)), '-', color=colorIndex, linestyle='dotted')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - StokesDic[sourceName][0], 'k.')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].real, 'b,', label=sourceName + ' ReXY*')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].imag, 'c,', label=sourceName + ' ImXY*')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, 'b,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, 'c,')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k.')
         for scan_index in scanLS:
             scanMJD = mjdSec[scanST[scan_index]]
             text_sd = 'Scan %d : %s' % (scanList[scan_index], qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
