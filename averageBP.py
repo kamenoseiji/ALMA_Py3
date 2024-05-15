@@ -46,6 +46,8 @@ for spw_index, spw in enumerate(spwList):
         #
     else:
         BPmean =  np.mean(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
+        chNum = BPmean.shape[2]
+        chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
     #
     BPmean = (BPmean.transpose(2,0,1) /  np.mean(abs(BPmean[:,:,chRange]), axis=2)).transpose(1,2,0)
     XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
