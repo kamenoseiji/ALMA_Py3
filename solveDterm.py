@@ -371,9 +371,9 @@ for spw_index, spw in enumerate(spwList):
     np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refantName), XYphase )
     np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refantName), XYvis )
     np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refantName), XYC )
-    for ant_index in list(range(antNum)):
+    for ant_index, ant in enumerate(antList[antMap]):
         DtermFile = np.array([FreqList[spw_index], DxSpec[ant_index].real, DxSpec[ant_index].imag, DySpec[ant_index].real, DySpec[ant_index].imag])
-        np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antList[antMap[ant_index]]), DtermFile)
+        np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, ant), DtermFile)
     #
     plt.close('all')
     #-------- Plot Stokes spectra

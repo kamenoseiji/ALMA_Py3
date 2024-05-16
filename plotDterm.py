@@ -6,10 +6,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 exec(open(SCR_DIR + 'Plotters.py').read())
 #
 FreqList, DxList, DyList = [], [], []
-spwNum = len(spwList)
-for spw_index in list(range(spwNum)):
-    spw = spwList[spw_index]
-    if 'antList' not in locals(): antList = np.load('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName))
+for spw_index, spw in enumerate(spwList):
+    antList = np.load('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName))
     for ant_index, antName in enumerate(antList):
         Dterm = np.load('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, antName))
         DxList   = DxList   + [Dterm[1] + (0.0 + 1.0j)* Dterm[2]]

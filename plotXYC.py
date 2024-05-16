@@ -5,13 +5,12 @@ import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 import datetime
 #-------- Load tables
-spwNum = len(spwList)
-for spw_index in list(range(spwNum)):
-    timeFile = '%s-SPW%d-%s.TS.npy'  % (prefix, spwList[spw_index], refantName)
-    xycFile  = '%s-SPW%d-%s.XYC.npy' % (prefix, spwList[spw_index], refantName)
-    xyvFile  = '%s-SPW%d-%s.XYV.npy' % (prefix, spwList[spw_index], refantName)
-    xypFile  = '%s-SPW%d-%s.XYPH.npy'% (prefix, spwList[spw_index], refantName)
-    azelFile = '%s-SPW%d-%s.Azel.npy'% (prefix, spwList[spw_index], refantName)
+for spw_index, spw in enumerate(spwList):
+    timeFile = '%s-SPW%d-%s.TS.npy'  % (prefix, spw, refantName)
+    xycFile  = '%s-SPW%d-%s.XYC.npy' % (prefix, spw, refantName)
+    xyvFile  = '%s-SPW%d-%s.XYV.npy' % (prefix, spw, refantName)
+    xypFile  = '%s-SPW%d-%s.XYPH.npy'% (prefix, spw, refantName)
+    azelFile = '%s-SPW%d-%s.Azel.npy'% (prefix, spw, refantName)
     DT = []
     timeStamp, XYC, XYV, XYPH, AZEL = np.load(wd + timeFile), np.load(wd + xycFile), np.load(wd + xyvFile), np.load(wd + xypFile), np.load(wd + azelFile)
     for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
