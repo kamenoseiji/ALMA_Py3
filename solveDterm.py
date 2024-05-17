@@ -280,8 +280,10 @@ for spw_index, spw in enumerate(spwList):
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(blNum, dtype=complex))
     print('  -- D-term-corrected visibilities')
+    useTimeIndex = []
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
+        useTimeIndex = useTimeIndex + timeIndex
         srcTimeNum = len(timeIndex)
         if srcTimeNum < 1 : continue
         PS = InvPAVector(PA[timeIndex], np.ones(srcTimeNum))
@@ -294,12 +296,14 @@ for spw_index, spw in enumerate(spwList):
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
         #for index in timeIndex: GainCaledVisSpec[:,:,:,index] *= Isol
-        GainCaledVisSpec *= StokesI
+        #GainCaledVisSpec *= StokesI
+        GainCaledVisSpec[:,:,:,timeIndex] *= Isol
     #
+    useTimeIndex.sort()
     #-------- get D-term spectra
     print('  -- Determining D-term spectra')
     for ch_index in list(range(int(chNum/bunchNum))):
-        DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVisSpec[ch_index], QCpUS, UCmQS, Dx, Dy, StokesI)
+        DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVisSpec[ch_index][:,:,useTimeIndex], QCpUS[useTimeIndex], UCmQS[useTimeIndex], Dx, Dy, StokesI[useTimeIndex])
         progress = (ch_index + 1.0) / (chNum / bunchNum)
         sys.stderr.write('\r\033[K' + get_progressbar_str(progress)); sys.stderr.flush()
     #
@@ -319,7 +323,7 @@ for spw_index, spw in enumerate(spwList):
     print('  -- Applying D-term spectral correction')
     M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
     StokesVis = np.zeros([4, int(chNum/bunchNum), PAnum], dtype=complex )
-    for time_index in list(range(PAnum)): StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
+    for time_index in useTimeIndex: StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
     del GainCaledVisSpec
     chAvgVis = np.mean(StokesVis[:,chRange], axis=1)
     XYC = chAvgVis[[1,2]]

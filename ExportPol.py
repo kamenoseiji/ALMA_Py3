@@ -1,6 +1,5 @@
 import os
-INTList = ['POL']
-CATList = ['POL_']
+if 'INTList' not in locals(): INTList = ['POL']
 #----
 def indexList( refArray, keyWord ):     # Compare two arrays and return matched index
     IL = []
@@ -59,11 +58,11 @@ for UID in UIDList:
     prefix = UID.replace("/", "_").replace(":","_").replace(" ","")
     prefixList = prefixList + [prefix]
     if os.path.isdir(prefix): continue
-    for index, INT in enumerate(INTList):
-        text_sd = 'python /users/skameno/bin/ScanExporterPlus2.py -u %s -i %s' % (UID, INT)
-        print(text_sd)
-        os.system(text_sd)
-    #
+    text_sd = 'python /users/skameno/bin/ScanExporterPlus2.py -u %s -i ' % (UID)
+    for INT in INTList: text_sd = text_sd + INT + ','
+    text_sd = text_sd[:-1]
+    print(text_sd)
+    os.system(text_sd)
 #
 print(prefixList)
 fileNum = len(prefixList)
@@ -108,12 +107,14 @@ for file_index in list(range(fileNum)):
         #
     #---- scan List
     msmd.open(prefix + '.ms')
-    scanList = msmd.scansforintent('*POLARIZATION*').tolist()
+    scanList = []
+    for intent in INTList:
+        scanList = scanList + msmd.scansforintent('*%s*' % (intent)).tolist()
     msmd.close()
+    scanList.sort()
     #---- split POLcal
-    split(prefix+'.ms', outputvis=CATList[0] + prefix + '.ms', scan=",".join(['%d'%(scan) for scan in scanList]), spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chanbin, datacolumn='DATA')
-    comvis.append(CATList[0] + prefix + '.ms')
-    #
+    split(prefix+'.ms', outputvis=INTList[0] + prefix + '.ms', scan=",".join(['%d'%(scan) for scan in scanList]), spw=str(bpsSPWList[file_index]).strip('[]'), antenna = removeAnt, width=chanbin, datacolumn='DATA')
+    comvis.append(INTList[0] + prefix + '.ms')
 #
 concat(vis=comvis, freqtol='0.5MHz', dirtol='0.1arcsec', concatvis= Session + '.ms')
 listobs(Session +'.ms', spw='', scan='', verbose=True, listfile=Session +'.listobs')
