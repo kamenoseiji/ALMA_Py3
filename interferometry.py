@@ -586,9 +586,9 @@ def GetSourceDic(msfile):              # source Dictionary
     from Grid import sourceRename
     sunAngleList = []
     tb.open( msfile + '/FIELD')
-    SourceName = tb.getcol('NAME')
-    SourceID   = tb.getcol('SOURCE_ID')
-    SourcePos  = tb.getcol('PHASE_DIR')[:,0].T
+    SourceID   = np.unique(tb.getcol('SOURCE_ID')).tolist()
+    SourceName = tb.getcol('NAME')[SourceID]
+    SourcePos  = tb.getcol('PHASE_DIR')[:,0].T[SourceID]
     tb.close()
     SourceName = sourceRename(SourceName)
     fieldDic = dict(zip(SourceID, [[]]* len(SourceID)))

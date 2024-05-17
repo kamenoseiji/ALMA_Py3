@@ -1,7 +1,8 @@
 import sys
+import numpy as np
 import analysisUtils as au
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Grid.py').read())
+from interferometry import BANDPA, BANDFQ, GetBPcalSPWs, GetSourceDic, indexList, GetAzEl, GetTimerecord, AzElMatch, AzEl2PA
+from Grid import SSOCatalog, ELshadow
 msfile = wd + prefix + '.ms'
 #-------- Check Antenna List
 #antList = GetAntName(msfile)
@@ -16,10 +17,10 @@ bandNames = []
 bandNamePattern = r'RB_..'
 for spwName in bpspwNames :
     bandNames = bandNames + re.findall(bandNamePattern, spwName)
-UniqBands = unique(bandNames).tolist(); NumBands = len(UniqBands)
+UniqBands = np.unique(bandNames).tolist(); NumBands = len(UniqBands)
 bpspwLists, bpscanLists, BandPA = [], [], []
 for band_index in list(range(NumBands)):
-    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*pi/180.0]
+    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*np.pi/180.0]
     bpspwLists  = bpspwLists  + [np.array(bpSPWs)[indexList( np.array([UniqBands[band_index]]), np.array(bandNames))].tolist()]
     bpscanLists = bpscanLists + [msmd.scansforspw(bpspwLists[band_index][0]).tolist()]
     #print(' ', end='')
@@ -30,7 +31,7 @@ print('---Checking source list')
 srcDic = GetSourceDic(msfile)
 sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ])); numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-ONScans = sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
+ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
 msmd.close()
 msmd.done()
 #-------- Loop for Bands
