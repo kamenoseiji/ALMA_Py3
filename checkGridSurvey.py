@@ -102,6 +102,7 @@ for BandName in RXList:
     sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
     if BandName not in ['RB_01', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
+    if BandName == 'RB_01': SSOList = []
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
     #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')

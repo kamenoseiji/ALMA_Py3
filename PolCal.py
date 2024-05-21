@@ -43,9 +43,14 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
     for SSO in SSOList:
         flux, major, minor, pa = [], [], [], []
         for spw_index, freq in enumerate(FreqGHz):
+            freqcorr = 1.0
+            if freq < 62.0:
+                freqcorr = (freq/62.0)**2
+                freq = 62.0
+                #print('%.1f GHz : corr=%.1f\n' % (freq, freqcorr))
             text_Freq = '%6.2fGHz' % (freq)
             SSOmodel = au.predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
-            flux  = flux + [SSOmodel['spectrum']['bl0flux']['value']]
+            flux  = flux + [freqcorr* SSOmodel['spectrum']['bl0flux']['value']]
         #
         major = SSOmodel['shape']['majoraxis']['value']* np.pi / 21600.0
         minor = SSOmodel['shape']['minoraxis']['value']* np.pi / 21600.0
