@@ -91,7 +91,10 @@ if 'Tau0med' in locals():
 antDia = GetAntD(antList)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
-flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0; useAntMap = np.where(flagAnt > 0.1)[0].tolist()
+flagAnt = np.ones([antNum])
+flagAnt[indexList(antFlag, antList)] = 0.0
+flagAnt[np.where( np.min(np.median(np.array(TrxList), axis=(2,4)), axis=(0,1)) < 10)[0].tolist()] = 0.0 # flag unrealistic Trx out
+useAntMap = np.where(flagAnt > 0.1)[0].tolist()
 flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 #-------- Check source list
