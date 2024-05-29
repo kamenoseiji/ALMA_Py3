@@ -247,7 +247,9 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
         text_delay = antName + '  |'
         for spw_index, spw in enumerate(spwList):
             Freq = freqList[spw_index]
-            chNum = len(Freq); chRange = list(range(int(0.10*chNum), int(0.95*chNum))); BW = Freq[chRange[-1]] - Freq[chRange[0]]
+            plotFreq = 1.0e-9 * Freq
+            chNum = len(Freq); chRange = list(range(int(0.10*chNum), int(0.95*chNum)))
+            BW = Freq[chRange[-1]] - Freq[chRange[0]]
             AmpPL = figAnt.add_subplot(2, spwNum, spw_index + 1 )
             PhsPL = figAnt.add_subplot(2, spwNum, spwNum + spw_index + 1 )
             AmpList = AmpList + [AmpPL]
@@ -257,21 +259,21 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 delayAnt, delaySNR = delay_search(plotBandpass[chRange])
                 # text_sd = '%s %s : %+f SNR=%.1f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
-                AmpPL.fill_between(Freq[chRange], plotMin, plotMax, color='yellow', alpha=0.1)
-                AmpPL.step(Freq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
+                AmpPL.fill_between(plotFreq[chRange], plotMin, plotMax, color='yellow', alpha=0.1)
+                AmpPL.step(plotFreq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
                 text_delay = text_delay + '%+f ' % (0.5e9* delayAnt/ BW)
-                PhsPL.fill_between(Freq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
-                PhsPL.plot( Freq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
+                PhsPL.fill_between(plotFreq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
+                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
-            AmpPL.axis([np.min(Freq), np.max(Freq), plotMin, plotMax])
+            AmpPL.axis([np.min(plotFreq), np.max(plotFreq), plotMin, plotMax])
             AmpPL.tick_params(axis='both', labelsize=6)
             AmpPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            AmpPL.text( np.min(Freq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
-            PhsPL.axis([np.min(Freq), np.max(Freq), -np.pi, np.pi])
+            AmpPL.text( np.min(plotFreq), 0.9* plotMax + 0.1* plotMin, 'SPW=%d Amp' % (spwList[spw_index]))
+            PhsPL.axis([np.min(plotFreq), np.max(plotFreq), -np.pi, np.pi])
             PhsPL.tick_params(axis='both', labelsize=6)
             PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
-            PhsPL.text( np.min(Freq), 2.5, 'SPW=%s Phs' % (str(spw)))
+            PhsPL.text( np.min(plotFreq), 2.5, 'SPW=%s Phs' % (str(spw)))
         #
         if delayMessage: print(text_delay)
         figAnt.savefig(pp, format='pdf')
