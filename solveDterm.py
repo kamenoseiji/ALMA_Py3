@@ -343,9 +343,9 @@ for spw_index, spw in enumerate(spwList):
         plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k.')
         for scan in scanLS:
             scanIndex = scanList.index(scan)
-            scanMJD = mjdSec[scanST[scan_index]]
-            text_sd = 'Scan %d : %s' % (scanList[scan_index], qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
-            plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scan_index]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
+            scanMJD = mjdSec[scanST[scanIndex]]
+            text_sd = 'Scan %d : %s' % (scan, qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
+            plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scanIndex]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
         #
     #
     plt.xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); plt.ylabel('Cross correlations [Jy]')
