@@ -21,7 +21,7 @@ Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 srcDic = GetSourceDic(msfile)
-sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ])); numSource = len(sourceList)
+sourceList = unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
 sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
 timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
@@ -65,35 +65,18 @@ else:
 #
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
-for scan in scanLS:
-    #-------- Check if the scan contains tracking antennas
-    interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], scan)
-    trkAnt, scanAnt, Time, Offset = antRefScan( msfile, [timeStamp[0], timeStamp[-1]], antFlag )
-    trkAnt = list(set(trkAnt) - set(flagAntID))
-    unflaggedNum = len(indexList(timeStamp, useTimeStamp))
-    if (refAntID in trkAnt) and (unflaggedNum > 0):
-        trkAntSet = set(trkAnt) & trkAntSet
-    else:
-        scanLS = list( set(scanLS) - set([scan]) )
-    #
-    sourceName = sourceRename(sourceList)[msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])]
-    sourceScan = sourceScan + [sourceName]
-    scanDic[sourceName] = scanDic[sourceName] + [scanIndex]
-    if 'AprioriDic' in locals(): 
-        if AprioriDic[sourceName] : StokesDic[sourceName] = AprioriDic[sourceName]
-    else: 
-        IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR, R_DIR)
-        if len(IQU[0]) > 0:
-            StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-        else:
-            StokesDic[sourceName] = [0.01, 0.0, 0.0, 0.0]
-        #
-    print('---- Scan%3d : %d tracking antennas : %s, %d records, expected I=%.1f p=%.1f%%' % (scan, len(trkAnt), sourceName, unflaggedNum, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
-    scanIndex += 1
-#
-scanList = scanLS
-scanList.sort()
 #-------- Check source list and Stokes Parameters
+for sourceID in srcDic.keys():
+    sourceName = srcDic[sourceID]['Name']
+    sourceIDscan = msmd.scansforfield(sourceID).tolist()
+    scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
+    if len(sourceIDscan) > 0:
+        interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
+        IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR, R_DIR)
+        StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
+        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+    #
+#
 msmd.done()
 antMap = [refAntID] + list(trkAntSet - set([refAntID]))
 antMap = indexList(np.array(antMap), np.array(UseAntList))
@@ -179,11 +162,13 @@ for spw_index, spw in enumerate(spwList):
     QCpUS, UCmQS =  np.zeros(PAnum), np.zeros(PAnum)
     if 'QUmodel' not in locals(): QUmodel = False
     CS, SN = np.cos(2.0* PA), np.sin(2.0* PA)
-    for sourceName in sourceList:
+    for sourceName in scanDic.keys():
         scanLS = scanDic[sourceName]
         if len(scanLS) < 1 : continue
         timeIndex = []
-        for scanIndex in scanLS: timeIndex = timeIndex + list(range(scanST[scanIndex], scanST[scanIndex] + timeNum[scanIndex]))
+        for scan in scanLS:
+            scanIndex = scanList.index(scan)
+            timeIndex = timeIndex + list(range(scanST[scanIndex], scanST[scanIndex] + timeNum[scanIndex]))
         timeDic[sourceName] = timeIndex
         if QUmodel:
             QUsol = np.array(StokesDic[sourceName])[[1,2]]/StokesDic[sourceName][0]
@@ -356,7 +341,8 @@ for spw_index, spw in enumerate(spwList):
         plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, 'b,')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, 'c,')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k.')
-        for scan_index in scanLS:
+        for scan in scanLS:
+            scanIndex = scanList.index(scan)
             scanMJD = mjdSec[scanST[scan_index]]
             text_sd = 'Scan %d : %s' % (scanList[scan_index], qa.time('%fs' % (scanMJD), form='fits', prec=6)[0][11:21])
             plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scan_index]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)

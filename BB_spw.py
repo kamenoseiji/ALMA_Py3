@@ -49,7 +49,7 @@ DT = []
 for spw_index, spwID in enumerate(spwList):
     timeStamp, BBPower = GetPSpecScan(msfile, ant_index, spwID, scanID)
     subscanDic['OFF'], subscanDic['ON'],subscanDic['AMB'],subscanDic['HOT'],subscanDic['TEST'] = indexList(timeOFF, timeStamp), indexList(timeON, timeStamp), indexList(timeAMB, timeStamp), indexList(timeHOT, timeStamp), indexList(timeTEST, timeStamp)
-    subscanDic = medianATM(subscanDic, BBPower[:,0])
+    subscanDic = medianATM(subscanDic, BBPower[[0,-1],0])
     text_X, text_Y = 'Pol-X ', 'Pol-Y '
     for subScan in subscanDic.keys():
         if subscanDic[subScan] == [np.nan, np.nan] : continue
@@ -73,7 +73,7 @@ for spw_index, spwID in enumerate(spwList):
     #
     BBPL = figBB.add_subplot(int(np.ceil(spwNum / int(np.sqrt(spwNum)))), int(np.sqrt(spwNum)), spw_index + 1)
     BBPL.step( DT, BBPower[0,0], where='mid'); BBPL.plot( DT, BBPower[0,0], 'bo', label=text_X)
-    BBPL.step( DT, BBPower[1,0], where='mid'); BBPL.plot( DT, BBPower[1,0], 'go', label=text_Y)
+    BBPL.step( DT, BBPower[-1,0], where='mid'); BBPL.plot( DT, BBPower[-1,0], 'go', label=text_Y)
     BBPL.legend(loc='best', prop={'size' :7}, numpoints=1)
     BBPL.tick_params(axis='both', labelsize=6)
     BBPL.set_title('SPW %d' % spwID)

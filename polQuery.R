@@ -1,4 +1,5 @@
 Arguments <- commandArgs(trailingOnly = T)
+#Arguments <- c('-D2024/06/04/08:57:44', '-F343.500000', 'J2148+0657')
 timeWindow <- 90	# Days
 #-------- Function to return residuals in RM fit
 residEVPA <- function(x, y, w){	# Optimization function for RM fit
@@ -8,7 +9,6 @@ residEVPA <- function(x, y, w){	# Optimization function for RM fit
 		return( sum(w* sin(y - RM*x - EVPA)^2 ))
 	})
 }
-
 #-------- Parse arguments
 parseArg <- function( args ){
 	srcNum <- argNum <- length(args)
@@ -36,7 +36,6 @@ for(sourceName in srcList){
 	#if(nrow(srcDF) < 6){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
 	if(nrow(srcDF) < 4){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
 	if(min(abs(srcDF$timeDiff)) > timeWindow){ srcList <- srcList[-which(srcList %in% sourceName)]; next }
-	freqList <- as.numeric(unique(srcDF$Freq))
     #for( freq in freqList ){
     #    if( nrow(srcDF[srcDF$Freq == freq,]) < 2 ){ srcDF <- srcDF[srcDF$Freq != freq,]}
     #}
@@ -51,11 +50,11 @@ for(sourceName in srcList){
 	    for(freq_index in 1:freqNum){
 	    	srcFreqDF <- srcDF[srcDF$Freq == freqList[freq_index],]
 	    	if(((nrow(srcFreqDF) >= 3) & (diff(range(srcFreqDF$timeDiff)) > min(srcFreqDF$timeDiff)))){
-			    fit <- lm(data=srcFreqDF, formula=I ~ timeDiff, weights=1.0 / eI^2 / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=I ~ timeDiff, weights=1.0 / (eI^2 + 1.0e-6) / abs(timeDiff + 1))
 			    estI[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errI[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
-			    fit <- lm(data=srcFreqDF, formula=Q ~ timeDiff, weights=1.0 / eQ^2 / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=Q ~ timeDiff, weights=1.0 / (eQ^2 + 1.0e-6) / abs(timeDiff + 1))
 			    estQ[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errQ[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
-			    fit <- lm(data=srcFreqDF, formula=U ~ timeDiff, weights=1.0 / eU^2 / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=U ~ timeDiff, weights=1.0 / (eU^2 + 1.0e-6) / abs(timeDiff + 1))
 			    estU[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errU[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
 		    } else {
 			    estI[freq_index] <- median(srcFreqDF$I); errI[freq_index] <- median(srcFreqDF$eI) * 10.0

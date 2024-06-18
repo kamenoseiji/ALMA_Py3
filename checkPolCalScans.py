@@ -29,9 +29,9 @@ for band_index in list(range(NumBands)):
 #-------- Check source list
 print('---Checking source list')
 srcDic = GetSourceDic(msfile)
-sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ])); numSource = len(sourceList)
+sourceList = [ srcDic[ID]['Name'] for ID in srcDic.keys() ]; numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
+ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
 msmd.close()
 msmd.done()
 #-------- Loop for Bands
@@ -62,8 +62,8 @@ for band_index in list(range(NumBands)):
             StokesDic[sourceName] = [float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
         #
     #
-    for scan_index in list(range(scanNum)):
-        sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(onsourceScans[scan_index])[0]))
+    for scan_index, scan in enumerate(onsourceScans):
+        sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(scan)[0]))
         interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], onsourceScans[scan_index])
         AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, 0, AZ, EL)
         PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; dPA = np.std(np.sin(PA)) #dPA = abs(np.sin(max(PA) - min(PA)))

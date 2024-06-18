@@ -90,5 +90,5 @@ if BPPLOT:
     else:
         if 'plotMin' not in locals(): plotMin = 0.0
         if 'plotMax' not in locals(): plotMax = 1.2
-        plotSP(pp, prefix, antList[antMap], spwList, FreqList, BPList, plotMin, plotMax) 
+        plotSP(pp, prefix, antList[antMap], spwList, FreqList, BPList, plotMin, plotMax)
 #
