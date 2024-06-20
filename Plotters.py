@@ -354,6 +354,7 @@ def plotGain(prefix, spw):
     figAmp.text(0.03, 0.45, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.45, 'Gain Phase [deg]', rotation=90)
     plotMin, plotMax = 0.0, 1.1* np.percentile(np.max(abs(Gain), axis=1)* FG, 90)
     #-------- Plot Gain
+    gainXmed, gainYmed = [], []
     for ant_index in list(range(antNum)):
         ampMed = [0.0, 0.0]
         flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
@@ -362,6 +363,7 @@ def plotGain(prefix, spw):
         for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
         for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/math.pi, '.', markersize=3, color=polColor[pol_index])
         if len(flag_index) > 0: ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
+        gainXmed, gainYmed = gainXmed + [ampMed[0]], gainYmed + [ampMed[1]]
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
         AmpPL.yaxis.offsetText.set_fontsize(3)
         PhsPL.yaxis.offsetText.set_fontsize(3)
@@ -376,6 +378,7 @@ def plotGain(prefix, spw):
         AmpPL.text( 0.05, 1.02, text_sd, transform=AmpPL.transAxes, fontsize=5)
         PhsPL.text( 0.05, 1.02, antList[ant_index], transform=PhsPL.transAxes, fontsize=5)
     #
+    text_sd = 'all: Gain(median) = (%.2f%% %.2f%%)' % (100.0* np.median(gainXmed), 100.0* np.median(gainYmed)); print(text_sd)
     figAmp.savefig(pp, format='pdf'); figPhs.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
