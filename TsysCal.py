@@ -62,8 +62,10 @@ for band_index in list(range(NumBands)):
     atmscanList.sort()
     atmscanLists = atmscanLists + [atmscanList]
     #---- CHAV SPWs and scans
-    sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
-    #sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
+    if len(msmd.almaspws(sqld=True)) > 0:
+        sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    else :
+        sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
     OnScanLists  = OnScanLists  + [list(set(msmd.scansforintent('*ON_SOURCE')) & set(msmd.scansforspw(sqldspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
 #
