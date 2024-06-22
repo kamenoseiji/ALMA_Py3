@@ -21,6 +21,7 @@ Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 srcDic = GetSourceDic(msfile)
+for SSOkey in [key for key in srcDic.keys() if srcDic[key]['RA'] == 0.0]: del srcDic[SSOkey]    # Remove SSO
 sourceList = unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
 sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source

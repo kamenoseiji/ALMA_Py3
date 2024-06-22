@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import analysisUtils as au
 from interferometry import BANDPA, BANDFQ, GetBPcalSPWs, GetSourceDic, indexList, GetAzEl, GetTimerecord, AzElMatch, AzEl2PA
-from Grid import SSOCatalog, ELshadow
+from Grid import SSOCatalog, SSOscore, ELshadow
 msfile = wd + prefix + '.ms'
 #-------- Check Antenna List
 #antList = GetAntName(msfile)
@@ -61,6 +61,7 @@ for band_index in list(range(NumBands)):
             sourceName = eachLine.split()[0]
             StokesDic[sourceName] = [float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
         #
+        for source in [source for source in StokesDic.keys() if len(StokesDic[source]) == 0]: del StokesDic[source]
     #
     for scan_index, scan in enumerate(onsourceScans):
         sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(scan)[0]))
@@ -87,7 +88,7 @@ for band_index in list(range(NumBands)):
             EQquality = EQquality + [-9999.9]
         #
         print('Scan%02d : %10s AZ=%6.1f EL=%4.1f PA=%6.1f dPA=%5.2f pRes=%5.2f BPquality=%7.4f EQquality=%6.0f' % (onsourceScans[scan_index], sourceList[sourceIDscan[scan_index]], 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[scan_index], EQquality[scan_index]))
-        if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(math.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
+        if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
     #
     #-------- Select Bandpass Calibrator
     if 'BPScans' not in locals():
