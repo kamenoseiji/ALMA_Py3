@@ -112,9 +112,11 @@ def AeNominal(msfile, antList):
     msmd.done()
     return 0.7* 0.25* np.pi* antDia**2      # Nominal Collecting Area
 #
+def nearestValue():
+    TauEonList[spw_index][0]
 #-------- Apply Tsys calibration to visibilities
 def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
-    from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList
+    from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList, smoothValue
     #---- Check antenna list
     antList = GetAntName(prefix + '.ms')
     antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
@@ -154,7 +156,8 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
             secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             if TauEonList[spw_index].shape[0] == 2:
-                Tau0SP = Tau0SP + TauEonList[spw_index][1][indexList(scanDic[scan]['mjdSec'], TauEonList[spw_index][0])]
+                #Tau0SP = Tau0SP + TauEonList[spw_index][1][indexList(scanDic[scan]['mjdSec'], TauEonList[spw_index][0])]
+                Tau0SP = Tau0SP + smoothValue(TauEonList[spw_index][0], TauEonList[spw_index][1], scanDic[scan]['mjdSec']).tolist()
             else: 
                 SP = tauSMTH(atmReltime, TauE[spw_index] )
                 Tau0SP = Tau0SP + scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP)

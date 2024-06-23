@@ -38,6 +38,10 @@ def indexList( refArray, motherArray ):     # Compare two arrays and return matc
     for currentItem in refArray: IL = IL + np.where( motherArray == currentItem )[0].tolist()
     return IL
 #
+def smoothValue( refTime, refValue, givenTime ):     # Return value at given time
+    SP  = UnivariateSpline( refTime, refValue, s=0.25*np.std(refValue))
+    return SP(givenTime)
+#
 def timeMatch( refTime, scanTime, thresh): # Time-based matching
     match = np.where( abs(scanTime - refTime) < thresh)[0].tolist()
     return len(match)
