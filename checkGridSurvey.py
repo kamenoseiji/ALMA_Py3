@@ -30,6 +30,7 @@ if 'atmSPWs' not in locals():
     atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(bpSPWs) > 3 else atmSPWs.tolist()
     atmSPWs.sort()
 bpBandNameList  = GetBandNames(msfile, bpSPWs)
+if len(bpBandNameList) == 0: bpBandNameList = BandList(prefix)* len(bpSPWs)
 for BandName in RXList:
     if BandName not in bpBandNameList:  RXList.remove(BandName)
 #
@@ -51,9 +52,10 @@ for BandName in RXList:
     #---- Bandpass scan to check Allan Variance
     def AV(vis): return AllanVarPhase(np.angle(vis), 1)
     checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
     if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
+    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*AMPLI*')) & set(BandScanList[BandName]))
+    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
     checkScan.sort()
     checkScan = checkScan[-1]
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
@@ -86,7 +88,7 @@ BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
 else: RXList = []
 if 'Tau0med' in locals():
-    if any(Tau0med < 0.0): RXList = []
+    if any(Tau0med < -0.1): RXList = []
 #-------- Check Antenna List
 antDia = GetAntD(antList)
 antNum = len(antList)
@@ -136,6 +138,7 @@ for BandName in RXList:
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
     checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
+    #checkScan = 16
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
