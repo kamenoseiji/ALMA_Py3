@@ -516,7 +516,6 @@ def GetSSOAeC(URI, band):
     return dict(zip(SSOList, AeC))
 #
 def GetAeff(URI, antMap, band, refMJD):
-    if band == 4 : band = 3
     antNum = len(antMap)
     Aeff  = np.ones([antNum, 2])
     context = ssl._create_unverified_context()
@@ -531,20 +530,26 @@ def GetAeff(URI, antMap, band, refMJD):
         mjdSec[line_index] = qa.convert(fileLine.decode('utf-8').split()[0], 's')['value']
     refpointer = np.argmin(abs(mjdSec - refMJD))
     if (refpointer == 0) | (refpointer == len(mjdSec) - 1) :
-        for ant_index, antName in enumerate(antMap):
-            for pol_index, polName in enumerate(polList):
+        for pol_index, polName in enumerate(polList):
+            for ant_index, antName in enumerate(antMap):
                 keyhead = antName + '-' + polName
-                pointer = antPolList.index(keyhead) + 1
-                Aeff[ant_index, pol_index] = float(fileLines[refpointer + 3].decode('utf-8').split()[pointer])
+                if keyhead in antPolList:
+                    pointer = antPolList.index(keyhead) + 1
+                    Aeff[ant_index, pol_index] = float(fileLines[refpointer + 3].decode('utf-8').split()[pointer])
+            #
+            Aeff[np.where(Aeff[:,pol_index] < 1.001)[0].tolist(),pol_index] = np.median(Aeff[:,pol_index])
         return Aeff
     #
     tmpMJD  = np.array([mjdSec[refpointer-1], mjdSec[refpointer], mjdSec[refpointer+1]])
-    for ant_index, antName in enumerate(antMap):
-        for pol_index, polName in enumerate(polList):
+    for pol_index, polName in enumerate(polList):
+        for ant_index, antName in enumerate(antMap):
             keyhead = antName + '-' + polName
-            pointer = antPolList.index(keyhead) + 1
-            tmpAeff = np.array([float(fileLines[refpointer+2].decode('utf-8').split()[pointer]), float(fileLines[refpointer+3].decode('utf-8').split()[pointer]), float(fileLines[refpointer+4].decode('utf-8').split()[pointer])])
-            Aeff[ant_index, pol_index] = quadratic_interpol(tmpMJD, tmpAeff, refMJD)
+            if keyhead in antPolList:
+                pointer = antPolList.index(keyhead) + 1
+                tmpAeff = np.array([float(fileLines[refpointer+2].decode('utf-8').split()[pointer]), float(fileLines[refpointer+3].decode('utf-8').split()[pointer]), float(fileLines[refpointer+4].decode('utf-8').split()[pointer])])
+                Aeff[ant_index, pol_index] = quadratic_interpol(tmpMJD, tmpAeff, refMJD)
+        #
+        Aeff[np.where(Aeff[:,pol_index] < 1.001)[0].tolist(),pol_index] = np.median(Aeff[:,pol_index])
     #
     return Aeff
 #
