@@ -138,7 +138,7 @@ for BandName in RXList:
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
     checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
-    #checkScan = 16
+    #checkScan = 36
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))

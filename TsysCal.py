@@ -161,8 +161,8 @@ for band_index, bandName in enumerate(UniqBands):
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
     #-------- Violently variable Tau0
     for spw_index, spw in enumerate(sqldspwLists[band_index]):
-        ONTAU = True if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.15  else False    #    variability > 15%
-        ONTAU = True if len(Tau0Excess[spw_index]) < 2 and Tau0med[spw_index] > 0.05  else False #   single-shot tau > 0.05
+        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.15 : ONTAU = True #    variability > 15%
+        if len(Tau0Excess[spw_index]) < 2 and Tau0med[spw_index] > 0.05 : ONTAU = True #   single-shot tau > 0.05
         if ONTAU:
             print('SPW%d : sd(Tau0) = %.3f / median(Tau0) = %.3f' % (atmspwLists[band_index][spw_index], np.std(Tau0Excess[spw_index]), Tau0med[spw_index]))
             onSQLD, offSQLD, ambSQLD, hotSQLD, onTime, offTime, ambTime, hotTime = [], [], [], [], [], [], [], []
