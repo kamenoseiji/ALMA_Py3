@@ -212,7 +212,7 @@ for band_index, bandName in enumerate(UniqBands):
         if len(atmscanLists[band_index]) > 5: plotTau0E(prefix + '_' + bandName, atmTimeRef, atmspwLists[band_index], Tau0, Tau0Excess, np.min(scanFlag, axis=(1,2))) 
     if PLOTTSYS: plotTsys(prefix + '_' + bandName, antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
 #
-del ONTAU, PLOTTAU, PLOTTSYS,flagAnt,atmSPWs
+del ONTAU, PLOTTAU, PLOTTSYS
 #-------- Plot optical depth
 msmd.close()
 msmd.done()
