@@ -1,4 +1,4 @@
-# TsysCal.py 
+# TsGysCal.py 
 # inputs
 #    SCR_DIR    : (character) path to the script (e.g. '/home/skameno/ALMA_SV/' )
 #    PLOTTAU    : (boolean)   plot optical depths (True or False)
@@ -62,10 +62,11 @@ for band_index in list(range(NumBands)):
     atmscanList.sort()
     atmscanLists = atmscanLists + [atmscanList]
     #---- CHAV SPWs and scans
-    if len(msmd.almaspws(sqld=True)) > 0:
-        sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
-    else :
-        sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
+    #if len(msmd.almaspws(sqld=True)) > 0:
+    #    sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    #else :
+    #    sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
+    sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
     OnScanLists  = OnScanLists  + [list( (set(msmd.scansforintent('*ON_SOURCE')) - set(msmd.scansforintent('*ATMOSPHERE*'))) & set(msmd.scansforspw(sqldspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
 #
@@ -211,6 +212,7 @@ for band_index, bandName in enumerate(UniqBands):
         if len(atmscanLists[band_index]) > 5: plotTau0E(prefix + '_' + bandName, atmTimeRef, atmspwLists[band_index], Tau0, Tau0Excess, np.min(scanFlag, axis=(1,2))) 
     if PLOTTSYS: plotTsys(prefix + '_' + bandName, antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
 #
+del ONTAU, PLOTTAU, PLOTTSYS,flagAnt,atmSPWs
 #-------- Plot optical depth
 msmd.close()
 msmd.done()

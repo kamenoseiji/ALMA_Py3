@@ -51,14 +51,17 @@ for BandName in RXList:
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
     def AV(vis): return AllanVarPhase(np.angle(vis), 1)
-    checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*AMPLI*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*DELAY*')) & set(BandScanList[BandName]))
-    if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
-    checkScan.sort()
-    checkScan = checkScan[-1]
+    if 'BPscan' not in locals():
+        checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
+        if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
+        if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
+        if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*AMPLI*')) & set(BandScanList[BandName]))
+        if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*DELAY*')) & set(BandScanList[BandName]))
+        if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
+        checkScan.sort()
+        checkScan = checkScan[-1]
+    else:
+        checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
@@ -138,8 +141,10 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
-    #checkScan = 36
+    if 'BPscan' in locals():
+        checkScan = BPscan
+    else:
+        checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
