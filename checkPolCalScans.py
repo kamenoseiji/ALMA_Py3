@@ -47,7 +47,7 @@ for band_index in list(range(NumBands)):
     azelTime, AntID, AZ, EL = GetAzEl(msfile)
     azelTime_index = np.where( AntID == 0 )[0].tolist() 
     azel = np.r_[AZ[azelTime_index], EL[azelTime_index]].reshape(2, len(azelTime_index))
-    OnAZ, OnEL, OnPA, BPquality, EQquality, PQquality, sourceIDscan, FLscore, refTime = [], [], [], [], [], [], [], np.zeros(scanNum), []
+    OnAZ, OnEL, OnPA, sourceIDscan, BPquality, EQquality, FLscore, refTime = [], [], [], [], [], [], np.zeros(scanNum), []
     #-------- Check QU catalog
     if QUMODEL: # A priori QU model from Rdata
         os.system('rm -rf CalQU.data')
@@ -71,6 +71,11 @@ for band_index in list(range(NumBands)):
         OnAZ.append(np.median(AzScan)); OnEL.append(np.median(ElScan)); OnPA.append(np.median(PA))
         refTime = refTime + [np.median(timeStamp)]
         sourceName = sourceList[sourceIDscan[scan_index]]
+        if sourceName not in StokesDic:
+            QCpUS, UCmQS = 0.0, 0.0
+            BPquality = BPquality + [-9999.9]
+            EQquality = EQquality + [-9999.9]
+            continue
         if len(StokesDic[sourceName]) == 4:
             CS, SN = np.cos(2.0* OnPA[scan_index]), np.sin(2.0* OnPA[scan_index])
             QCpUS = StokesDic[sourceName][1]*CS + StokesDic[sourceName][2]*SN   # Qcos + Usin
@@ -78,16 +83,14 @@ for band_index in list(range(NumBands)):
             if QUMODEL:
                 BPquality = BPquality + [1000.0* abs(UCmQS)* np.sin(OnEL[scan_index]) ] # / np.sqrt(StokesDic[sourceName][0])]
             else:
-                #BPquality = BPquality + [1000.0* abs(UCmQS)* dPA* np.sin(OnEL[scan_index] - 0.5*ELshadow) / np.sqrt(StokesDic[sourceName][0])]
                 BPquality = BPquality + [1000.0* abs(UCmQS)* np.sin(OnEL[scan_index] - 0.5*ELshadow) / np.sqrt(StokesDic[sourceName][0])]
-            #
             EQquality = EQquality + [StokesDic[sourceName][0]**2 * np.sin(OnEL[scan_index] - ELshadow) / (1.0e-4 + abs(QCpUS))]
         else:
             QCpUS, UCmQS = 0.0, 0.0
             BPquality = BPquality + [-9999.9]
             EQquality = EQquality + [-9999.9]
         #
-        print('Scan%02d : %10s AZ=%6.1f EL=%4.1f PA=%6.1f dPA=%5.2f pRes=%5.2f BPquality=%7.4f EQquality=%6.0f' % (onsourceScans[scan_index], sourceList[sourceIDscan[scan_index]], 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[scan_index], EQquality[scan_index]))
+        print('Scan%02d : %10s AZ=%6.1f EL=%4.1f PA=%6.1f dPA=%5.2f pRes=%5.2f BPquality=%7.4f EQquality=%6.0f' % (onsourceScans[scan_index], sourceName, 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[-1], EQquality[-1]))
         if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
     #
     #-------- Select Bandpass Calibrator

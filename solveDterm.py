@@ -67,15 +67,18 @@ else:
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
 #-------- Check source list and Stokes Parameters
+if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
 for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
     sourceIDscan = msmd.scansforfield(sourceID).tolist()
     scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
     if len(sourceIDscan) > 0:
         interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
+        if len(timeStamp) < 3: continue
         IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR, R_DIR)
-        StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+        if len(IQU[0]) > 0:
+            StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
+            print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
     #
 #
 msmd.done()
