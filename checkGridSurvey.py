@@ -59,7 +59,7 @@ for BandName in RXList:
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*DELAY*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
         checkScan.sort()
-        checkScan = checkScan[-2]
+        checkScan = checkScan[0]
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))

@@ -51,11 +51,11 @@ for(sourceName in srcList){
 	    for(freq_index in 1:freqNum){
 	    	srcFreqDF <- srcDF[srcDF$Freq == freqList[freq_index],]
 	    	if(((nrow(srcFreqDF) >= 3) & (diff(range(srcFreqDF$timeDiff)) > min(srcFreqDF$timeDiff)))){
-			    fit <- lm(data=srcFreqDF, formula=I ~ timeDiff, weights=1.0 / (eI^2 + 1.0e-6) / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=I ~ timeDiff, weights=(I/(eI + 1.0e-3)) / abs(timeDiff + 5))
 			    estI[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errI[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
-			    fit <- lm(data=srcFreqDF, formula=Q ~ timeDiff, weights=1.0 / (eQ^2 + 1.0e-6) / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=Q ~ timeDiff, weights=(I/(eQ + 1.0e-3)) / abs(timeDiff + 5))
 			    estQ[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errQ[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
-			    fit <- lm(data=srcFreqDF, formula=U ~ timeDiff, weights=1.0 / (eU^2 + 1.0e-6) / abs(timeDiff + 1))
+			    fit <- lm(data=srcFreqDF, formula=U ~ timeDiff, weights=(I/(eU + 1.0e-3)) / abs(timeDiff + 5))
 			    estU[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errU[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
 		    } else {
 			    estI[freq_index] <- median(srcFreqDF$I); errI[freq_index] <- median(srcFreqDF$eI) * 10.0
@@ -67,7 +67,7 @@ for(sourceName in srcList){
 	    lambdaSQ <- (0.299792458 / freqList)^2; lambdasqSpan <- diff(range(lambdaSQ))
 	    estP <- sqrt(estQ^2 + estU^2); errP <- 0.01*estI + sqrt(errQ^2 + errU^2); estEVPA <- 0.5*atan2(estU, estQ)
 	    fit <- lm(log(estI) ~ log(freqList/100.0), weights=1.0/errI^2); I100 <- exp(as.numeric(coef(fit)[1])); spixI <- as.numeric(coef(fit)[2])
-	    fit <- lm(log(estP) ~ log(freqList/100.0), weights=1.0/errP^2); P100 <- exp(as.numeric(coef(fit)[1])); spixP <- as.numeric(coef(fit)[2])
+	    fit <- lm(log(estP + 1.0e-6) ~ log(freqList/100.0), weights=1.0/errP^2); P100 <- exp(as.numeric(coef(fit)[1])); spixP <- as.numeric(coef(fit)[2])
 	    estEVPAend <- estEVPA[freqNum]
 	    if(estEVPAend - estEVPA[1] >  pi/2){ estEVPAend <- estEVPAend - pi }
 	    if(estEVPAend - estEVPA[1] < -pi/2){ estEVPAend <- estEVPAend + pi }
