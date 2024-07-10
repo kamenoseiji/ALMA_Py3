@@ -131,11 +131,13 @@ for BandName in RXList:
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, srcDic, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
+    '''
     AzScanList, ElScanList = [], []
     #-------- Check AZEL
     for scan_index, scan in enumerate(BandScanList[BandName]):
         AzScan, ElScan = AzElMatch(timeStampList[scan_index], azelTime, AntID, 0, AZ, EL)
         AzScanList, ElScanList = AzScanList + [AzScan], ElScanList + [ElScan]
+    '''
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
     #-------- Check usable antennas and refant
