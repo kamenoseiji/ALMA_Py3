@@ -11,7 +11,7 @@ for sessionEntry in sessionList:
     entry = sessionEntry.split()
     Session = entry[0]
     UIDList = entry[1:]
-    chBunch = 4
+    chBunch = 1
     prefixList = []
     for UID in UIDList:
         prefixList = prefixList + [UID.replace("/", "_").replace(":","_").replace(" ","")]
@@ -60,3 +60,4 @@ for sessionEntry in sessionList:
     os.system('mv *.dic ' + Session + '/LOG/')
     os.system('mv *.txt ' + Session + '/LOG/')
 #
+
