@@ -24,7 +24,8 @@ RXList = BandList(prefix)
 antList = GetAntName(msfile)
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
-bpSPWs  = GetBPcalSPWs(msfile)
+bpSPWs = GetBPcalSPWs(msfile)
+#if 'spwList' not in locals:
 if 'atmSPWs' not in locals():
     atmSPWs = GetAtmSPWs(msfile)
     atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(bpSPWs) > 3 else atmSPWs.tolist()
@@ -279,6 +280,7 @@ for BandName in RXList:
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
+        print('XY List : %s spw=%d, spw_index=%d' % (BandName, spw, spw_index))
         chRange = BandbpSPW[BandName]['chRange'][spw_index]
         refXY = XYList[np.argmax( XYW[:,spw_index])][spw_index]
         XY = 0.0* refXY
