@@ -86,11 +86,13 @@ for BandName in RXList:
             antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
         #
     #
+SQLDspwList = msmd.almaspws(sqld=True).tolist()
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
-if len(antFlag) < len(antList) - 3: exec(open(SCR_DIR + 'TsysCal.py').read())
+if len(antFlag) < len(antList) - 3:
+    exec(open(SCR_DIR + 'TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
 else: RXList = []
 if 'Tau0med' in locals():
     if any(Tau0med < -0.1): RXList = []
@@ -118,7 +120,8 @@ for BandName in RXList:
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
     ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
     text_corr = ' %s BLCORR' % (prefix) if BLCORR else ' %s ACACORR' % (prefix)
-    logfile.write(text_corr + '\n')
+    text_tsysdigital = ' TsysDigitalCorrection ON' if TsysDigitalCorrection else ' TsysDigitalCorrection OFF'
+    logfile.write(text_corr + text_tsysdigital + '\n')
     print('-----%s----' % (BandName))
     #-------- D-term from history
     Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), np.mean(azelTime))

@@ -50,6 +50,7 @@ if 'FGprefix' in locals():  # Flag table
 #sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
 refAntID  = indexList([refantName], antList)
 flagAntID = indexList(antFlag, antList)
+UseAnt = list(set(range(antNum)) - set(flagAntID)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 if len(refAntID) < 1:
     print('Antenna %s didn not participate in this file.' % (refantName))
     sys.exit()

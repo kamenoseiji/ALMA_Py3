@@ -48,7 +48,7 @@ atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames)
 if UniqBands == []: UniqBands = BandList(prefix)
 NumBands = len(UniqBands)
 msmd.open(msfile)
-atmspwLists, atmscanLists, sqldspwLists, OnScanLists = [], [], [], []
+atmspwLists, atmscanLists, SQLDspwLists, CHAVspwLists, OnScanLists = [], [], [], [], []
 for band_index in list(range(NumBands)):
     bandAtmSPWs = np.array(atmSPWs)[indexList(np.array([UniqBands[band_index]]), np.array(atmBandNames))].tolist()
     if atmBandNames == []: bandAtmSPWs = np.array(atmSPWs)
@@ -66,10 +66,11 @@ for band_index in list(range(NumBands)):
     #    sqldspwLists = sqldspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
     #else :
     #    sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
-    sqldspwLists = sqldspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
-    OnScanLists  = OnScanLists  + [list( (set(msmd.scansforintent('*ON_SOURCE')) - set(msmd.scansforintent('*ATMOSPHERE*'))) & set(msmd.scansforspw(sqldspwLists[band_index][0])))]
+    SQLDspwLists = SQLDspwLists + [list(set(msmd.almaspws(sqld=True)) & set(msmd.spwsforscan(atmscanList[0])))]
+    CHAVspwLists = CHAVspwLists + [list((set(msmd.almaspws(chavg=True)) - set(msmd.almaspws(sqld=True))) & set(msmd.spwsforscan(atmscanList[0])))]
+    OnScanLists  = OnScanLists  + [list( (set(msmd.scansforintent('*ON_SOURCE')) - set(msmd.scansforintent('*ATMOSPHERE*'))) & set(msmd.scansforspw(SQLDspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
-    TsysDigitalCorrection = False
+    TsysDigitalCorrection = True
 #
 # atmSPWs[band] : SPWs used in atmCal scans
 # bpSPWs[band]  : SPWs used in bandpass scan (i.e. SPWs for OBS_TARGET)
@@ -112,13 +113,40 @@ for ant_index in list(range(useAntNum)):
 #
 #-------- Trx, TantN, and Tau0
 srcDic = GetSourceDic(msfile)
+def powerBias(sqld, chav):
+    sumX = np.sum(sqld)
+    sumY = np.sum(chav)
+    sumXX= sqld.dot(sqld)
+    sumXY= chav.dot(sqld)
+    return( (sumXX* sumY - sumX* sumXY)/(len(chav)* sumXX - sumX*sumX) )
+#
 for band_index, bandName in enumerate(UniqBands):
     tsysLog = open(prefix + '-' + bandName + '-Tsys.log', 'w')
     #-------- Trx
     atmTimeRef, offSpec, ambSpec, hotSpec, scanList = scanAtmSpec(msfile, useAnt, atmscanLists[band_index], atmspwLists[band_index], timeOFF, timeON, timeAMB, timeHOT)
-    atmscanLists[band_index] = scanList; scanList.sort()
+    scanList.sort()
+    atmscanLists[band_index] = scanList
     print('atmCal scans = ', end=''); print(atmscanLists[band_index])
     atmscanNum, spwNum = len(atmscanLists[band_index]), len(atmspwLists[band_index])
+    for ant_index, ant in enumerate(antList[useAnt]):
+        for spw_index, sqldspw in enumerate(SQLDspwLists[band_index]):
+            chavspw = CHAVspwLists[0][spw_index]
+            timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspw, scanList[0])
+            powerSQLD = np.array([np.median(SQLD[:,0,indexList(timeOFF, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeAMB, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeHOT, timeScan)], axis=1)])
+            timeScan, CHAV = GetPSpecScan(msfile, ant_index, chavspw, scanList[0])
+            powerCHAV = np.array([np.median(CHAV[:,0,indexList(timeOFF, timeScan)], axis=1), np.median(CHAV[:,0,indexList(timeAMB, timeScan)], axis=1), np.median(CHAV[:,0,indexList(timeHOT, timeScan)], axis=1)])[:,(0,-1)]
+            CorrBias = [powerBias(powerSQLD[:,0], powerCHAV[:,0]), powerBias(powerSQLD[:,1], powerCHAV[:,1])]
+            SpecAddress = atmscanNum*(ant_index* spwNum + spw_index)
+            for index in list(range(SpecAddress, SpecAddress+atmscanNum)):
+                hotSpec[index][0] = hotSpec[index][0] - CorrBias[0] 
+                hotSpec[index][1] = hotSpec[index][1] - CorrBias[1] 
+                ambSpec[index][0] = ambSpec[index][0] - CorrBias[0] 
+                ambSpec[index][1] = ambSpec[index][1] - CorrBias[1] 
+                offSpec[index][0] = offSpec[index][0] - CorrBias[0] 
+                offSpec[index][1] = offSpec[index][1] - CorrBias[1] 
+            #
+        #
+    #
     TrxList, TskyList, scanFlag = TrxTskySpec(useAnt, tempAmb, tempHot, atmspwLists[band_index], atmscanLists[band_index], ambSpec, hotSpec, offSpec)
     #-------- Check sun angle 
     for scan_index, scan in enumerate(scanList):
@@ -156,14 +184,13 @@ for band_index, bandName in enumerate(UniqBands):
     np.save('%s-%s.atmTime.npy' % (prefix, bandName), atmTimeRef)     # antList[ant]
     np.save('%s-%s.TauE.npy' % (prefix, bandName), Tau0Excess)     # antList[ant]
     for spw_index, spw in enumerate(atmspwLists[band_index]):
-        print('%s %d' % (spw_index, spw))
         np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), freqList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.TantN.npy' % (prefix, bandName, spw), TantN[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0.npy' % (prefix, bandName, spw), Tau0[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
     #-------- Violently variable Tau0
-    for spw_index, spw in enumerate(sqldspwLists[band_index]):
+    for spw_index, spw in enumerate(CHAVspwLists[band_index]):
         if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.15 : ONTAU = True #    variability > 15%
         if len(Tau0Excess[spw_index]) < 2 and Tau0med[spw_index] > 0.05 : ONTAU = True #   single-shot tau > 0.05
         if ONTAU:
