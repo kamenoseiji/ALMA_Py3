@@ -1,3 +1,4 @@
+#!/usr/local/bin/python
 #-------- Usage 
 # Step.1 copy acslog from ape1-gns.osf.alma.cl:/alma/acslogs/logs/APE1/SYSTEM/[YYYY-MM-DD]/log-APE1-[ONLINE SYSTEM VERSION]-YYYY-MM-DD-hh-mm-ss_YYYY-MM-DD-hh-mm-ss.xml.gz
 # Step.2 extract using gzip -d *.gz
@@ -15,7 +16,7 @@ parser.add_option('-a', dest='Array', metavar='Array',
 LogFileName = options.LogFile
 ArrayName   = options.Array
 keyword = '%s/CalibratorCatalog' % (ArrayName)
-os.system("grep -e keyword %s > temp.xml" % (ArrayName, LogFileName))
+os.system("grep -e '%s' %s > temp.xml" % (keyword, LogFileName))
 logfile = open('temp.xml')
 logLines = logfile.readlines()
 logfile.close()
