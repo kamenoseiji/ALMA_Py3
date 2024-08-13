@@ -211,7 +211,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL.step(Freq, plotSD, where='mid')
             #
         #
-        prefix,   figAnt.savefig(pp, format='pdf')
+        figAnt.savefig(pp, format='pdf')
     #
     plt.close('all')
     pp.close()
