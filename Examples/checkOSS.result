@@ -1,0 +1,88 @@
+ Array name = "Array8-ACA"
+ arrayTypeName = observing
+ [getOptimumDuration] J2258-2758 [El= 44.6
+ [getOptimumDuration] Required flux density = 0.96 [Jy] @ 290.000 [GHz] (with 1 second integration)
+ [getOptimumDuration]   4.717   [Jy] @   92.000 [GHz] isClose=0
+ [getOptimumDuration] No relevant source property found. Give up optimizati
+ Array name = "Array8-ACA"
+ arrayTypeName = observing
+ SCIREQ-784: black list for phase query '[]'
+ [resolveTargetQueries] N(qpList) = 0
+ SCIREQ-784: black list for check source query '[]'
+ [resolveTargetQueries] N(qpList) = 0
+ [resolveTargetQueries] QP(ra= 15.69225,dec=   1.09447,radius=120.0) SP=CII 2P3/2-2P1/2 Science setup_1 QS=<CCL.APDMSchedBlock.QuerySource object at 0x7fe497d83a90
+ [resolveTargetQueries] bandpass minFlux=   4.090 sp.name='CII 2P3/2-2P1/2 Science setup_1'
+ [resolveTargetQueries] N(qpList) = 1
+ [resolveTargetQueries] qp=QP(ra= 15.69225,dec=   1.09447,radius=120.0) sp='CII 2P3/2-2P1/2 Science setup_1'
+ [getCalibrator] target.integrationTime=600.0 [sec] tint=None
+ [getCalibrator]  Query Center (Ra, Dec)=(  15.69,    1.09)
+ [getCalibrator]               (Az,  El)=( 318.32,   58.98)
+ [getCalibrator]               blocked=
+ [getCalibrator]               [1800.0 seconds later...
+ [getCalibrator]               (Az,  El)=( 308.21,   53.93)
+ [getCalibrator]  Radius= 120.00 [deg
+ [getCalibrator]  nRequest=1
+ [getCalibrator]  Calibration=bandpass
+ [getCalibrator]  spectralSpec=CII 2P3/2-2P1/2 Science setup_1
+ [getCalibrator]  tint=600.0
+ [getDatetime] epoch="NOW" datetime="2024-08-10 09:36:31.851004"
+   tint=600.0 [sec] el=60.0 [deg] npol=1 required SNR=50 mode=antenna N(7.0m)=9,N(12.0m)=3
+   |SPW|       f|   BW| nch| tau0|   Tsys|  PWV|  sigma|min Flux|
+   |   |     GHz|  GHz|    |     |      K|   mm|    mJy|     mJy|
+   |  0| 633.012|2.000| 128| 0.68| 1160.9|0.472| 119.59| 5979.59|
+   |  1| 611.674|2.000| 128| 1.01| 1927.0|0.472| 194.34| 9716.78|
+   |  2| 631.137|2.000| 128| 0.72| 1228.5|0.472| 126.32| 6315.87|
+   |  3| 613.549|2.000| 128| 1.02| 1957.0|0.472| 197.72| 9886.04|
+   |  4| 629.262|2.000| 128| 0.77| 1345.0|0.472| 138.03| 6901.65|
+   |  5| 615.424|2.000| 128| 1.14| 2303.9|0.472| 233.20|11660.02|
+   |  6| 627.387|2.000| 128| 0.88| 1590.4|0.472| 162.91| 8145.53|
+   |  7| 617.299|2.000| 128| 1.57| 4111.1|0.472| 416.91|20845.30|
+ [ICT-11887] repFreq=617.249 [GHz
+ [ICT-11887] max (worst) sensitivity for SPWs close to the representative frequency (617.249 GHz) is 416.91 [mJy
+ [ICT-11887] median sensitivity = 162.91 [mJy] (@627.387 GHz)
+ [ICT-11887] Adopt the max sensitivity instead of the median as the flux density threshold
+  Distance: J0750+1231-    Sun   22.15 [deg] -> keep it
+  Distance: J0725-0054-    Sun   32.91 [deg] -> keep it
+  Distance: J0854+2006-    Sun    7.85 [deg] -> discard it
+ [performance] [checkDistancesFromLargeObject]    0.019 [sec
+ SDR(line)=3.28 BW_line=  679.44 [MHz] SDR(128MHz)=1.42
+ 
+   -> Listing ranked candidate list... [bandpass ra=  15.692 dec=   1.094 radius=119.99999999999999
+ iTry=1
+ |SourceName (and type IDs)   |    Az|    El|  eRa| eDec|  Spec Index|  RCQ|Nobs|LastDate|Estimated Flux|  SNR (600 sec)|  Sep|isObs|   fShadow| fRes|dDays|   UVmax|  UVmin|Score|   Reason|
+ |                            |   deg|   deg|  mas|  mas|            |     |    |        |            Jy|               |  deg|     |          |     |     | kLambda|kLambda|     |         |
+ |[J0319+4130] 1,24,25,64     |  11.6|  24.1| 0.14| 0.11|-0.47+- 0.02|12.40| 182|20240807| 9.959+- 0.369|    7.1+-   0.3| 50.8|False|0.08(0.00)|  0.0|    2| -1429.7|    nan|-1.00|    TW,NV|
+ |[J0423-0120] 1,24,25,45,64  |  57.7|  53.6| 0.10| 0.10|-0.35+- 0.01|15.42| 876|20240808| 2.310+- 0.067|    4.7+-   0.1| 50.2| True|0.00(0.00)|  0.0|    1| -1629.3|    nan|-1.00|       TW|
+ |[J2258-2758] 1,25,44,64     | 252.6|  43.8| 0.11| 0.10|-0.32+- 0.02|19.70| 731|20240807| 2.557+- 0.110|    3.6+-   0.2| 41.7| True|0.08(0.00)|  0.0|    2| -2617.2|    nan|-1.00|       TW|
+ |[J0238+1636] 1,24,25,64     |   5.9|  50.2| 0.10| 0.10|-0.13+- 0.06|53.66| 294|20240807| 1.179+- 0.177|    2.2+-   0.3| 28.2| True|0.00(0.00)|  0.0|    2| -2732.0|    nan|-1.00|       TW|
+ |[J0538-4405] 1,24,25,64     | 130.1|  44.9| 0.14| 0.10|-0.31+- 0.01|16.00| 611|20240807| 2.384+- 0.074|    3.5+-   0.1| 75.9| True|0.00(0.00)|  0.0|    2| -2732.0|    nan|-1.00|       TW|
+ |[J0006-0623] 1,24,25,49,64  | 291.4|  53.1| 0.10| 0.10|-0.53+- 0.01| 2.73| 481|20240809| 0.771+- 0.021|    1.5+-   0.0| 16.0| True|0.08(0.00)|  0.0|    1| -1831.0|    nan|-1.00|       TW|
+ |[J0334-4008] 1,25,64        | 142.9|  67.2| 0.13| 0.10|-0.21+- 0.01| 3.04| 208|20240808| 0.696+- 0.026|    1.9+-   0.1| 53.8| True|0.00(0.00)|  0.0|    1| -1587.9|    nan|-1.00|       TW|
+ |[J0519-4546] 1,25,64        | 133.7|  47.8| 0.30| 0.16|-0.17+- 0.02|19.65| 510|20240807| 1.773+- 0.076|    3.0+-   0.1| 73.2| True|0.00(0.00)|  0.0|    2| -2732.0|    nan|-1.00|       TW|
+ |[J0237+2848] 1,25,64        |   4.1|  38.1| 0.11| 0.10|-0.30+- 0.02| 3.08| 171|20240808| 0.872+- 0.030|    0.9+-   0.0| 35.8| True|0.00(0.00)|  0.0|    1|  -593.3|    nan|-1.00|       TW|
+ |[J2253+1608] 1,24,25,64     | 302.6|  25.6| 0.10| 0.10|-0.41+- 0.02|32.09| 622|20240809| 2.911+- 0.117|    2.1+-   0.1| 35.1|False|0.42(0.00)|  0.0|    1| -1739.0|    nan|-1.00|  TW,NV,S|
+ |[J0635-7516] 1,25,44,46,64  | 165.0|  28.9| 0.40| 0.10|-0.33+- 0.01| 1.61| 262|20240807| 0.972+- 0.031|    0.7+-   0.0| 89.3|False|0.08(0.00)|  0.0|    2| -2359.4|    nan|-1.00|    TW,NV|
+ |[J0510+1800] 1,24,25,64     |  48.4|  32.1| 0.11| 0.10|-0.27+- 0.03| 6.12| 335|20240807| 0.749+- 0.039|    0.5+-   0.0| 62.9| True|0.17(0.00)|  0.0|    2| -2732.0|    nan|-1.00|       TW|
+ |[J2232+1143] 1,25,64        | 295.4|  23.8| 0.10| 0.10|-0.35+- 0.04|57.43| 426|20240807| 1.088+- 0.049|    0.8+-   0.0| 38.7|False|0.42(0.00)|  0.0|    3| -2617.2|    nan|-1.00|  TW,NV,S|
+ |[J2357-5311] 1,25,44,49,64  | 212.9|  49.3| 0.17| 0.10|-0.70+- 0.15|-1.00|  64|20240807| 0.152+- 0.062|    0.3+-   0.1| 55.9| True|0.00(0.00)|  0.0|    2| -2617.2|    nan|-1.00|       TW|
+ |[J2148+0657] 1,4,24,25,48,64| 285.3|  16.5| 0.10| 0.10|-0.40+- 0.02| 4.98| 257|20240807| 1.217+- 0.067|    0.9+-   0.0| 48.9|False|0.50(0.00)|  0.0|    3| -1459.8|    nan|-1.00|TW,NV,S,L|
+ |[J0725-0054] 1,25,64        |  85.2|  13.5| 0.10| 0.10|-0.36+- 0.01| 5.65| 444|20240807| 1.421+- 0.039|    1.0+-   0.0| 95.8|False|0.50(0.00)|  1.0|    2|    24.0|    nan|-1.00|TW,NV,S,E|
+ |[J1924-2914] 1,24,25,49,64  | 237.6|  -0.6| 0.11| 0.10|-0.62+- 0.02|39.16| 742|20240807| 1.905+- 0.080|    1.4+-   0.1| 85.7|False|1.00(0.00)|  0.0|    3| -2600.0|    nan|-1.00|  TW,NV,S|
+ |[J2000-1748] 1,4,25,64      | 251.5|   2.0| 0.11| 0.10|-0.23+- 0.03|26.61| 373|20240809| 1.394+- 0.072|    1.0+-   0.1| 76.5|False|1.00(0.00)|  0.0|    1| -1060.0|    nan|-1.00|TW,NV,S,L|
+ |[J0854+2006] 1,24,25,45,64  |  74.1| -14.7| 0.11| 0.10|-0.36+- 0.04|19.63| 391|20240719| 2.080+- 0.149|    1.5+-   0.1|115.7|False|1.00(0.00)|  0.0|   21| -1491.2|    nan|-1.00|  TW,NV,S|
+ |[J0750+1231] 1,25,64        |  75.3|   2.3| 0.10| 0.10|-0.31+- 0.04|15.50| 261|20240730| 1.257+- 0.096|    0.9+-   0.1|101.5|False|0.75(0.00)|  0.0|   10| -2732.0|    nan|-1.00|  TW,NV,S|
+ |[J1642+3948] 1,25,47,64     | 307.9| -56.0| 0.13| 0.10|-0.45+- 0.03|12.82| 185|20240805| 1.500+- 0.089|    1.1+-   0.1|115.3|False|1.00(0.00)|  0.0|    5| -1197.4|    nan|-1.00|  TW,NV,S|
+ |[J1617-5848] 1,25,64        | 194.4|  -4.8| 0.21| 0.11|-0.53+- 0.01| 1.51| 363|20240807| 0.770+- 0.019|    0.5+-   0.0|111.0|False|1.00(0.00)|  0.0|    2| -3457.4|    nan|-1.00|  TW,NV,S|
+ |[J1733-1304] 1,4,25,64      | 237.1| -31.1| 0.10| 0.10|-0.52+- 0.01| 3.89| 342|20240809| 0.720+- 0.021|    0.5+-   0.0|112.1|False|1.00(0.00)|  0.0|    1| -1968.9|    nan|-1.00|TW,NV,S,L|
+ |[J2025+3343] 1,4,25,48,64   | 301.7| -12.1| 0.15| 0.12|-0.70+- 0.15|-1.00| 106|20240807| 0.145+- 0.061|    0.1+-   0.0| 72.3|False|1.00(0.00)|  0.0|    3| -1446.9|    nan|-1.00|TW,NV,S,L|
+ 
+   6th col: Assumed spectral index
+   7th col: Reduced chi-square for sp index fitting
+   9th col: Last observation date
+  10th col: Estimated flux error / estimated flux
+  12th col: Angular separation to query center
+  13th col: Observable or not
+  14th col: Fraction of baselines that will shadowed
+  19th col: Score. valid range is from 0 to 5.
+ 
+ Selected 0 source(s): 
