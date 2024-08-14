@@ -92,10 +92,16 @@ BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
 #-------- Tsys measurement
 if len(antFlag) < len(antList) - 3:
-    exec(open(SCR_DIR + 'TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
+    if len(SQLDspwList) == 0 :
+        execfile(SCR_DIR + 'TsysCal.py -u %s' % prefix)
+    else:
+        exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
+    #
+    #os.system('TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
+#    exec(open(SCR_DIR + 'TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
 else: RXList = []
-if 'Tau0med' in locals():
-    if any(Tau0med < -0.1): RXList = []
+#if 'Tau0med' in locals():
+#    if any(Tau0med < -0.1): RXList = []
 #-------- Check Antenna List
 antDia = GetAntD(antList)
 antNum = len(antList)

@@ -22,28 +22,52 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-a', dest='antFlag', metavar='antFlag',
+    help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-T', dest='PLOTTAU', metavar='PLOTTAU',
+    help='Plot opacity spectra', action="store_true")
+parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
+    help='Plot Tsys and Trx spectra', action="store_true")
+parser.add_option('-o', dest='ONTAU', metavar='ONTAU',
+    help='Online Tsys correction', action="store_true")
+#
+(options, args) = parser.parse_args()
+#-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+antFlag = options.antFlag.split(',')
+antFlag = [ant for ant in antFlag]
+PLOTTAU = options.PLOTTAU
+PLOTTSYS= options.PLOTTSYS
+ONTAU   = options.ONTAU
 SunAngleTsysLimit = 5.0 # [deg] 
-if 'PLOTTAU'  not in locals(): PLOTTAU  = False
-if 'PLOTTSYS' not in locals(): PLOTTSYS = False
-if 'ONTAU' not in locals(): ONTAU = False   # on-source real-time optical depth correction using channel-averaged autocorr power
+#if 'PLOTTAU'  not in locals(): PLOTTAU  = False
+#if 'PLOTTSYS' not in locals(): PLOTTSYS = False
+#if 'ONTAU' not in locals(): ONTAU = False   # on-source real-time optical depth correction using channel-averaged autocorr power
 #-------- Check MS file
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 antList = GetAntName(msfile)
 antNum = len(antList)
-if 'flagAnt' not in locals(): flagAnt = np.ones(antNum)
-if 'antFlag' in locals():
-    index =  indexList(np.array(antFlag), antList)
-    if len(index) > 0: flagAnt[index] = 0.0
+flagAnt = np.ones(antNum)
+index =  indexList(np.array(antFlag), antList)
+if len(index) > 0: flagAnt[index] = 0.0
+#if 'flagAnt' not in locals(): flagAnt = np.ones(antNum)
+#if 'antFlag' in locals():
+#    index =  indexList(np.array(antFlag), antList)
+#    if len(index) > 0: flagAnt[index] = 0.0
 useAnt = np.where(flagAnt == 1.0)[0].tolist(); useAntNum = len(useAnt)
 #-------- Check SPWs
 print('---Checking spectral windows and scans with atmCal for ' + prefix)
-if 'atmSPWs' not in locals():
-    bpSPWs  = GetBPcalSPWs(msfile)
-    atmSPWs = GetAtmSPWs(msfile)
-    atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(set(bpSPWs) & set(atmSPWs)) > 3 else atmSPWs
-    atmSPWs.sort()
+#if 'atmSPWs' not in locals():
+bpSPWs  = GetBPcalSPWs(msfile)
+atmSPWs = GetAtmSPWs(msfile)
+atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(set(bpSPWs) & set(atmSPWs)) > 3 else atmSPWs
+atmSPWs.sort()
 atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames))
 if UniqBands == []: UniqBands = BandList(prefix)
 NumBands = len(UniqBands)
