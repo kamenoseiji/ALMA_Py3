@@ -6,16 +6,48 @@ import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
 from Plotters import plotXYP, plotBP, plotSP
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-a', dest='antFlag', metavar='antFlag',
+    help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-b', dest='bunchNum', metavar='bunchNum',
+    help='Channel binning', default='1')
+parser.add_option('-c', dest='scanID', metavar='scanID',
+    help='Scan ID  e.g. 2', default='2')
+parser.add_option('-f', dest='FG', metavar='FG',
+    help='Apply flagging', action="store_false")
+parser.add_option('-m', dest='plotMin', metavar='plotMin', type="float",
+    help='Plot range minimum', default=0.0)
+parser.add_option('-M', dest='plotMax', metavar='plotMax', type="float",
+    help='Plot range minimum', default=1.2)
+parser.add_option('-s', dest='spwList', metavar='spwList',
+    help='SPW List e.g. 0,1,2,3', default='')
+parser.add_option('-P', dest='BPPLOT', metavar='BPPLOT',
+    help='Plot PDF', action="store_true")
+#
+(options, args) = parser.parse_args()
+#-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+antFlag = options.antFlag.split(',')
+antFlag = [ant for ant in antFlag]
+BPscan  =  int(options.scanID)
+bunchNum=  int(options.bunchNum)
+spwList = options.spwList.split(',')
+spwList = [int(spw) for spw in spwList]
+plotMin = options.plotMin
+plotMax = options.plotMax
+BPPLOT  = options.BPPLOT
+FG      = options.FG
 #-------- Procedures
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 #-------- Configure Array
 print('---Checking array configulation in scan %d' % (BPscan))
-if 'BPPLOT' not in locals(): BPPLOT = False
-if 'antFlag' not in locals(): antFlag = []
 flagAnt = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
@@ -41,12 +73,11 @@ print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 print('---Generating antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
 FreqList, BPList, XYList, XYdelayList = [], [], [], []
-if 'bunchNum' not in locals(): bunchNum = 1
 for spw_index, spw in enumerate(spwList):
-    if 'FGprefix' in locals():  # Flag table
+    if FG:  # Flag table
         try:
-            FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw))
-            TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw))
+            FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+            TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
             BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum, FG, TS)
         except:
             BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum )
@@ -88,7 +119,5 @@ if BPPLOT:
     if 'spurRFLists' in locals():
         plotBP(pp, prefix, antList[antMap], spwList, BPscan, BPList, bunchNum, 1.2, spurRFLists) 
     else:
-        if 'plotMin' not in locals(): plotMin = 0.0
-        if 'plotMax' not in locals(): plotMax = 1.2
         plotSP(pp, prefix, antList[antMap], spwList, FreqList, BPList, plotMin, plotMax)
 #
