@@ -1,5 +1,5 @@
-#import sys
-#import pickle
+import glob
+import re
 import math
 import numpy as np
 import analysisUtils as au
@@ -9,49 +9,45 @@ from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, G
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from Plotters import plotSP, plotXYP
+from Plotters import plotSP, plotXYP, plotBLAV
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
 msfile = wd + prefix + '.ms'
+#-------- Tsys calibration
+os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
+TrxFileList = glob.glob(prefix + '*Trx.npy')
+RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
 BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 if BLCORR: ELshadow = 30.0* np.pi/180.0
-if BLCORR: CorrFactor = 1.15
-#-------- Check Receivers
-RXList = BandList(prefix)
 antList = GetAntName(msfile)
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 bpSPWs = GetBPcalSPWs(msfile)
-#if 'spwList' not in locals:
-if 'atmSPWs' not in locals():
-    atmSPWs = GetAtmSPWs(msfile)
-    atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(bpSPWs) > 3 else atmSPWs.tolist()
-    atmSPWs.sort()
-bpBandNameList  = GetBandNames(msfile, bpSPWs)
-if len(bpBandNameList) == 0: bpBandNameList = BandList(prefix)* len(bpSPWs)
-for BandName in RXList:
-    if BandName not in bpBandNameList:  RXList.remove(BandName)
-#
+#if len(bpBandNameList) == 0: bpBandNameList = BandList(prefix)* len(bpSPWs)
+#for BandName in RXList:
+#    if BandName not in bpBandNameList:  RXList.remove(BandName)
+##
 BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
 BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
 BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
 BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
-#
 OnScanList = GetOnSource(msfile)
 if len(OnScanList) == 0: RXList = []
 if 'antFlag' not in locals(): antFlag = []
 msmd.open(msfile)
+spwNames = msmd.namesforspws(bpSPWs)
+def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
-    BandbpSPW[BandName]  = {'spw': np.array(bpSPWs)[np.where(np.array(bpBandNameList) == BandName)[0].tolist()].tolist()}
-    BandatmSPW[BandName] = {'spw': np.array(atmSPWs)[np.where(np.array(bpBandNameList) == BandName)[0].tolist()].tolist()}
+    BandbpSPW[BandName] = {'spw': [spw for spw_index,spw in enumerate(bpSPWs) if BandName in spwNames[spw_index]]}
+    BandatmSPW[BandName]  = {'spw': [int(re.split('[SPW\.]', TrxFile)[3]) for TrxFile in TrxFileList if BandName in TrxFile] }
+    BandatmSPW[BandName]['spw'].sort()
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
     #---- Bandpass scan to check Allan Variance
-    def AV(vis): return AllanVarPhase(np.angle(vis), 1)
     if 'BPscan' not in locals():
         checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
@@ -64,17 +60,15 @@ for BandName in RXList:
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
-    chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan)))
+    chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan))); chavSPWs.sort()
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
-    parapolIndex = [0,3] if XspecList[0][0].shape[0] == 4 else [0,1]
     bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
     if BLCORR: bunchNum = 1
     for spw_index, spw in enumerate(chavSPWs):
-        checkVis = XspecList[spw_index][0][parapolIndex][:,0]
-        timeRange = list(range(checkVis.shape[2] % bunchNum, checkVis.shape[2]))
-        checkVis = [specBunch(checkVis[0][:,timeRange], 1, bunchNum), specBunch(checkVis[1][:,timeRange], 1, bunchNum)]
-        #---- Evaluation by AV
-        AV_bl = np.apply_along_axis(AV, 1, checkVis[0]) + np.apply_along_axis(AV, 1, checkVis[1])
+        checkVis = XspecList[spw_index][0][[0,-1]][:,0]
+        AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
+        plotBLAV(prefix, antList, spw, AV_bl)
+        AV_bl = np.sum(AV_bl, axis=0)
         errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
         if 0 < len(errBL) < 3 : # Single baseline error
             flagSet = {}
@@ -86,20 +80,23 @@ for BandName in RXList:
             antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
         #
     #
+#
 SQLDspwList = msmd.almaspws(sqld=True).tolist()
 msmd.close()
 BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
 BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
+'''
 #-------- Tsys measurement
-if len(antFlag) < len(antList) - 3:
-    if len(SQLDspwList) == 0 :
-        execfile(SCR_DIR + 'TsysCal.py -u %s' % prefix)
-    else:
-        exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
-    #
-    #os.system('TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
+#if len(antFlag) < len(antList) - 3:
+#    if len(SQLDspwList) == 0 :
+#        os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
+#        #execfile(SCR_DIR + 'TsysCal.py -u %s' % prefix)
+#    else:
+#        exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
+#    #
+#    #os.system('TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
 #    exec(open(SCR_DIR + 'TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
-else: RXList = []
+#else: RXList = []
 #if 'Tau0med' in locals():
 #    if any(Tau0med < -0.1): RXList = []
 #-------- Check Antenna List
@@ -513,3 +510,4 @@ for BandName in RXList:
     pp.close()
     del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
 del RXList, antList, BandbpSPW, bpBandNameList, atmSPWs, bpSPWs, OnScanList
+'''

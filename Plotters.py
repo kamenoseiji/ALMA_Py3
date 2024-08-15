@@ -158,6 +158,31 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
     del(figAnt)
     return
 #
+#-------- Plot baseline-AllanVariance map
+def plotBLAV(prefix, antList, spw, AV_bl):
+    pp = PdfPages('AV_%s-SPW%d.pdf' % (prefix, spw))
+    figAV = plt.figure(figsize = (8, 8))
+    figAV.suptitle('Allan Variance %s SPW%d' % (prefix, spw))
+    axAV = figAV.add_subplot(1, 1, 1)
+    antNum, blNum = len(antList), AV_bl.shape[1]
+    AVmap = np.zeros([2, antNum, antNum])
+    for bl_index in list(range(blNum)):
+        ants = Bl2Ant(bl_index)
+        AVmap[0, ants[1], ants[0]] = AV_bl[0, bl_index]  # pol-X
+        AVmap[1, ants[0], ants[1]] = AV_bl[1, bl_index]  # pol-Y
+    #
+    AVmap = np.sum(AVmap, axis=0)
+    for ant_index, ant in enumerate(antList): AVmap[ant_index, ant_index] = 0.0
+    imAV = axAV.imshow(AVmap, cmap='coolwarm', vmin=0.0, vmax=0.01)
+    figAV.colorbar(imAV, ax=axAV)
+    axAV.plot([0,antNum-1], [0,antNum-1], color='w')
+    axAV.set_xticks(list(range(antNum))); axAV.set_yticks( list(range(antNum)))
+    axAV.set_xticklabels(antList.tolist()); axAV.set_yticklabels(antList.tolist())
+    figAV.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
+#
 #-------- Plot autocorrelation power spectra
 def plotAC(prefix, antList, spwList, freqList, AC):
     pp = PdfPages('AC_' + prefix + '.pdf')

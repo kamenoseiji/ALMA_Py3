@@ -180,7 +180,6 @@ for band_index, bandName in enumerate(UniqBands):
     np.save('%s-%s.atmTime.npy' % (prefix, bandName), atmTimeRef)     # antList[ant]
     np.save('%s-%s.TauE.npy' % (prefix, bandName), Tau0Excess)     # antList[ant]
     for spw_index, spw in enumerate(atmspwLists[band_index]):
-        print('%s %d' % (spw_index, spw))
         np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), freqList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.TantN.npy' % (prefix, bandName, spw), TantN[spw_index])    # freqList[spw]
