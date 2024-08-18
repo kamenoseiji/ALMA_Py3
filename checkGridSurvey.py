@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
+from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
@@ -13,23 +13,32 @@ from Plotters import plotSP, plotXYP, plotBLAV
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
+def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 msfile = wd + prefix + '.ms'
+tempAtm = GetTemp(msfile)
+if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
-os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
+if 'TsysDigitalCorrection' in locals():
+    if TsysDigitalCorrection: os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCalDigitalCorrection.py -u %s' % (prefix))
+else:
+    TsysDigitalCorrection = False
+    os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
 TrxFileList = glob.glob(prefix + '*Trx.npy')
 RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
 BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 if BLCORR: ELshadow = 30.0* np.pi/180.0
+#-------- Check Antenna List
 antList = GetAntName(msfile)
+antDia = GetAntD(antList)
+antNum = len(antList)
+blNum = int(antNum* (antNum - 1) / 2)
+polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
+#
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 bpSPWs = GetBPcalSPWs(msfile)
-#if len(bpBandNameList) == 0: bpBandNameList = BandList(prefix)* len(bpSPWs)
-#for BandName in RXList:
-#    if BandName not in bpBandNameList:  RXList.remove(BandName)
-##
 BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
 BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
 BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
@@ -37,9 +46,9 @@ BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 OnScanList = GetOnSource(msfile)
 if len(OnScanList) == 0: RXList = []
 if 'antFlag' not in locals(): antFlag = []
+#-------- 
 msmd.open(msfile)
 spwNames = msmd.namesforspws(bpSPWs)
-def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 for BandName in RXList:
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
     BandbpSPW[BandName] = {'spw': [spw for spw_index,spw in enumerate(bpSPWs) if BandName in spwNames[spw_index]]}
@@ -47,6 +56,8 @@ for BandName in RXList:
     BandatmSPW[BandName]['spw'].sort()
     BandScanList[BandName] = list(set(msmd.scansforspw(BandbpSPW[BandName]['spw'][0])) & set(OnScanList))
     BandScanList[BandName].sort()
+    BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
+    BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
     #---- Bandpass scan to check Allan Variance
     if 'BPscan' not in locals():
         checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
@@ -80,39 +91,12 @@ for BandName in RXList:
             antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
         #
     #
-#
-SQLDspwList = msmd.almaspws(sqld=True).tolist()
-msmd.close()
-BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
-BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
-'''
-#-------- Tsys measurement
-#if len(antFlag) < len(antList) - 3:
-#    if len(SQLDspwList) == 0 :
-#        os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
-#        #execfile(SCR_DIR + 'TsysCal.py -u %s' % prefix)
-#    else:
-#        exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
-#    #
-#    #os.system('TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
-#    exec(open(SCR_DIR + 'TsysCal.py').read()) if len(SQLDspwList) == 0 else exec(open(SCR_DIR + 'TsysCalDigitalCorrection.py').read())
-#else: RXList = []
-#if 'Tau0med' in locals():
-#    if any(Tau0med < -0.1): RXList = []
-#-------- Check Antenna List
-antDia = GetAntD(antList)
-antNum = len(antList)
-blNum = int(antNum* (antNum - 1) / 2)
-flagAnt = np.ones([antNum])
-flagAnt[indexList(antFlag, antList)] = 0.0
-flagAnt[np.where( np.min(np.median(np.array(TrxList), axis=(2,4)), axis=(0,1)) < 10)[0].tolist()] = 0.0 # flag unrealistic Trx out
-useAntMap = np.where(flagAnt > 0.1)[0].tolist()
-flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
-polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
-#-------- Check source list
-print('---Checking source list')
-#-------- Loop for Bands
-for BandName in RXList:
+    flagAnt = np.ones([antNum])
+    flagAnt[indexList(antFlag, antList)] = 0.0
+    #flagAnt[np.where( np.min(np.median(np.array(TrxList), axis=(2,4)), axis=(0,1)) < 10)[0].tolist()] = 0.0 # flag unrealistic Trx out
+    useAntMap = np.where(flagAnt > 0.1)[0].tolist()
+    flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
+    #--------
     srcDic = GetSourceDic(msfile)
     sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
@@ -127,9 +111,9 @@ for BandName in RXList:
     logfile.write(text_corr + text_tsysdigital + '\n')
     print('-----%s----' % (BandName))
     #-------- D-term from history
-    Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), np.mean(azelTime))
+    Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), timeStampList[0][0])
     #-------- Load Aeff file
-    etaA = 0.01* GetAeff(TBL_DIR, antList, int(UniqBands[band_index][3:5]), np.mean(azelTime)).T
+    etaA = 0.01* GetAeff(TBL_DIR, antList, int(BandName[3:5]), timeStampList[0][0]).T
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName]['spw'], BandScanList[BandName])  # XspecList[spw][scan] [corr, ch, bl, time]
@@ -251,6 +235,7 @@ for BandName in RXList:
         BPSPWList, XYSPWList, XYsnrList = [], [], []
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             chRange = BandbpSPW[BandName]['chRange'][spw_index]
+            chNum   = BandbpSPW[BandName]['chNum'][spw_index]
             Xspec = XspecList[spw_index][scan_index][:,:,:,scanFlag]         # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/ (scanPhase[ant0]* scanPhase[ant1].conjugate()), axis=3)   # antenna-based phase correction
             BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
@@ -339,7 +324,7 @@ for BandName in RXList:
         if len(scanDic[scan]['Flag']) == 0: continue
         if scan in QSOscanList : continue              # filter QSO out
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-        FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index in list(range(spwNum))])
+        FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW[BandName]['spw'])])
     SSOList = list(FscaleDic.keys())
     for SSO in SSOList:
         if FscaleDic[SSO] == None: del FscaleDic[SSO]
@@ -354,8 +339,8 @@ for BandName in RXList:
         WgSum += SSOWG
     if WgSum > 1.0e-2: Aeff = averageAe(FscaleDic, BandbpSPW[BandName]['spw'])   # Aeff[ant, pol, spw]
     else: 
-        Aeff = np.ones([useAntNum, 2, spwNum])
-        for spw_index in list(range(spwNum)): Aeff[:,:,spw_index] = etaA[:,antMap].T
+        Aeff = np.ones([useAntNum, 2, len(BandbpSPW[BandName]['spw'])])
+        for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): Aeff[:,:,spw_index] = etaA[:,antMap].T
     text_sd = ' Aeff: '
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
     fluxCalText = ''
@@ -376,13 +361,13 @@ for BandName in RXList:
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
     if len(QSONonShadowScanList) > 0: checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
     scan_index = list(scanDic.keys()).index(checkScan)
-    newAeff = np.ones([useAntNum, 2, spwNum])
+    newAeff = np.ones([useAntNum, 2, len(BandbpSPW[BandName]['spw'])])
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         newAeff[:,:,spw_index] = AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[:,:,spw_index], antDia[antMap] )
     for ant_index, ant in enumerate(antMap): Aeff[ant_index] = newAeff[ant_index]
     #-------- Stokes visibilities for each scan
-    ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4]), np.zeros([len(BandScanList[BandName]), spwNum, 4])
-    text_Stokes = np.repeat('',spwNum).tolist()
+    ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4])
+    text_Stokes = np.repeat('',len(BandbpSPW[BandName]['spw'])).tolist()
     #-------- Prepare plot files
     pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf')
     polLabel = ['I', 'Q', 'U', 'V']
@@ -458,13 +443,13 @@ for BandName in RXList:
         logfile.write(text_sd +'\n'); print(text_sd)
         text_sd = ' SPW  Frequency     I                 Q                 U                 V             |  %Pol     EVPA '; logfile.write(text_sd + '\n'); print(text_sd)
         text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
-        for spw_index in list(range(spwNum)): logfile.write(text_Stokes[spw_index] + '\n'); print(text_Stokes[spw_index])
+        for spw_index,spw in enumerate(BandbpSPW[BandName]['spw']): logfile.write(text_Stokes[spw_index] + '\n'); print(text_Stokes[spw_index])
         text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
-        if spwNum > 1: logfile.write(text_mean + '\n'); print(text_mean)
+        if len(BandbpSPW[BandName]['spw']) > 1: logfile.write(text_mean + '\n'); print(text_mean)
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
         text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
     #-------- Review D-term
-    Dterm = np.zeros([useAntNum, spwNum, 2], dtype=complex)
+    Dterm = np.zeros([useAntNum, len(BandbpSPW[BandName]['spw']), 2], dtype=complex)
     DtermDic = {'mjdSec': np.median(timeStamp)}
     DtermDic['Freq'] = [np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
     text_sd = 'D-term        '; logfile.write(text_sd); print(text_sd, end='')
@@ -509,5 +494,5 @@ for BandName in RXList:
     plt.close('all')
     pp.close()
     del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
-del RXList, antList, BandbpSPW, bpBandNameList, atmSPWs, bpSPWs, OnScanList
-'''
+del RXList, antList, BandbpSPW, bpSPWs, OnScanList
+msmd.close()
