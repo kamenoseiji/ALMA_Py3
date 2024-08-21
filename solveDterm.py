@@ -1,13 +1,25 @@
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'Grid.py').read())
-exec(open(SCR_DIR + 'Plotters.py').read())
+#exec(open(SCR_DIR + 'interferometry.py').read())
+#exec(open(SCR_DIR + 'Grid.py').read())
+#exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
+from Plotters import plotXYP, plotBP, plotSP
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-a', dest='antFlag', metavar='antFlag',
+    help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-f', dest='FG', metavar='FG',
+    help='Apply flagging', action="store_false")
+(options, args) = parser.parse_args()
+prefix  = options.prefix
+antFlag = [ant for ant in options.antFlag.split(',')]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
 #
-if 'antFlag' not in locals():   antFlag = []
+#if 'antFlag' not in locals():   antFlag = []
 spwNum = len(spwList)
 polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
 #
@@ -31,11 +43,12 @@ scanIndex = 0
 print('-- Checking %s ' % (msfile))
 #-------- Flagging status of antennas
 flagTimeIndex = []
-if 'FGprefix' in locals():  # Flag table
+if options.FG:
     antSPWFlag  = []
     for spw_index, spw in enumerate(spwList):
-        TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
-        FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
+        if os.path.isfile('%s-SPW%d.TS.npy' % (FGprefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
+        if os.path.isfile('%s-SPW%d.FG.npy' % (FGprefix, spw)); FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
+        
         newFlagIndex = np.where( np.median(FG, axis=1) == 0)[0].tolist()
         useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
         antSPWFlag = antSPWFlag + [antFlag + antList[newFlagIndex].tolist()]

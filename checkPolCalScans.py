@@ -1,13 +1,29 @@
+import os
+SCR_DIR = '/home/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au
 from interferometry import BANDPA, BANDFQ, GetBPcalSPWs, GetSourceDic, indexList, GetAzEl, GetTimerecord, AzElMatch, AzEl2PA
 from Grid import SSOCatalog, SSOscore, ELshadow
-msfile = wd + prefix + '.ms'
-#-------- Check Antenna List
-#antList = GetAntName(msfile)
-#antNum = len(antList)
-#blNum = antNum* (antNum - 1) / 2
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='uid  e.g. uid___A002_X11adad7_X19ab0', default='')
+parser.add_option('-Q', dest='QUMODEL', metavar='QUMODEL',
+    help='Use a priori Stokes parameters', action="store_true")
+parser.add_option('-B', dest='BPscans', metavar='BPscans',
+    help='Bandpass scans for each band e.g. [3,6]', default='')
+parser.add_option('-E', dest='EQscans', metavar='EQscans',
+    help='Equalizing scans for each band e.g. [3,6]', default='')
+#
+(options, args) = parser.parse_args()
+#
+QUMODEL= options.QUMODEL
+BPscans = [scan for scan in options.BPscans]
+EQscans = [scan for scan in options.EQscans]
+#prefix = options.prefix
+prefix = '2023.1.00273.S_X11adad7_X19ab0'
+msfile = prefix + '.ms'
 #-------- Check SPWs of atmCal
 print('---Checking spectral windows for ' + prefix)
 bpSPWs = GetBPcalSPWs(msfile)
@@ -51,7 +67,7 @@ for band_index in list(range(NumBands)):
     #-------- Check QU catalog
     if QUMODEL: # A priori QU model from Rdata
         os.system('rm -rf CalQU.data')
-        text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, qa.time('%fs' % (azelTime[0]), form='ymd')[0], BANDFQ[bandID])
+        text_sd = 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, qa.time('%fs' % (azelTime[0]), form='ymd')[0], BANDFQ[bandID])
         for source in sourceList: text_sd = text_sd + ' ' + source
         print(text_sd); os.system(text_sd)
         fp = open('CalQU.data')
@@ -94,26 +110,18 @@ for band_index in list(range(NumBands)):
         if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
     #
     #-------- Select Bandpass Calibrator
-    if 'BPScans' not in locals():
+    if len(BPscans) == 0:
         BPscanIndex = np.argmax(BPquality)
     else:
-        if len(BPScans) < NumBands:
-            BPscanIndex = np.argmax(BPquality)
-        else:
-            BPscanIndex = onsourceScans.index(BPScans[band_index])
-        #
+        BPscanIndex = BPscans[band_index]
     #
     BPScan = onsourceScans[BPscanIndex]; BPcal = sourceList[sourceIDscan[BPscanIndex]]; timeLabelBP = qa.time('%fs' % (refTime[BPscanIndex]), form='ymd')[0]
     BPEL = OnEL[onsourceScans.index(BPScan)]
     #-------- Select Equalization Calibrator
-    if 'EQScans' not in locals():
+    if len(EQscans) == 0:
         EQscanIndex = np.argmax(EQquality)
     else:
-        if len(EQScans) < NumBands:
-            EQscanIndex = np.argmax(EQquality)
-        else:
-            EQscanIndex = onsourceScans.index(EQScans[band_index])
-        #
+        EQscanIndex = EQscans[band_index]
     #
     EQScan = onsourceScans[EQscanIndex]; EQcal = sourceList[sourceIDscan[EQscanIndex]]; timeLabelEQ = qa.time('%fs' % (refTime[EQscanIndex]), form='ymd')[0]
     BPcalText = 'Use %s [Scan%d EL=%4.1f deg] %s as Bandpass Calibrator' % (BPcal, BPScan, 180.0* OnEL[onsourceScans.index(BPScan)]/np.pi, timeLabelBP); print(BPcalText)
@@ -128,6 +136,3 @@ for band_index in list(range(NumBands)):
     msmd.done()
 #
 del msfile, UniqBands
-#if 'flagAnt' in locals(): del flagAnt
-#if 'BPScans' in locals(): del BPScans
-#if 'EQScans' in locals(): del EQScans
