@@ -27,11 +27,9 @@ parser.add_option('-P', dest='PLOTPDF', metavar='PLOTPDF',
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-antFlag = options.antFlag.split(',')
-antFlag = [ant for ant in antFlag]
+antFlag = [ant for ant in options.antFlag.split(',')]
 timeBunch = int(options.timeBunch)
-scanList= options.scanList.split(',')
-scanList= [int(scan) for scan in scanList]
+scanList= [int(scan) for scan in options.scanList.split(',')]
 spw = int(options.spw)
 SNR_THRESH = options.threshold
 PLOTPDF = options.PLOTPDF

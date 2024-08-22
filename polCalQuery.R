@@ -1,6 +1,6 @@
 #-------- Parse arguments
 parseArg <- function( args ){
-	argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, 100.0, FALSE)
+	argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, NA, FALSE)
 	names(argList) <- c('startTime', 'RA', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
 	if( !file.exists("Flux.Rdata") ){ argList$load <- TRUE }
     #if( is.logical(args) == FALSE) return(argList)
@@ -32,7 +32,6 @@ cos_phi <- cos(ALMA_LAT)
 sin_phi <- sin(ALMA_LAT)
 maxSinEL <- sin(86/180*pi)
 minSinEL <- sin(20/180*pi)
-
 #-------- Calculate Day of year from Month and date
 md2doy <- function(year, month, date){
 	is_leap <- ((year%%4 == 0) && (month > 2))	# Leap Year Frag
@@ -97,6 +96,9 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     colnames(SDF) <- c('Src', 'RA', 'DEC', 'I', 'Q', 'U', 'V', 'P', 'EVPA')
 	for(src in sourceList){
 		srcDF <- DF[((DF$Src == src) & (abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange)),] 
+        srcDF$P  <- sqrt(srcDF$Q^2 + srcDF$U^2)
+        srcDF$eP <- sqrt(srcDF$eQ^2 + srcDF$eU^2)
+        srcDF$eEVPA <- 0.5* sqrt(srcDF$Q^2 * srcDF$eU^2 + srcDF$U^2 * srcDF$eQ^2) / (srcDF$P)^2
         srcDF$relTime <- as.numeric(srcDF$Date) - as.numeric(as.POSIXct(refDate))
         if( (diff(range(srcDF$Freq)) > 100.0) & ( min(abs(srcDF$relTime)) / diff(range(srcDF$relTime)) < 2 ) ){
             tempDF <- estimateIQUV(srcDF, refFreq)
@@ -112,7 +114,7 @@ estimateIQUV <- function(DF, refFreq){
     DF$relFreq <- DF$Freq / refFreq
     #if(nrow(DF) < 8){
         fitI <- lm(formula=log(I) ~ log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
-	    fitP <- lm(formula=log(P) ~ log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
+	    fitP <- lm(formula=log(P) ~ log(relFreq), data=DF, weight=(DF$P/DF$eP)^2 * (864000 / abs(relTime + 864000)))
     #} else {
     #    fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
 	#    fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
@@ -127,10 +129,11 @@ estimateIQUV <- function(DF, refFreq){
 
 #-------- Input parameters for debugging
 #Arguments <- "-s2023-10-01T03:24:00 -d7200 -b3 -#97.5"
-#Arguments <- list('-s2023-06-29T11:18:12', '-d7200', '-b6', '-#230', '-L')
-Arguments <- commandArgs(trailingOnly = TRUE)
+Arguments <- list('-s2024-08-22T01:57:30', '-d10800', '-b7')
+#Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
+if(is.na(argList$refFreq)){ argList$refFreq <- BandFreq[argList$Band] }
 startmjdSec <- ISO8601mjdSec(argList$startTime)
 endmjdSec <- startmjdSec + argList$execDuration
 startLST <- mjd2gmst(startmjdSec/SEC_PER_DAY) + ALMA_LONG
@@ -150,9 +153,7 @@ pos <- regexpr("RB",FLDF$File)
 FLDF$Band <- as.integer(substr(FLDF$File, pos+3, pos+4))
 FLDF$BandPA <- BandPA[FLDF$Band]
 FLDF <- FLDF[-which((FLDF$Band == 3) & (abs(FLDF$Freq - 97.45) > 1.0)),]
-
 SDF <- sourceDataFrame( FLDF, argList$refFreq, argList$startTime)
-
 #---- Filter by P > 0.05 Jy
 SDF <- SDF[SDF$P > argList$threshFlux,]
 

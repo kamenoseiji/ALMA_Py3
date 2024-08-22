@@ -21,10 +21,10 @@ parser.add_option('-E', dest='EQscans', metavar='EQscans',
 QUMODEL= options.QUMODEL
 BPscans = [scan for scan in options.BPscans]
 EQscans = [scan for scan in options.EQscans]
-#prefix = options.prefix
-prefix = '2023.1.00273.S_X11adad7_X19ab0'
+prefix = options.prefix
 msfile = prefix + '.ms'
 #-------- Check SPWs of atmCal
+logfile = open(prefix + '-PolQuery.log', 'w')
 print('---Checking spectral windows for ' + prefix)
 bpSPWs = GetBPcalSPWs(msfile)
 msmd.open(msfile)
@@ -35,12 +35,14 @@ for spwName in bpspwNames :
     bandNames = bandNames + re.findall(bandNamePattern, spwName)
 UniqBands = np.unique(bandNames).tolist(); NumBands = len(UniqBands)
 bpspwLists, bpscanLists, BandPA = [], [], []
-for band_index in list(range(NumBands)):
-    BandPA = BandPA + [(BANDPA[int(UniqBands[band_index][3:5])] + 90.0)*np.pi/180.0]
+for band_index, BandName in enumerate(UniqBands):
+    BandPA = BandPA + [(BANDPA[int(BandName[3:5])] + 90.0)*np.pi/180.0]
     bpspwLists  = bpspwLists  + [np.array(bpSPWs)[indexList( np.array([UniqBands[band_index]]), np.array(bandNames))].tolist()]
     bpscanLists = bpscanLists + [msmd.scansforspw(bpspwLists[band_index][0]).tolist()]
     #print(' ', end='')
-    print(UniqBands[band_index] + ': bpSPW=', end='');  print(bpspwLists[band_index])
+    text_sd = BandName + ' SPW'
+    for spw in bpspwLists[band_index]: text_sd = text_sd + ' %d' % (spw)
+    print(text_sd); logfile.write(text_sd + '\n')
 #
 #-------- Check source list
 print('---Checking source list')
@@ -51,9 +53,9 @@ ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | 
 msmd.close()
 msmd.done()
 #-------- Loop for Bands
-for band_index in list(range(NumBands)):
+for band_index, BandName in enumerate(UniqBands):
     msmd.open(msfile)
-    bandName = UniqBands[band_index]; bandID = int(UniqBands[band_index][3:5])
+    bandID = int(BandName[3:5])
     ONScan = np.array(bpscanLists[band_index])[indexList( ONScans, np.array(bpscanLists[band_index]))]
     onsourceScans = ONScan.tolist()
     scanNum = len(onsourceScans)
@@ -79,6 +81,8 @@ for band_index in list(range(NumBands)):
         #
         for source in [source for source in StokesDic.keys() if len(StokesDic[source]) == 0]: del StokesDic[source]
     #
+    text_sd = 'Scan Source        AZ   EL     PA   dPA   pRes   BPqual EQqual'
+    print(text_sd); logfile.write(text_sd + '\n')
     for scan_index, scan in enumerate(onsourceScans):
         sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(scan)[0]))
         interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], onsourceScans[scan_index])
@@ -106,7 +110,9 @@ for band_index in list(range(NumBands)):
             BPquality = BPquality + [-9999.9]
             EQquality = EQquality + [-9999.9]
         #
-        print('Scan%02d : %10s AZ=%6.1f EL=%4.1f PA=%6.1f dPA=%5.2f pRes=%5.2f BPquality=%7.4f EQquality=%6.0f' % (onsourceScans[scan_index], sourceName, 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[-1], EQquality[-1]))
+
+        text_sd = ' %3d %10s %+6.1f %4.1f %6.1f %5.2f %+5.3f %7.2f %+6.0f' % (onsourceScans[scan_index], sourceName, 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[-1], EQquality[-1])
+        print(text_sd); logfile.write(text_sd + '\n')
         if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
     #
     #-------- Select Bandpass Calibrator
@@ -115,7 +121,7 @@ for band_index in list(range(NumBands)):
     else:
         BPscanIndex = BPscans[band_index]
     #
-    BPScan = onsourceScans[BPscanIndex]; BPcal = sourceList[sourceIDscan[BPscanIndex]]; timeLabelBP = qa.time('%fs' % (refTime[BPscanIndex]), form='ymd')[0]
+    BPScan = onsourceScans[BPscanIndex]; BPcal = sourceList[sourceIDscan[BPscanIndex]]
     BPEL = OnEL[onsourceScans.index(BPScan)]
     #-------- Select Equalization Calibrator
     if len(EQscans) == 0:
@@ -123,9 +129,9 @@ for band_index in list(range(NumBands)):
     else:
         EQscanIndex = EQscans[band_index]
     #
-    EQScan = onsourceScans[EQscanIndex]; EQcal = sourceList[sourceIDscan[EQscanIndex]]; timeLabelEQ = qa.time('%fs' % (refTime[EQscanIndex]), form='ymd')[0]
-    BPcalText = 'Use %s [Scan%d EL=%4.1f deg] %s as Bandpass Calibrator' % (BPcal, BPScan, 180.0* OnEL[onsourceScans.index(BPScan)]/np.pi, timeLabelBP); print(BPcalText)
-    EQcalText = 'Use %s [Scan%d EL=%4.1f deg] %s as Gain Equalizer' % (EQcal, EQScan, 180.0* OnEL[onsourceScans.index(EQScan)]/np.pi, timeLabelEQ); print(EQcalText)
+    EQScan = onsourceScans[EQscanIndex]; EQcal = sourceList[sourceIDscan[EQscanIndex]]
+    text_sd = '%s BPscan %d [%s EL=%4.1f]' % (BandName, BPScan, BPcal, 180.0* OnEL[onsourceScans.index(BPScan)]/np.pi); print(text_sd); logfile.write(text_sd + '\n')
+    text_sd = '%s EQscan %d [%s EL=%4.1f]' % (BandName, EQScan, BPcal, 180.0* OnEL[onsourceScans.index(EQScan)]/np.pi); print(text_sd); logfile.write(text_sd + '\n')
     #-------- SSO in observed source list
     BandSSOList = list( set(SSOList) & set(sourceIDscan) )
     if len(BandSSOList) == 0: Apriori = True
@@ -135,4 +141,5 @@ for band_index in list(range(NumBands)):
     PolList = ['X', 'Y']
     msmd.done()
 #
+logfile.close()
 del msfile, UniqBands
