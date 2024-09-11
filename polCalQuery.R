@@ -129,8 +129,7 @@ estimateIQUV <- function(DF, refFreq){
 
 #-------- Input parameters for debugging
 #Arguments <- "-s2023-10-01T03:24:00 -d7200 -b3 -#97.5"
-Arguments <- list('-s2024-08-22T01:57:30', '-d10800', '-b7')
-#Arguments <- commandArgs(trailingOnly = TRUE)
+Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
 if(is.na(argList$refFreq)){ argList$refFreq <- BandFreq[argList$Band] }
