@@ -14,7 +14,7 @@ from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
 def AV(vis): return AllanVarPhase(np.angle(vis), 1)
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
@@ -67,7 +67,7 @@ for BandName in RXList:
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*DELAY*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
         checkScan.sort()
-        checkScan = checkScan[0]
+        checkScan = checkScan[-1]
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))

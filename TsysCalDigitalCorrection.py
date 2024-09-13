@@ -22,12 +22,32 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-a', dest='antFlag', metavar='antFlag',
+    help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-T', dest='PLOTTAU', metavar='PLOTTAU',
+    help='Plot opacity spectra', action="store_true")
+parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
+    help='Plot Tsys and Trx spectra', action="store_true")
+parser.add_option('-o', dest='ONTAU', metavar='ONTAU',
+    help='Online Tsys correction', action="store_true")
+#
+(options, args) = parser.parse_args()
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+antFlag = options.antFlag.split(',')
+antFlag = [ant for ant in antFlag]
+PLOTTAU = options.PLOTTAU
+PLOTTSYS= options.PLOTTSYS
+ONTAU   = options.ONTAU
 SunAngleTsysLimit = 5.0 # [deg] 
 if 'PLOTTAU'  not in locals(): PLOTTAU  = False
 if 'PLOTTSYS' not in locals(): PLOTTSYS = False
 if 'ONTAU' not in locals(): ONTAU = False   # on-source real-time optical depth correction using channel-averaged autocorr power
 #-------- Check MS file
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 antList = GetAntName(msfile)
@@ -118,7 +138,8 @@ def powerBias(sqld, chav):
     sumY = np.sum(chav)
     sumXX= sqld.dot(sqld)
     sumXY= chav.dot(sqld)
-    return( (sumXX* sumY - sumX* sumXY)/(len(chav)* sumXX - sumX*sumX) )
+    bias = (sumXX* sumY - sumX* sumXY)/(len(chav)* sumXX - sumX*sumX)
+    return 0.0 if np.isnan(bias) else bias
 #
 for band_index, bandName in enumerate(UniqBands):
     tsysLog = open(prefix + '-' + bandName + '-Tsys.log', 'w')
@@ -130,7 +151,7 @@ for band_index, bandName in enumerate(UniqBands):
     atmscanNum, spwNum = len(atmscanLists[band_index]), len(atmspwLists[band_index])
     for ant_index, ant in enumerate(antList[useAnt]):
         for spw_index, sqldspw in enumerate(SQLDspwLists[band_index]):
-            chavspw = CHAVspwLists[0][spw_index]
+            chavspw = CHAVspwLists[band_index][spw_index]
             timeScan, SQLD = GetPSpecScan(msfile, ant_index, sqldspw, scanList[0])
             powerSQLD = np.array([np.median(SQLD[:,0,indexList(timeOFF, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeAMB, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeHOT, timeScan)], axis=1)])
             timeScan, CHAV = GetPSpecScan(msfile, ant_index, chavspw, scanList[0])
