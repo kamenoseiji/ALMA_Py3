@@ -210,7 +210,9 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 plotAC = 10.0* np.log10(avgAC )
                 maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
-                plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
+                #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
+                #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(minAC) - 1.0
+                plotMax, plotMin = 10.0* np.log10(ACMAX), 118.0
                 if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.3*plotMax - 0.3* plotMin, antList[ant_index], fontsize=10)
                 ACPL.axis([np.min(Freq), np.max(Freq), plotMin, 1.1* plotMax - 0.1* plotMin])
                 ACPL.tick_params(axis='both', labelsize=6)
@@ -225,7 +227,8 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 bgcolor = 'green'
                 if maxSD > -30.0: bgcolor = 'orange'
                 if maxSD > -20.0: bgcolor = 'red'
-                plotMax, plotMin = max(-20.0, maxSD), min(-40.0, minSD)
+                #plotMax, plotMin = max(-20.0, maxSD), min(-40.0, minSD)
+                plotMax, plotMin = max(-20.0, maxSD), min(-20.0, minSD)
                 SDPL.axis([np.min(Freq), np.max(Freq), 1.05*plotMin - 0.05*plotMax, 1.05*plotMax - 0.05*plotMin])
                 SDPL.axhspan(ymin=-30.0, ymax=plotMax, color=bgcolor, alpha=0.1) 
                 SDPL.tick_params(axis='both', labelsize=6)

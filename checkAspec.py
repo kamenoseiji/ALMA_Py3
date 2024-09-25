@@ -16,16 +16,16 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 (options, args) = parser.parse_args()
 #-------- checkAspec : power spectrum (autocorrelation)
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-antName = options.antName
-scanList  =  options.scanList.split(',')
-scanList = [int(scan) for scan in scanList]
-spwList = options.spwList.split(',')
-spwList = [int(spw) for spw in spwList]
+antList = [ant for ant in options.antName.split(',')]
+#scanList  =  options.scanList.split(',')
+scanList = [int(scan) for scan in options.scanList.split(',')]
+#spwList = options.spwList.split(',')
+spwList = [int(spw) for spw in options.spwList.split(',')]
 #exec(open(SCR_DIR + 'interferometry.py').read())
 #exec(open(SCR_DIR + 'Plotters.py').read())
 #-------- Procedures
 msfile = prefix + '.ms'
-antList = GetAntName(msfile)
+#antList = GetAntName(msfile)
 antNum = len(antList)
 scanNum = len(scanList)
 spwNum = len(spwList)
