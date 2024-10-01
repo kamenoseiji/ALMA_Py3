@@ -1,4 +1,30 @@
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+from Plotters import plotSP, plotXYP
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-b', dest='bunchNum', metavar='bunchNum',
+    help='Channel binning', default='1')
+parser.add_option('-c', dest='scanList', metavar='scanList',
+    help='Scan ID  e.g. 3,5,7', default='')
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='Reference antenna e.g. DA42', default='')
+parser.add_option('-s', dest='spwList', metavar='spwList',
+    help='SPW List e.g. 0,1,2,3', default='')
+parser.add_option('-P', dest='PLOTPDF', metavar='PLOTPDF',
+    help='Plot PDF', action="store_true")
+#
+(options, args) = parser.parse_args()
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+refant  = options.refant
+bunchNum=  int(options.bunchNum)
+spwList = [int(spw) for spw in options.spwList.split(',')]
+scanList= [int(scan) for scan in options.scanList.split(',')]
+PLOTPDF = options.PLOTPDF
 #exec(open(SCR_DIR + 'interferometry.py').read())
 #exec(open(SCR_DIR + 'Plotters.py').read())
 #
@@ -67,8 +93,8 @@ for spw_index, spw in enumerate(spwList):
     np.save('%s-REF%s-SC0-SPW%d-XYspec.npy' % (prefix, refant, spw), XYmean) 
 #
 #-------- Plots
-if 'BPPLOT' not in locals(): BPPLOT = False
-if BPPLOT:
+if 'PLOTPDF' not in locals(): PLOTPDF = False
+if PLOTPDF:
     pp = PdfPages('XYP_%s_REF%s_Scan0.pdf' % (prefix, refant))
     plotXYP(pp, prefix, spwList, XYSPW, bunchNum) 
     pp = PdfPages('BP_%s_REF%s_Scan0.pdf'  % (prefix, refant))

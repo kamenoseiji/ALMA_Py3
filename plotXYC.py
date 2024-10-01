@@ -4,6 +4,18 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 import datetime
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-s', dest='spwList', metavar='spw',
+    help='SPW e.g. 17,19,21,23', default='')
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='Reference antenna e.g. DA42', default='')
+(options, args) = parser.parse_args()
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+spwList = [int(spw) for spw in  options.spwList.split(',')]
+refantName = options.refant
 #-------- Load tables
 for spw_index, spw in enumerate(spwList):
     timeFile = '%s-SPW%d-%s.TS.npy'  % (prefix, spw, refantName)
@@ -12,7 +24,7 @@ for spw_index, spw in enumerate(spwList):
     xypFile  = '%s-SPW%d-%s.XYPH.npy'% (prefix, spw, refantName)
     azelFile = '%s-SPW%d-%s.Azel.npy'% (prefix, spw, refantName)
     DT = []
-    timeStamp, XYC, XYV, XYPH, AZEL = np.load(wd + timeFile), np.load(wd + xycFile), np.load(wd + xyvFile), np.load(wd + xypFile), np.load(wd + azelFile)
+    timeStamp, XYC, XYV, XYPH, AZEL = np.load(timeFile), np.load(xycFile), np.load(xyvFile), np.load(xypFile), np.load(azelFile)
     for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
     DT = np.array(DT)
     PA = np.angle(np.exp((0.0 + 1.0j)* AZEL[3]))

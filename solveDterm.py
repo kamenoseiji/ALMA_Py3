@@ -1,40 +1,57 @@
+SCR_DIR = '/users/skameno/ALMA_Py3/'
+R_DIR = '/usr/bin/'
 #exec(open(SCR_DIR + 'interferometry.py').read())
 #exec(open(SCR_DIR + 'Grid.py').read())
 #exec(open(SCR_DIR + 'Plotters.py').read())
+import sys
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
-from Plotters import plotXYP, plotBP, plotSP
+from Plotters import plotXYP, plotBP, plotSP, lineCmap
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-c', dest='scanList', metavar='scanList',
+    help='Scan List e.g. 3,6,9,42,67', default='')
 parser.add_option('-f', dest='FG', metavar='FG',
-    help='Apply flagging', action="store_false")
+    help='Apply flagging', action="store_true")
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='Reference antenna e.g. DA45', default='')
+parser.add_option('-s', dest='spwList', metavar='spwList',
+    help='SPW List e.g. 0,1,2,3', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix
 antFlag = [ant for ant in options.antFlag.split(',')]
+spwList = [int(spw) for spw in options.spwList.split(',')]
+scanList = [int(scan) for scan in options.scanList.split(',')]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
 #
 #if 'antFlag' not in locals():   antFlag = []
 spwNum = len(spwList)
-polXindex, polYindex = (arange(4)//2).tolist(), (arange(4)%2).tolist()
+polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 #
 trkAntSet = set(range(64))
 scansFile = []
 pattern = r'RB_..'
 timeNum = 0
 sourceList = []
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
+antNum = len(antList)
 srcDic = GetSourceDic(msfile)
 for SSOkey in [key for key in srcDic.keys() if srcDic[key]['RA'] == 0.0]: del srcDic[SSOkey]    # Remove SSO
-sourceList = unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
+sourceList = np.unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
 sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
 timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
@@ -44,10 +61,11 @@ print('-- Checking %s ' % (msfile))
 #-------- Flagging status of antennas
 flagTimeIndex = []
 if options.FG:
+    FGprefix = prefix
     antSPWFlag  = []
     for spw_index, spw in enumerate(spwList):
         if os.path.isfile('%s-SPW%d.TS.npy' % (FGprefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
-        if os.path.isfile('%s-SPW%d.FG.npy' % (FGprefix, spw)); FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
+        if os.path.isfile('%s-SPW%d.FG.npy' % (FGprefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
         
         newFlagIndex = np.where( np.median(FG, axis=1) == 0)[0].tolist()
         useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
@@ -61,11 +79,11 @@ if options.FG:
     if len(antFlag) > 0: print('Flagged antennas : %s' % (str(antFlag)))
 #
 #sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-refAntID  = indexList([refantName], antList)
+refAntID  = indexList([options.refant], antList)
 flagAntID = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAntID)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 if len(refAntID) < 1:
-    print('Antenna %s didn not participate in this file.' % (refantName))
+    print('Antenna %s didn not participate in this file.' % (options.refant))
     sys.exit()
 else:
     refAntID = refAntID[0]
@@ -79,7 +97,7 @@ else:
     scanLS.sort()
 #
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
-BandPA = (BANDPA[bandID] + 90.0)*pi/180.0
+BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
 #-------- Check source list and Stokes Parameters
 if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
 for sourceID in srcDic.keys():
@@ -92,7 +110,7 @@ for sourceID in srcDic.keys():
         IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR, R_DIR)
         if len(IQU[0]) > 0:
             StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-            print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+            print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
     #
 #
 msmd.done()
@@ -117,14 +135,15 @@ for spw_index, spw in enumerate(spwList):
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
-    DxSpec, DySpec = np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex), np.zeros([antNum, int(ceil(chNum/bunchNum))], dtype=complex)
+    DxSpec, DySpec = np.zeros([antNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([antNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
     caledVis = np.ones([4,blNum, 0], dtype=complex)
-    if 'BPprefix' in locals():  # Bandpass file
-        BPantList, BP_ant = np.load(BPprefix + '-REF' + refantName + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refantName, BPscan, spw))
-        BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
-    if 'XYprefix' in locals():
-        XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refantName, BPscan, spw))
-        print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
+    if 'BPprefix' not in locals():  BPprefix = prefix
+    BPscan = 0
+    BPantList, BP_ant = np.load(BPprefix + '-REF' + options.refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, options.refant, BPscan, spw))
+    BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
+    if 'XYprefix' not in locals(): XYprefix = prefix
+    XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, options.refant, BPscan, spw))
+    print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
     #
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
     #-------- For visibilities in each scan
@@ -146,7 +165,7 @@ for spw_index, spw in enumerate(spwList):
         Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
     #
     #-------- Combine scans
-    VisSpec, chAvgVis = np.zeros([4, int(ceil(chNum/bunchNum)), blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
+    VisSpec, chAvgVis = np.zeros([4, int(math.ceil(chNum/bunchNum)), blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
     timeIndex = 0
     if chNum == 1:
         print('  -- Channel-averaged data: no BP and delay cal')
@@ -194,7 +213,7 @@ for spw_index, spw in enumerate(spwList):
             timeIndex = list(set(timeIndex) - set(flagOutLier(Vis[0].real, 5.0) + flagOutLier(Vis[0].imag, 5.0) + flagOutLier(Vis[3].real, 5.0) + flagOutLier(Vis[3].imag, 5.0)))
             timeDic[sourceName] = timeIndex
             QUsol   = XXYY2QU(PA[timeIndex], Vis[[0,3]][:,timeIndex])             # XX*, YY* to estimate Q, U
-            text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/pi); print(text_sd)
+            text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/np.pi); print(text_sd)
         #
         QCpUS[timeIndex] = QUsol[0]* CS[timeIndex] + QUsol[1]* SN[timeIndex]
         UCmQS[timeIndex] = QUsol[1]* CS[timeIndex] - QUsol[0]* SN[timeIndex]
@@ -203,7 +222,7 @@ for spw_index, spw in enumerate(spwList):
     print('  -- Degenerating pi-ambiguity in XY phase')
     XYphase = XY2Phase(UCmQS, Vis[[1,2]])    # XY*, YX* to estimate X-Y phase
     XYsign = np.sign(np.cos(XYphase))
-    text_sd = '  XY Phase = %6.2f [deg]  sign = %3.0f' % (XYphase* 180.0 / pi, XYsign); print(text_sd)
+    text_sd = '  XY Phase = %6.2f [deg]  sign = %3.0f' % (XYphase* 180.0 / np.pi, XYsign); print(text_sd)
     #-------- Gain adjustment
     print('  -- Polarized gain calibration')
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
@@ -215,7 +234,7 @@ for spw_index, spw in enumerate(spwList):
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
         Qsol, Usol = XY2Stokes(PA[timeIndex], Vis[[1,2]][:,timeIndex])
-        text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/pi); print(text_sd)
+        text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
     #
@@ -243,11 +262,11 @@ for spw_index, spw in enumerate(spwList):
         XYP.plot( UCmQS[timeIndex], plotY[timeIndex].real, '-', label=text_Dx); XYP.plot( UCmQS[timeIndex], plotY[timeIndex].imag, '-', label=text_Dy)
         XYP.plot( UCmQS[timeIndex], XYV[timeIndex].real, '.', label='Re <XY*>'); XYP.plot( UCmQS[timeIndex], XYV[timeIndex].imag, '.', label='Im <XY*>')
     #
-    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, refantName))
+    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, options.refant))
     XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
     XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
     plt.show()
-    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, refantName, spw))
+    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, options.refant, spw))
     plt.close('all')
     del figXY
     XYvis[0] -= (DtotP + DtotM* QCpUS); XYvis[1] -= (DtotP + DtotM* QCpUS).conjugate()
@@ -258,7 +277,7 @@ for spw_index, spw in enumerate(spwList):
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
         Qsol, Usol = XY2Stokes(PA[timeIndex], Vis[[1,2]][:,timeIndex])
-        text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/pi); print(text_sd)
+        text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
     #
@@ -293,7 +312,7 @@ for spw_index, spw in enumerate(spwList):
         StokesVis = PS.reshape(4, 4*srcTimeNum).dot(Minv.reshape(4, 4*blNum).dot(caledVis[:,:,timeIndex].reshape(4*blNum, srcTimeNum)).reshape(4*srcTimeNum)) / (srcTimeNum* blNum)
         Isol, Qsol, Usol = StokesVis[0].real, StokesVis[1].real, StokesVis[2].real
         Ierr, Qerr, Uerr = abs(StokesVis[0].imag), abs(StokesVis[1].imag), abs(StokesVis[2].imag)
-        text_sd = '%s: I= %6.3f  Q= %6.3f+-%6.4f  U= %6.3f+-%6.4f EVPA = %6.2f deg' % (sourceName, Isol, Qsol, Qerr, Usol, Uerr, np.arctan2(Usol,Qsol)*90.0/pi); print(text_sd)
+        text_sd = '%s: I= %6.3f  Q= %6.3f+-%6.4f  U= %6.3f+-%6.4f EVPA = %6.2f deg' % (sourceName, Isol, Qsol, Qerr, Usol, Uerr, np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
         StokesDic[sourceName] = (np.array([Isol, Qsol, Usol, 0.0])).tolist()
         StokesI[timeIndex] = Isol
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
@@ -339,7 +358,7 @@ for spw_index, spw in enumerate(spwList):
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
         QUsol = np.array([StokesDic[sourceName][1], StokesDic[sourceName][2]])
-        maxP = max(maxP, sqrt(QUsol.dot(QUsol)))
+        maxP = max(maxP, np.sqrt(QUsol.dot(QUsol)))
         EVPA = 0.5* np.arctan2(QUsol[1], QUsol[0])
         ThetaPlot = PA[timeIndex] - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
         ThetaMin, ThetaMax = min(ThetaPlot), max(ThetaPlot)
@@ -370,15 +389,15 @@ for spw_index, spw in enumerate(spwList):
     plt.xlim([-90.0, 90.0])
     plt.ylim([-1.5* maxP, 1.5*maxP])
     plt.legend(loc = 'best', prop={'size' :6}, numpoints = 1)
-    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refantName))
+    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, options.refant))
     #-------- Save Results
-    np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refantName), antList[antMap])
-    np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refantName), np.array([mjdSec, Az, El, PA]))
-    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refantName), mjdSec )
-    np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refantName), Gain )
-    np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refantName), XYphase )
-    np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refantName), XYvis )
-    np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refantName), XYC )
+    np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, options.refant), antList[antMap])
+    np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, options.refant), np.array([mjdSec, Az, El, PA]))
+    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, options.refant), mjdSec )
+    np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, options.refant), Gain )
+    np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, options.refant), XYphase )
+    np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, options.refant), XYvis )
+    np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, options.refant), XYC )
     for ant_index, ant in enumerate(antList[antMap]):
         DtermFile = np.array([FreqList[spw_index], DxSpec[ant_index].real, DxSpec[ant_index].imag, DySpec[ant_index].real, DySpec[ant_index].imag])
         np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, ant), DtermFile)
@@ -397,9 +416,9 @@ for spw_index, spw in enumerate(spwList):
         StokesI_SP = figSP.add_subplot( 2, 1, 1 )
         StokesP_SP = figSP.add_subplot( 2, 1, 2 )
         StokesSpec, StokesErr =  np.mean(StokesVis[:,:,timeIndex], axis=2).real, abs(np.mean(StokesVis[:,:,timeIndex], axis=2).imag)
-        np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refantName, sourceName, spw), StokesSpec)
-        np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refantName, sourceName, spw), StokesErr)
-        np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refantName, sourceName, spw), Freq)
+        np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, options.refant, sourceName, spw), StokesSpec)
+        np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, options.refant, sourceName, spw), StokesErr)
+        np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, options.refant, sourceName, spw), Freq)
         StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
         #
         IMax = np.max(StokesSpec[0])
@@ -414,7 +433,7 @@ for spw_index, spw in enumerate(spwList):
         StokesI_SP.text(min(Freq[chRange]), IMax*1.35, sourceName)
         StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-        figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refantName, sourceName, spw))
+        figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, options.refant, sourceName, spw))
         plt.close('all')
     #
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
@@ -427,7 +446,7 @@ for spw_index, spw in enumerate(spwList):
     print(text_sd); StokesTextFile.write(text_sd + '\n')
     for sourceName in sourceList:
         if StokesDic[sourceName] == []: continue
-        text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], StokesDic[sourceName][3], 100.0* sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0], 90.0* np.arctan2(StokesDic[sourceName][2], StokesDic[sourceName][1]) / np.pi)
+        text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], StokesDic[sourceName][3], 100.0* np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0], 90.0* np.arctan2(StokesDic[sourceName][2], StokesDic[sourceName][1]) / np.pi)
         print(text_sd); StokesTextFile.write(text_sd + '\n')
     #
     StokesTextFile.close()

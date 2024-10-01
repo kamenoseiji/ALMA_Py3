@@ -208,6 +208,8 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 ACList = ACList + [ACPL]; SDList = SDList + [SDPL]
                 avgAC = np.mean(AC[spw_index][ant_index, :, pol_index], axis=0)
                 plotAC = 10.0* np.log10(avgAC )
+                chNum = len(plotAC)
+                chRange = range( int(chNum*0.06), int(chNum* 0.96))
                 maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
@@ -222,8 +224,8 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 ACPL.step(Freq, plotAC, where='mid')
                 #
                 plotSD = 10.0* np.log10(np.std(AC[spw_index][ant_index, :, pol_index]/avgAC, axis=0))
-                maxSD, minSD, maxFreq = np.max(plotSD), np.min(plotSD), Freq[np.argmax(plotSD)]
-                text_sd = '%.1f at %.2f GHz' % (maxSD, maxFreq)
+                maxSD, minSD, maxFreq = np.max(plotSD[chRange]), np.min(plotSD[chRange]), Freq[np.argmax(plotSD[chRange])]
+                text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxSD, maxFreq)
                 bgcolor = 'green'
                 if maxSD > -30.0: bgcolor = 'orange'
                 if maxSD > -20.0: bgcolor = 'red'
