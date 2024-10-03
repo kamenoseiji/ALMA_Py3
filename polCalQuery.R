@@ -1,9 +1,9 @@
 #-------- Parse arguments
 parseArg <- function( args ){
-	argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, NA, FALSE)
+	#argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, NA, FALSE)
+	argList <- list(NA, NA, 3600, 3, 0.05, NA, FALSE)
 	names(argList) <- c('startTime', 'RA', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
 	if( !file.exists("Flux.Rdata") ){ argList$load <- TRUE }
-    #if( is.logical(args) == FALSE) return(argList)
 	argNum <- length(args)
 	for( index in 1:argNum ){
 		if(substr(args[index], 1,2) == "-s"){ argList$startTime <- as.character(substring(args[index], 3)) }
@@ -14,6 +14,16 @@ parseArg <- function( args ){
 		if(substr(args[index], 1,2) == "-#"){ argList$refFreq <- as.numeric(substring(args[index], 3))}
 		if(substr(args[index], 1,2) == "-L"){ argList$load <- TRUE}
 	}
+    #-------- Automated start time setting
+    if( is.na(argList$startTime) ){ argList$startTime <- as.character(as.POSIXct(Sys.time())) }  # Set NOW
+    if( argList$RA == argList$RA ){
+        startLST <- argList$RA - argList$execDuration / 3600    # Straddling transit
+        NowLST <- 12* (mjd2gmst(ISO8601mjdSec(argList$startTime) / SEC_PER_DAY) + ALMA_LONG)/pi # LST in [hour]
+        startSEC <- (ISO8601mjdSec(argList$startTime) + 3600* (startLST - NowLST)) %% SEC_PER_DAY
+        startTime <- sprintf('%sT%02d:%02d:%02d', strsplit(argList$startTime, '[T| ]')[[1]][1], as.integer(startSEC %/% 3600), as.integer(startSEC %/% 60 %% 60), as.integer(startSEC %% 60))
+        argList$startTime <- startTime
+        cat(sprintf('Because RA is specified, start time is set to %s straddling transit.\n', argList$startTime))
+    }
 	return(argList)
 }
 #-------- Time Constants
@@ -26,8 +36,8 @@ DOY_MON <- c(0, 31, 59, 90, 120, 151, 181, 212, 242, 273, 303, 334)
 #         Band1      2     3      4     5      6     7      8      9   10
 BandPA <- c(45.0, -45.0, 80.0, -80.0, 45.0, -45.0, 36.45, 90.0, -90.0, 0.0)*pi/180
 BandFreq <- c(43.0, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 400.0, 650.0, 800.0)
-ALMA_LAT <- -23.029* pi/180.0
-ALMA_LONG <- -67.755* pi/180.0
+ALMA_LAT <- -23.029* pi/180.0   # [radian]
+ALMA_LONG <- -67.755* pi/180.0  # [radian]
 cos_phi <- cos(ALMA_LAT)
 sin_phi <- sin(ALMA_LAT)
 maxSinEL <- sin(86/180*pi)
@@ -37,16 +47,14 @@ md2doy <- function(year, month, date){
 	is_leap <- ((year%%4 == 0) && (month > 2))	# Leap Year Frag
 	DOY_MON[month] + date + is_leap
 }
-
 #-------- Calculate (fractional) Modified Julian Date in unit of second. This unit is used in CASA
-doy2mjdSec <- function(year, doy, hour, min, sec){
+doy2mjdSec <- function(year, doy, hour, minute, second){
 	if((year < 1901) || (year > 2099)){ return(-1)}
 	year <- year - 1901
 	mjd <- year %/%4 * DAY_PER_4YEAR + year%%4 * DAY_PER_YEAR + doy + MJD_1901
-	sod <- (hour*60 + min)*60 + sec
+	sod <- (hour*60 + minute)*60 + second
 	return(mjd* SEC_PER_DAY + sod)
 }
-
 #-------- Convert ISO8601 format string into mjdSec
 ISO8601mjdSec <- function( timeString ){				# Input string YYYY-MM-DDTHH:MM:SS.S
 	year <- as.integer(substring(timeString, 1, 4))
@@ -57,8 +65,7 @@ ISO8601mjdSec <- function( timeString ){				# Input string YYYY-MM-DDTHH:MM:SS.S
 	second <- as.integer(substring(timeString, 18, 19))
 	return(doy2mjdSec(year, md2doy(year, month, day), UT_hour, minute, second))
 }
-
-#-------- MJD to Greenwich mean sidereal time
+#-------- MJD to Greenwich mean sidereal time [radian]
 mjd2gmst <- function(mjd, ut1utc = 0){
 	# mjd2gmst : Calculate Greenwidge Mean Sidereal Time
 	# mjd : Modified Julian Date
@@ -87,9 +94,6 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     DateRange <- 60    # 60-day window
     #-------- Filter by observing date
 	DF <- DF[abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange,]
-	#filterDF <- DF[((DF$Band == 7) | (DF$Band == 6)),]
-    #sourceList <- unique(filterDF$Src)
-    #sourceList <- sourceList[grep('^J[0-9]', sourceList)]  # Filter SSOs out
     sourceList <- unique(DF$Src)
     sourceList <- sourceList[grep('^J[0-9]', sourceList)]  # Filter SSOs out
     SDF <- data.frame( matrix(rep(NA, 9), nrow=1))[numeric(0),]
@@ -128,8 +132,8 @@ estimateIQUV <- function(DF, refFreq){
 }
 
 #-------- Input parameters for debugging
-#Arguments <- "-s2023-10-01T03:24:00 -d7200 -b3 -#97.5"
-Arguments <- commandArgs(trailingOnly = TRUE)
+Arguments <- strsplit("-s2023-10-01T03:24:00 -r12.5 -d7200 -b3", ' ')[[1]]
+#Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
 if(is.na(argList$refFreq)){ argList$refFreq <- BandFreq[argList$Band] }
@@ -155,10 +159,8 @@ FLDF <- FLDF[-which((FLDF$Band == 3) & (abs(FLDF$Freq - 97.45) > 1.0)),]
 SDF <- sourceDataFrame( FLDF, argList$refFreq, argList$startTime)
 #---- Filter by P > 0.05 Jy
 SDF <- SDF[SDF$P > argList$threshFlux,]
-
 #---- Filter by m > 3%
 SDF <- SDF[SDF$P / SDF$I > 0.03,]
-
 #---- Filter by EL
 if( is.na(argList$RA) ){
     SDF$startHA <- startLST - SDF$RA
@@ -173,9 +175,8 @@ SDF <- SDF[ which(cos(SDF$endHA)   > EL_HA(minSinEL, SDF$DEC)), ] # EL >20º at 
 SDF <- SDF[ which(cos(SDF$startHA) < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the beggining
 SDF <- SDF[ which(cos(SDF$endHA)   < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the end
 SDF <- SDF[ which( (EL_HA(maxSinEL, SDF$DEC) > 1.0) | (sin(SDF$startHA)* sin(SDF$endHA) > 0)),] # transit for EL>86º
-
 #---- Calculate feed-EVPA angle
-sourceList <- SDF$Src
+sourceList <- unique(SDF$Src)
 SDF$QC_H <- SDF$QC_L <- SDF$QC_0 <- SDF$UC_H <- SDF$UC_L <- SDF$UC_0 <- numeric(length(sourceList))
 # H <- L <- numeric(length(sourceList))
 for(src in sourceList){
