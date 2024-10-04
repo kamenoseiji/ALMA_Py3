@@ -1,6 +1,5 @@
 #-------- Parse arguments
 parseArg <- function( args ){
-	#argList <- list(as.character(as.POSIXct(Sys.time())), NA, 3600, 3, 0.05, NA, FALSE)
 	argList <- list(NA, NA, 3600, 3, 0.05, NA, FALSE)
 	names(argList) <- c('startTime', 'RA', 'execDuration', 'Band', 'threshFlux', 'refFreq', 'load')
 	if( !file.exists("Flux.Rdata") ){ argList$load <- TRUE }
@@ -16,7 +15,7 @@ parseArg <- function( args ){
 	}
     #-------- Automated start time setting
     if( is.na(argList$startTime) ){ argList$startTime <- as.character(as.POSIXct(Sys.time())) }  # Set NOW
-    if( argList$RA == argList$RA ){
+    if( is.na(argList$RA) == FALSE ){
         startLST <- argList$RA - argList$execDuration / 3600    # Straddling transit
         NowLST <- 12* (mjd2gmst(ISO8601mjdSec(argList$startTime) / SEC_PER_DAY) + ALMA_LONG)/pi # LST in [hour]
         startSEC <- (ISO8601mjdSec(argList$startTime) + 3600* (startLST - NowLST)) %% SEC_PER_DAY
@@ -70,7 +69,6 @@ mjd2gmst <- function(mjd, ut1utc = 0){
 	# mjd2gmst : Calculate Greenwidge Mean Sidereal Time
 	# mjd : Modified Julian Date
 	# ut1utc : UT1 - UTC [sec]
-	
 	FACT <- c(24110.54841, 8640184.812866, 0.093104, 0.0000062)
 	MJD_EPOCH <- 51544.5  # MJD at 2000 1/1 12:00:00 UT
 	TU_UNIT <- 36525.0
@@ -81,14 +79,11 @@ mjd2gmst <- function(mjd, ut1utc = 0){
 	gmst <- (ut1 + FACT[1] + ((FACT[4]* tu + FACT[3])* tu + FACT[2])* tu) / SEC_PER_DAY
 	return(2* pi* (gmst %% 1))
 }
-
-
 #-------- # cos(hour angle) when it passes the given EL
 EL_HA <- function(sinEL, dec){
 	cosHA <- (sinEL - sin_phi* sin(dec)) / (cos_phi* cos(dec))
 	return(cosHA)
 }
-
 #-------- # filtering by source polarization
 sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     DateRange <- 60    # 60-day window
@@ -102,6 +97,7 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
 		srcDF <- DF[((DF$Src == src) & (abs(as.Date(DF$Date) - as.Date(refDate)) < DateRange)),] 
         srcDF$P  <- sqrt(srcDF$Q^2 + srcDF$U^2)
         srcDF$eP <- sqrt(srcDF$eQ^2 + srcDF$eU^2)
+        srcDF$EVPA  <- 0.5* atan2(srcDF$U, srcDF$Q)
         srcDF$eEVPA <- 0.5* sqrt(srcDF$Q^2 * srcDF$eU^2 + srcDF$U^2 * srcDF$eQ^2) / (srcDF$P)^2
         srcDF$relTime <- as.numeric(srcDF$Date) - as.numeric(as.POSIXct(refDate))
         if( (diff(range(srcDF$Freq)) > 100.0) & ( min(abs(srcDF$relTime)) / diff(range(srcDF$relTime)) < 2 ) ){
@@ -113,16 +109,17 @@ sourceDataFrame <- function(DF, refFreq=100.0, refDate=Sys.Date()){
     }
     return( SDF )
 }
-#-------- # filtering by source polarization
+#-------- Estimate Stokes parameters by freqneyc and date 
 estimateIQUV <- function(DF, refFreq){
     DF$relFreq <- DF$Freq / refFreq
-    #if(nrow(DF) < 8){
+    if(length(unique(DF$relFreq)) < 4 ){ return( data.frame( Src=DF$Src[1], I=0.0, Q=0.0, U=0.0, V=0.0, P=0.0, EVPA=0.0))}
+    if(length(unique(DF$relTime)) < 4 ){
         fitI <- lm(formula=log(I) ~ log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
 	    fitP <- lm(formula=log(P) ~ log(relFreq), data=DF, weight=(DF$P/DF$eP)^2 * (864000 / abs(relTime + 864000)))
-    #} else {
-    #    fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
-	#    fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(DF$P/(DF$eP_upper - DF$eP_lower))^2 * (864000 / abs(relTime + 864000)))
-    #}
+    } else {
+        fitI <- lm(formula=log(I) ~ relTime + log(relFreq), data=DF, weight=(I / eI)^2 * (864000 / abs(relTime + 864000)) )
+	    fitP <- lm(formula=log(P) ~ relTime + log(relFreq), data=DF, weight=(P/eP)^2 * (864000 / abs(relTime + 864000)))
+    }
     weight <- 1.0/(abs(DF$eEVPA)^2 * abs(log(DF$relFreq) + 1.0)^2 * (864000 / abs(DF$relTime + 864000)))
     Twiddle <- sum( weight* exp((0.0 + 2.0i)*DF$EVPA) ) / sum(weight)
     IQUV <- data.frame(Src=DF$Src[1], I=exp(coef(fitI)[[1]]), Q=0.0, U=0.0, V=0.0, P=exp(coef(fitP)[[1]]), EVPA=0.5*Arg(Twiddle))
@@ -130,10 +127,10 @@ estimateIQUV <- function(DF, refFreq){
     IQUV$U <- IQUV$P* Im(Twiddle)
 	return( IQUV )
 }
-
-#-------- Input parameters for debugging
-Arguments <- strsplit("-s2023-10-01T03:24:00 -r12.5 -d7200 -b3", ' ')[[1]]
-#Arguments <- commandArgs(trailingOnly = TRUE)
+#-------- Input parameters
+#Arguments <- strsplit("-s2024-10-01T03:24:00 -r12.5 -d7200 -b3", ' ')[[1]]     # for debugging
+#Arguments <- strsplit("-d7200 -b3", ' ')[[1]]     # for debugging
+Arguments <- commandArgs(trailingOnly = TRUE)
 argList <- parseArg(Arguments)
 setwd('./')
 if(is.na(argList$refFreq)){ argList$refFreq <- BandFreq[argList$Band] }
@@ -175,10 +172,9 @@ SDF <- SDF[ which(cos(SDF$endHA)   > EL_HA(minSinEL, SDF$DEC)), ] # EL >20º at 
 SDF <- SDF[ which(cos(SDF$startHA) < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the beggining
 SDF <- SDF[ which(cos(SDF$endHA)   < EL_HA(maxSinEL, SDF$DEC)), ] # EL < 86º at the end
 SDF <- SDF[ which( (EL_HA(maxSinEL, SDF$DEC) > 1.0) | (sin(SDF$startHA)* sin(SDF$endHA) > 0)),] # transit for EL>86º
-#---- Calculate feed-EVPA angle
+#-------- For each source, calculate polarizaiton responses
 sourceList <- unique(SDF$Src)
-SDF$QC_H <- SDF$QC_L <- SDF$QC_0 <- SDF$UC_H <- SDF$UC_L <- SDF$UC_0 <- numeric(length(sourceList))
-# H <- L <- numeric(length(sourceList))
+SDF$Score <- SDF$QC_H <- SDF$QC_L <- SDF$QC_0 <- SDF$UC_H <- SDF$UC_L <- SDF$UC_0 <- numeric(length(sourceList))
 for(src in sourceList){
 	index <- which(SDF$Src == src)
 	HA <- seq(SDF$startHA[index], SDF$endHA[index], by=0.01)
@@ -189,23 +185,21 @@ for(src in sourceList){
 	PA <- atan2(sin_HA, sin_phi*cos_dec/cos_phi - sin_dec* cos_HA) + BandPA[argList$Band]
 	QCpUS <- SDF$Q[index] * cos(2.0* PA) + SDF$U[index] * sin(2.0* PA)
 	UCmQS <- SDF$U[index] * cos(2.0* PA) - SDF$Q[index] * sin(2.0* PA)
-	SDF$UC_0[index] <- HA[which.min( abs(UCmQS) )] + SDF$RA[index]
-	SDF$QC_0[index] <- HA[which.min( abs(QCpUS) )] + SDF$RA[index]
+	SDF$UC_0[index] <- (HA[which.min( abs(UCmQS) )] + SDF$RA[index])
+	SDF$QC_0[index] <- (HA[which.min( abs(QCpUS) )] + SDF$RA[index])
 	SDF$QC_H[index] <- max(QCpUS)
 	SDF$QC_L[index] <- min(QCpUS)
 	SDF$UC_H[index] <- max(UCmQS)
 	SDF$UC_L[index] <- min(UCmQS)
 }
-calDF <- SDF[which.max(SDF$UC_H - SDF$UC_L),]		# Primary calibrator for max XY
-SDF <- SDF[-(SDF$Src == calDF$Src),]
-if( calDF$UC_H* calDF$UC_L > 0 ){					# require 2nd calibrator
-	calDF[2,] <- SDF[which.min(SDF$UC_H* SDF$UC_L),]	# 2nd calibrator for XY intercept
+SDF$Score <- (0.55 -0.45* sign(SDF$UC_H * SDF$UC_L))* (SDF$UC_H - SDF$UC_L)         # Scoring by range of liner polaration responses
+SDF <- SDF[order(SDF$Score, decreasing=TRUE),]                                      # Sort by score
+#-------- Output results
+text_sd <- 'Source      Score   I      P      EVPA  UC_L   UC_H   UC_0   QC_0\n'
+cat(text_sd)
+cat(text_sd, file='CalQU.data')
+for(index in 1:nrow(SDF)){
+    text_sd <- sprintf('%s %6.3f %6.3f %6.3f %6.1f %6.3f %6.3f %6.2f %6.2f\n', SDF[index,]$Src, SDF[index,]$Score, SDF[index,]$I, SDF[index,]$P, 180*SDF[index,]$EVPA/pi, SDF[index,]$UC_L, SDF[index,]$UC_H, SDF[index,]$UC_0*12/pi, SDF[index,]$QC_0*12/pi)
+    cat(text_sd)
+    cat(text_sd, file='CalQU.data', append=T)
 }
-if( min(calDF$QC_L* calDF$QC_H) > 0 ){				# 3rd calibrator for gain equalization (QCpUS = 0)
-	index <- which(SDF$QC_L * SDF$QC_H < 0)
-	if(length(index) > 0){
-		calDF[nrow(calDF)+1,] <- SDF[which.max(SDF$P),]
-	}
-}
-options(digits=3)
-write.table(format(na.omit(calDF[,c('Src', 'I', 'P', 'EVPA', 'UC_L', 'UC_H', 'UC_0', 'QC_0')]), digits=3), file="CalQU.data", append=F, quote=F, col.names=T, row.name=F)
