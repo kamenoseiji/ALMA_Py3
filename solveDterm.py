@@ -1,5 +1,5 @@
-SCR_DIR = '/users/skameno/ALMA_Py3/'
-R_DIR = '/usr/bin/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
+R_DIR = '/bin/'
 #exec(open(SCR_DIR + 'interferometry.py').read())
 #exec(open(SCR_DIR + 'Grid.py').read())
 #exec(open(SCR_DIR + 'Plotters.py').read())
@@ -12,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -28,9 +29,12 @@ parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPW List e.g. 0,1,2,3', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix
+useFG   = options.FG
+refant  = options.refant
 antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -60,13 +64,12 @@ scanIndex = 0
 print('-- Checking %s ' % (msfile))
 #-------- Flagging status of antennas
 flagTimeIndex = []
-if options.FG:
+if useFG:
     FGprefix = prefix
     antSPWFlag  = []
     for spw_index, spw in enumerate(spwList):
         if os.path.isfile('%s-SPW%d.TS.npy' % (FGprefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
         if os.path.isfile('%s-SPW%d.FG.npy' % (FGprefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
-        
         newFlagIndex = np.where( np.median(FG, axis=1) == 0)[0].tolist()
         useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
         antSPWFlag = antSPWFlag + [antFlag + antList[newFlagIndex].tolist()]
@@ -79,11 +82,11 @@ if options.FG:
     if len(antFlag) > 0: print('Flagged antennas : %s' % (str(antFlag)))
 #
 #sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-refAntID  = indexList([options.refant], antList)
+refAntID  = indexList([refant], antList)
 flagAntID = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAntID)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 if len(refAntID) < 1:
-    print('Antenna %s didn not participate in this file.' % (options.refant))
+    print('Antenna %s didn not participate in this file.' % (refant))
     sys.exit()
 else:
     refAntID = refAntID[0]
@@ -139,10 +142,10 @@ for spw_index, spw in enumerate(spwList):
     caledVis = np.ones([4,blNum, 0], dtype=complex)
     if 'BPprefix' not in locals():  BPprefix = prefix
     BPscan = 0
-    BPantList, BP_ant = np.load(BPprefix + '-REF' + options.refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, options.refant, BPscan, spw))
+    BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPscan, spw))
     BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
     if 'XYprefix' not in locals(): XYprefix = prefix
-    XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, options.refant, BPscan, spw))
+    XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, spw))
     print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
     #
     BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
@@ -262,11 +265,11 @@ for spw_index, spw in enumerate(spwList):
         XYP.plot( UCmQS[timeIndex], plotY[timeIndex].real, '-', label=text_Dx); XYP.plot( UCmQS[timeIndex], plotY[timeIndex].imag, '-', label=text_Dy)
         XYP.plot( UCmQS[timeIndex], XYV[timeIndex].real, '.', label='Re <XY*>'); XYP.plot( UCmQS[timeIndex], XYV[timeIndex].imag, '.', label='Im <XY*>')
     #
-    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, options.refant))
+    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, refant))
     XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
     XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
     plt.show()
-    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, options.refant, spw))
+    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, refant, spw))
     plt.close('all')
     del figXY
     XYvis[0] -= (DtotP + DtotM* QCpUS); XYvis[1] -= (DtotP + DtotM* QCpUS).conjugate()
@@ -389,15 +392,15 @@ for spw_index, spw in enumerate(spwList):
     plt.xlim([-90.0, 90.0])
     plt.ylim([-1.5* maxP, 1.5*maxP])
     plt.legend(loc = 'best', prop={'size' :6}, numpoints = 1)
-    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, options.refant))
+    plt.savefig('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
     #-------- Save Results
-    np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, options.refant), antList[antMap])
-    np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, options.refant), np.array([mjdSec, Az, El, PA]))
-    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, options.refant), mjdSec )
-    np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, options.refant), Gain )
-    np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, options.refant), XYphase )
-    np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, options.refant), XYvis )
-    np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, options.refant), XYC )
+    np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refant), antList[antMap])
+    np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refant), np.array([mjdSec, Az, El, PA]))
+    np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
+    np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
+    np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase )
+    np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYvis )
+    np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refant), XYC )
     for ant_index, ant in enumerate(antList[antMap]):
         DtermFile = np.array([FreqList[spw_index], DxSpec[ant_index].real, DxSpec[ant_index].imag, DySpec[ant_index].real, DySpec[ant_index].imag])
         np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, ant), DtermFile)
@@ -416,9 +419,9 @@ for spw_index, spw in enumerate(spwList):
         StokesI_SP = figSP.add_subplot( 2, 1, 1 )
         StokesP_SP = figSP.add_subplot( 2, 1, 2 )
         StokesSpec, StokesErr =  np.mean(StokesVis[:,:,timeIndex], axis=2).real, abs(np.mean(StokesVis[:,:,timeIndex], axis=2).imag)
-        np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, options.refant, sourceName, spw), StokesSpec)
-        np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, options.refant, sourceName, spw), StokesErr)
-        np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, options.refant, sourceName, spw), Freq)
+        np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
+        np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesErr)
+        np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
         StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
         #
         IMax = np.max(StokesSpec[0])
@@ -433,7 +436,7 @@ for spw_index, spw in enumerate(spwList):
         StokesI_SP.text(min(Freq[chRange]), IMax*1.35, sourceName)
         StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-        figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, options.refant, sourceName, spw))
+        figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refant, sourceName, spw))
         plt.close('all')
     #
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
