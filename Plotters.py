@@ -534,3 +534,24 @@ def plotDSpec(pp, prefix, antList, spwList, FreqList, DxList, DyList):
     del(DxPList); del(DyPList); del(DxPL); del(DyPL); del(figAnt)
     return
 #
+#-------- Plot Flagging map
+def plotFlag(pp, prefix, antList, DT, spwList, FGList):
+    antNum = len(antList)
+    figFG = plt.figure(figsize = (8, 11))
+    figFG.suptitle('%s Flag Map' % (prefix));
+    figFG.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
+    for spw_index, spw in enumerate(spwList):
+        FGPL = figFG.add_subplot(len(spwList), 1, spw_index + 1 )
+        FG = FGList[spw_index]
+        for ant_index, ant in enumerate(antList):
+            FGPL.scatter(DT, np.linspace(ant_index, ant_index, len(DT)), vmin=0, vmax=1, marker='s', s=1, c= 1.0 - FG[ant_index], cmap=cm.seismic)
+        FGPL.set_title('SPW%d' % (spw))
+        FGPL.tick_params(labelsize=3)
+        FGPL.set_yticks(list(range(antNum)))
+        FGPL.set_yticklabels(antList.tolist())
+    #
+    figFG.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
+#

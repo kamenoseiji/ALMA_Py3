@@ -1,7 +1,7 @@
 import os
 import glob
-SCR_DIR = '/users/skameno/ALMA_Py3/'
-R_DIR = '/usr/bin/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
+R_DIR = '/bin/'
 wd = './'
 QUMODEL = True
 INTList = 'POL,BANDPASS'
@@ -10,6 +10,7 @@ sessionFile = open('SessionList', 'r')
 sessionList = sessionFile.readlines()
 sessionFile.close()
 for sessionEntry in sessionList:
+    #-------- Step1 : load ASDM, make MS, split, and concatinate
     if sessionEntry[0] == '#': continue
     entry = sessionEntry.split()
     Session = entry[0]
@@ -21,11 +22,12 @@ for sessionEntry in sessionList:
     for UID in UIDList:
         text_sd = text_sd + UID.replace("/", "_").replace(":","_").replace(" ","") + ','
     print(text_sd[:-1])
-    os.system(text_sd[:-1])
+    #os.system(text_sd[:-1])
+    #-------- Step2 : Check a priori properties of polarization calibrators
     prefix = Session
     text_sd = 'casa -c %scheckPolCalScans.py -u %s -Q' % (SCR_DIR, Session)
     print(text_sd)
-    os.system(text_sd)
+    #os.system(text_sd)
     fp = open('%s-PolQuery.log' % (prefix))
     polLines = fp.readlines()
     fp.close()
@@ -36,16 +38,33 @@ for sessionEntry in sessionList:
         if eachLine.split()[0].isdecimal(): scanList = scanList + [int(eachLine.split()[0])]
     #
     print(scanList)
+    #-------- Step3 : Check parallel-hand antenna-based gain and generate flag table
     for spw in spwList:
         text_sd = 'casa -c %scheckGain.py -u %s -s %d -T 0.1 -P -c ' % (SCR_DIR, prefix, spw)
         for scan in scanList: text_sd = text_sd + '%d,' % (scan)
         print(text_sd[:-1])
-        os.system(text_sd[:-1])
+        #os.system(text_sd[:-1])
+    text_sd = 'casa -c %splotFG.py -u %s -s ' % (SCR_DIR, prefix)
+    for spw in spwList:
+        text_sd = text_sd + '%s,' % (spw)
+    print(text_sd[:-1])
+    #os.system(text_sd[:-1])
+    #-------- Step4 : Bandpass table
     for scan in scanList:
         text_sd = 'casa -c %scheckBP.py -u %s -c %d -P -s ' % (SCR_DIR, prefix, scan)
         for spw in spwList: text_sd = text_sd + '%d,' % (spw)
+        text_sd = text_sd[:-1]
+        fp = open('%s-PolFlag.log' % (prefix))
+        fgLines = fp.readlines()
+        if len(fgLines) > 0:
+            flagAntList = []
+            for eachLine in fgLines: flagAntList = flagAntList + [eachLine.split()[1]]
+            flagAntList = list(set(flagAntList))
+            text_sd = text_sd + ' -a '
+            for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
+        #
         print(text_sd[:-1])
-        os.system(text_sd[:-1])
+        #os.system(text_sd[:-1])
     #
     BPlist = glob.glob('%s-REF*-BPant.npy' % (prefix))
     refantName = BPlist[0].split('REF')[1][:4]
@@ -55,13 +74,16 @@ for sessionEntry in sessionList:
     for scan in scanList: text_sd = text_sd + '%d,' % (scan)
     text_sd = text_sd[:-1] + ' -R ' + refantName
     print(text_sd)
-    os.system(text_sd)
+    #os.system(text_sd)
     text_sd = 'casa -c %ssolveDterm.py -u %s -f -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
     for scan in scanList: text_sd = text_sd + '%d,' % (scan)
+    text_sd = text_sd[:-1] + ' -a '
+    for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
     print(text_sd[:-1])
     os.system(text_sd[:-1])
+    '''
     text_sd = 'casa -c %splotDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     print(text_sd[:-1])
@@ -85,4 +107,5 @@ for sessionEntry in sessionList:
     os.system('mv *.listobs ' + Session + '/LOG/')
     os.system('mv *.dic ' + Session + '/LOG/')
     os.system('mv *.txt ' + Session + '/LOG/')
+    '''
 #
