@@ -1,8 +1,5 @@
-SCR_DIR = '/home/skameno/ALMA_Py3/'
-R_DIR = '/bin/'
-#exec(open(SCR_DIR + 'interferometry.py').read())
-#exec(open(SCR_DIR + 'Grid.py').read())
-#exec(open(SCR_DIR + 'Plotters.py').read())
+SCR_DIR = '/users/skameno/ALMA_Py3/'
+R_DIR = '/usr/bin/'
 import sys
 import math
 import numpy as np
@@ -12,7 +9,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -31,7 +27,6 @@ refant  = options.refant
 antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
-'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()

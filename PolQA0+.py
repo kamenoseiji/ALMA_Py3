@@ -1,7 +1,7 @@
 import os
 import glob
-SCR_DIR = '/home/skameno/ALMA_Py3/'
-R_DIR = '/bin/'
+SCR_DIR = '/users/skameno/ALMA_Py3/'
+R_DIR = '/usr/bin/'
 wd = './'
 QUMODEL = True
 INTList = 'POL,BANDPASS'
