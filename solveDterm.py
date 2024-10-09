@@ -12,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -20,19 +21,17 @@ parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan List e.g. 3,6,9,42,67', default='')
-parser.add_option('-f', dest='FG', metavar='FG',
-    help='Apply flagging', action="store_true")
 parser.add_option('-R', dest='refant', metavar='refant',
     help='Reference antenna e.g. DA45', default='')
 parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPW List e.g. 0,1,2,3', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix
-useFG   = options.FG
 refant  = options.refant
 antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -47,10 +46,20 @@ pattern = r'RB_..'
 timeNum = 0
 sourceList = []
 msfile = prefix + '.ms'
+#-------- Check antnna and baseline list
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
-antList = GetAntName(msfile)[UseAntList]
-antNum = len(antList)
+antList = GetAntName(msfile)[UseAntList]                    # antList in MS
+refAntID = np.where(antList == refant)[0][0]
+antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)  # antNum in MS
+BPantList = np.load('%s-REF%s.Ant.npy' % (prefix, refant)).tolist()  # antList in bandpass table
+UseAntList= [ant for ant in  BPantList if ant not in antFlag]        # remove flagged antnnas
+antMap = indexList(UseAntList, antList) 
+UseAntNum = len(UseAntList); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
+blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
+ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
+for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+#-------- Check source list
 srcDic = GetSourceDic(msfile)
 for SSOkey in [key for key in srcDic.keys() if srcDic[key]['RA'] == 0.0]: del srcDic[SSOkey]    # Remove SSO
 sourceList = np.unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
@@ -58,37 +67,7 @@ sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
 timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
 StokesDic = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters for each source
-scanIndex = 0
-print('-- Checking %s ' % (msfile))
-#-------- Flagging status of antennas
-flagTimeIndex = []
-if useFG:
-    FGprefix = prefix
-    antSPWFlag  = []
-    for spw_index, spw in enumerate(spwList):
-        if os.path.isfile('%s-SPW%d.TS.npy' % (FGprefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (FGprefix, spw));
-        if os.path.isfile('%s-SPW%d.FG.npy' % (FGprefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (FGprefix, spw));
-        newFlagIndex = np.where( np.median(FG, axis=1) == 0)[0].tolist()
-        useAntIndex  = list(set(range(FG.shape[0])) - set(newFlagIndex))
-        antSPWFlag = antSPWFlag + [antFlag + antList[newFlagIndex].tolist()]
-        flagTimeIndex = flagTimeIndex + np.where(np.min(FG[useAntIndex], axis=0) == 0.0)[0].tolist()
-    #
-    newAntFlag = antList[newFlagIndex].tolist()
-    antFlag = list(set([ant for row in antSPWFlag for ant in row])); antFlag.sort()
-    useTimeIndex = list(set(range(len(TS))) - set(flagTimeIndex)); useTimeIndex.sort()
-    useTimeStamp = TS[useTimeIndex]
-    if len(antFlag) > 0: print('Flagged antennas : %s' % (str(antFlag)))
-#
-#sourceList, posList = GetSourceList(msfile); sourceList = sourceRename(sourceList)
-refAntID  = indexList([refant], antList)
-flagAntID = indexList(antFlag, antList)
-UseAnt = list(set(range(antNum)) - set(flagAntID)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
-if len(refAntID) < 1:
-    print('Antenna %s didn not participate in this file.' % (refant))
-    sys.exit()
-else:
-    refAntID = refAntID[0]
-#
+#-------- Check scan list
 msmd.open(msfile)
 if 'scanList' in locals():
     scanList.sort()
@@ -97,9 +76,19 @@ else:
     scanLS = msmd.scannumbers().tolist()
     scanLS.sort()
 #
+#-------- Time-based flagged data
+useTimeStampList = []
+FGantList = np.load('%s.Ant.npy' % (prefix))
+UseAntIndexInFG = indexList(UseAntList,FGantList)
+for spw_index, spw in enumerate(spwList):
+    if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
+    if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+    useTimeStampList = useTimeStampList + [TS[np.where(np.min(FG[UseAntIndexInFG], axis=0) > 0.9)[0].tolist()]]
+#
+#-------- Check band and BandPA
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
-#-------- Check source list and Stokes Parameters
+#-------- Check Stokes Parameters for each source
 if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
 for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
@@ -115,14 +104,6 @@ for sourceID in srcDic.keys():
     #
 #
 msmd.done()
-antMap = [refAntID] + list(trkAntSet - set([refAntID]))
-antMap = indexList(np.array(antMap), np.array(UseAntList))
-antNum = len(antMap); blNum = int(antNum * (antNum - 1)/2)
-ant0 = ANT0[0:blNum]; ant1 = ANT1[0:blNum]
-blMap, blInv= list(range(blNum)), [False]* blNum
-for bl_index in list(range(blNum)):
-    blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
-#
 if not 'bunchNum' in locals(): bunchNum = 1
 def bunchVecCH(spec): return bunchVec(spec, bunchNum)
 #-------- AZ, EL, PA
@@ -136,8 +117,8 @@ for spw_index, spw in enumerate(spwList):
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
-    DxSpec, DySpec = np.zeros([antNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([antNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
-    caledVis = np.ones([4,blNum, 0], dtype=complex)
+    DxSpec, DySpec = np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
+    caledVis = np.ones([4,UseBlNum, 0], dtype=complex)
     if 'BPprefix' not in locals():  BPprefix = prefix
     BPscan = 0
     BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPscan, spw))
@@ -155,7 +136,7 @@ for spw_index, spw in enumerate(spwList):
         del Pspec
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
         #---- remove flagged records
-        flagIndex = indexList(useTimeStamp, timeStamp)
+        flagIndex = indexList(useTimeStampList[spw_index], timeStamp)
         timeNum = timeNum + [len(flagIndex)]
         if scan_index != 0: scanST = scanST + [scanST[scan_index - 1] + timeNum[scan_index - 1]]
         XspecList = XspecList + [Xspec[:,:,:,flagIndex]]
@@ -166,7 +147,7 @@ for spw_index, spw in enumerate(spwList):
         Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
     #
     #-------- Combine scans
-    VisSpec, chAvgVis = np.zeros([4, int(math.ceil(chNum/bunchNum)), blNum, np.sum(timeNum)], dtype=complex), np.zeros([4, blNum, np.sum(timeNum)], dtype=complex)
+    VisSpec, chAvgVis = np.zeros([4, int(math.ceil(chNum/bunchNum)), UseBlNum, np.sum(timeNum)], dtype=complex), np.zeros([4, UseBlNum, np.sum(timeNum)], dtype=complex)
     timeIndex = 0
     if chNum == 1:
         print('  -- Channel-averaged data: no BP and delay cal')
@@ -299,9 +280,9 @@ for spw_index, spw in enumerate(spwList):
         UCmQS[timeIndex] *= StokesDic[sourceName][0]
         StokesI[timeIndex] *= StokesDic[sourceName][0]
     #
-    Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, antNum), np.repeat(ArrayDy, antNum), StokesI)
+    Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
     #-------- D-term-corrected Stokes parameters
-    Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(blNum, dtype=complex))
+    Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
     print('  -- D-term-corrected visibilities')
     useTimeIndex = []
     for sourceName in sourceList:
@@ -310,7 +291,7 @@ for spw_index, spw in enumerate(spwList):
         srcTimeNum = len(timeIndex)
         if srcTimeNum < 1 : continue
         PS = InvPAVector(PA[timeIndex], np.ones(srcTimeNum))
-        StokesVis = PS.reshape(4, 4*srcTimeNum).dot(Minv.reshape(4, 4*blNum).dot(caledVis[:,:,timeIndex].reshape(4*blNum, srcTimeNum)).reshape(4*srcTimeNum)) / (srcTimeNum* blNum)
+        StokesVis = PS.reshape(4, 4*srcTimeNum).dot(Minv.reshape(4, 4*UseBlNum).dot(caledVis[:,:,timeIndex].reshape(4*UseBlNum, srcTimeNum)).reshape(4*srcTimeNum)) / (srcTimeNum* UseBlNum)
         Isol, Qsol, Usol = StokesVis[0].real, StokesVis[1].real, StokesVis[2].real
         Ierr, Qerr, Uerr = abs(StokesVis[0].imag), abs(StokesVis[1].imag), abs(StokesVis[2].imag)
         text_sd = '%s: I= %6.3f  Q= %6.3f+-%6.4f  U= %6.3f+-%6.4f EVPA = %6.2f deg' % (sourceName, Isol, Qsol, Qerr, Usol, Uerr, np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
@@ -334,7 +315,7 @@ for spw_index, spw in enumerate(spwList):
     if 'Dsmooth' in locals():
         node_index = list(range(3, chNum/bunchNum, Dsmooth))
         bunchedFreq = bunchVecCH(Freq)
-        for ant_index in list(range(antNum)):
+        for ant_index in list(range(UseAntNum)):
             DX_real, DX_imag = scipy.interpolate.splrep(bunchedFreq, DxSpec[ant_index].real, k=3, t=bunchedFreq[node_index]), scipy.interpolate.splrep(bunchedFreq, DxSpec[ant_index].imag, k=3, t=bunchedFreq[node_index])
             DY_real, DY_imag = scipy.interpolate.splrep(bunchedFreq, DySpec[ant_index].real, k=3, t=bunchedFreq[node_index]), scipy.interpolate.splrep(bunchedFreq, DySpec[ant_index].imag, k=3, t=bunchedFreq[node_index])
             DxSpec[ant_index] =scipy.interpolate.splev(bunchedFreq, DX_real) + (0.0 + 1.0j)* scipy.interpolate.splev(bunchedFreq, DX_imag)
@@ -344,7 +325,7 @@ for spw_index, spw in enumerate(spwList):
     #-------- D-term-corrected visibilities (invD dot Vis = PS)
     del chAvgVis, StokesVis
     print('  -- Applying D-term spectral correction')
-    M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
+    M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([UseBlNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
     StokesVis = np.zeros([4, int(chNum/bunchNum), PAnum], dtype=complex )
     for time_index in useTimeIndex: StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
     del GainCaledVisSpec
