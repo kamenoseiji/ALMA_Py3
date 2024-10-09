@@ -75,7 +75,7 @@ for sessionEntry in sessionList:
     text_sd = text_sd[:-1] + ' -R ' + refantName
     print(text_sd)
     os.system(text_sd)
-    text_sd = 'casa -c %ssolveDterm.py -u %s -f -R %s -s ' % (SCR_DIR, prefix, refantName)
+    text_sd = 'casa -c %ssolveDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
     for scan in scanList: text_sd = text_sd + '%d,' % (scan)
