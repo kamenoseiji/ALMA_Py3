@@ -26,6 +26,8 @@ parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPW List e.g. 0,1,2,3', default='')
 parser.add_option('-P', dest='BPPLOT', metavar='BPPLOT',
     help='Plot PDF', action="store_true")
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='reference antenna', default='')
 #
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
@@ -40,6 +42,7 @@ plotMin = options.plotMin
 plotMax = options.plotMax
 BPPLOT  = options.BPPLOT
 FG      = options.FG
+refant  = options.refant
 #-------- Procedures
 msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
@@ -51,15 +54,15 @@ print('---Checking array configulation in scan %d' % (BPscan))
 flagAnt = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
-try:
-    refantID = np.where(antList[UseAnt] == refant )[0][0]
-except:
-    ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
-    for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
+if refant not in antList[UseAnt]: refant = ''
+if refant == '':
+    #ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
+    #for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
     timeStamp, UVW = GetUVW(msfile, spwList[0], BPscan)
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist)
-#
+else:
+    refantID = np.where(antList[UseAnt] == refant)[0][0]
 print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
 #-------- Baseline Mapping
 print('---Baseline Mapping')

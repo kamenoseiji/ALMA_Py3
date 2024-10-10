@@ -1,5 +1,5 @@
-SCR_DIR = '/users/skameno/ALMA_Py3/'
-R_DIR = '/usr/bin/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
+R_DIR = '/bin/'
 import sys
 import math
 import numpy as np

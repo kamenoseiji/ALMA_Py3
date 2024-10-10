@@ -13,8 +13,6 @@ parser.add_option('-b', dest='BPprefix', metavar='BPprefix',
     help='Bandpass uid and scan to apply e.g. uid___A002_X10dadb6_X18e6,3', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan ID  e.g. 3,5,7', default='')
-parser.add_option('-r', dest='refant', metavar='refant',
-    help='Reference antenna e.g. DA42', default='')
 parser.add_option('-s', dest='spw', metavar='spw',
     help='SPW e.g. 26', default='')
 parser.add_option('-t', dest='timeBunch', metavar='timeBunch',
@@ -23,6 +21,8 @@ parser.add_option('-T', dest='threshold', metavar='threshold', type="float",
     help='SNR threshold to flag', default=0.0)
 parser.add_option('-P', dest='PLOTPDF', metavar='PLOTPDF',
     help='Plot PDF', action="store_true")
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='Reference antenna e.g. DA42', default='')
 #
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
@@ -56,6 +56,7 @@ print(text_sd)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
+if options.refant not in antList[UseAnt]: options.refant = ''
 if options.refant == '':
     timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)

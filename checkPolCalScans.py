@@ -1,5 +1,5 @@
 import os
-SCR_DIR = '/users/skameno/ALMA_Py3/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au

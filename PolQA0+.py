@@ -1,5 +1,4 @@
 import os
-import glob
 SCR_DIR = '/users/skameno/ALMA_Py3/'
 R_DIR = '/usr/bin/'
 wd = './'
@@ -51,6 +50,7 @@ for sessionEntry in sessionList:
     print(text_sd[:-1])
     os.system(text_sd[:-1])
     #-------- Step4 : Bandpass table
+    refantName = np.load('%s.Ant.npy' % (prefix))[0]
     for scan in scanList:
         text_sd = 'casa -c %scheckBP.py -u %s -c %d -P -s ' % (SCR_DIR, prefix, scan)
         for spw in spwList: text_sd = text_sd + '%d,' % (spw)
@@ -66,8 +66,7 @@ for sessionEntry in sessionList:
         print(text_sd[:-1])
         os.system(text_sd[:-1])
     #
-    BPlist = glob.glob('%s-REF*-BPant.npy' % (prefix))
-    refantName = BPlist[0].split('REF')[1][:4]
+    #-------- Step5 : Average bandpass table
     text_sd = 'casa -c %saverageBP.py -u %s -P -s ' % (SCR_DIR, prefix)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
@@ -75,6 +74,7 @@ for sessionEntry in sessionList:
     text_sd = text_sd[:-1] + ' -R ' + refantName
     print(text_sd)
     os.system(text_sd)
+    #-------- Step6 : Solve for D-term
     text_sd = 'casa -c %ssolveDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
@@ -84,6 +84,7 @@ for sessionEntry in sessionList:
         for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
     print(text_sd[:-1])
     os.system(text_sd[:-1])
+    #-------- Step7 : Plots D-term and XY phase 
     text_sd = 'casa -c %splotDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     print(text_sd[:-1])
@@ -92,6 +93,7 @@ for sessionEntry in sessionList:
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     print(text_sd[:-1])
     os.system(text_sd[:-1])
+    #-------- Step8 : Store reports into a directory
     os.system('rm -rf ' + Session)
     os.system('mkdir ' + Session)
     os.system('mkdir ' + Session + '/Dterm')
