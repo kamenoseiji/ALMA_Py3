@@ -4,7 +4,8 @@ SCR_DIR = '/users/skameno/ALMA_Py3/'
 R_DIR = '/usr/bin/'
 wd = './'
 QUMODEL = True
-INTList = 'POL,BANDPASS'
+#INTList = 'POL,BANDPASS'
+INTList = 'BANDPASS,PHASE'
 flagAnt = ''
 sessionFile = open('SessionList', 'r')
 sessionList = sessionFile.readlines()
@@ -53,14 +54,13 @@ for sessionEntry in sessionList:
     for scan in scanList:
         text_sd = 'casa -c %scheckBP.py -u %s -c %d -P -s ' % (SCR_DIR, prefix, scan)
         for spw in spwList: text_sd = text_sd + '%d,' % (spw)
-        text_sd = text_sd[:-1]
         fp = open('%s-PolFlag.log' % (prefix))
         fgLines = fp.readlines()
+        flagAntList = []
         if len(fgLines) > 0:
-            flagAntList = []
             for eachLine in fgLines: flagAntList = flagAntList + [eachLine.split()[1]]
             flagAntList = list(set(flagAntList))
-            text_sd = text_sd + ' -a '
+            text_sd = text_sd[:-1] + ' -a '
             for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
         #
         print(text_sd[:-1])
@@ -79,8 +79,9 @@ for sessionEntry in sessionList:
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
     for scan in scanList: text_sd = text_sd + '%d,' % (scan)
-    text_sd = text_sd[:-1] + ' -a '
-    for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
+    if len(flagAntList) > 0:
+        text_sd = text_sd[:-1] + ' -a '
+        for flagAnt in flagAntList: text_sd = text_sd + '%s,' % (flagAnt)
     print(text_sd[:-1])
     os.system(text_sd[:-1])
     text_sd = 'casa -c %splotDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
