@@ -655,10 +655,10 @@ def GetAzOffset(msfile):
 	tb.close()
 	return Time, AntID, Offset[:,0]*180*3600/pi
 #
-def GetPolQuery(sourceName, mjdSec, Freq, SCR_DIR, R_DIR = '' ):
+def GetPolQuery(sourceName, mjdSec, Freq, SCR_DIR):
     # Freq (input) : frequency in [GHz]
     os.system('rm -rf CalQU.data')
-    text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f %s' % (SCR_DIR, qa.time('%fs' % mjdSec, form='ymd')[0], Freq, sourceName)
+    text_sd = 'Rscript %spolQuery.R -D%s -F%f %s' % (SCR_DIR, qa.time('%fs' % mjdSec, form='ymd')[0], Freq, sourceName)
     os.system(text_sd)
     fp = open('CalQU.data')
     lines = fp.readlines()

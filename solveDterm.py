@@ -1,5 +1,4 @@
-SCR_DIR = '/users/skameno/ALMA_Py3/'
-R_DIR = '/bin/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
 import sys
 import math
 import numpy as np
@@ -9,6 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -33,7 +33,6 @@ refant = 'CM03'
 antFlag = []
 spwList = [0,1,2,3]
 scanList =[3,6,9,31,52,57]
-'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -99,7 +98,7 @@ for sourceID in srcDic.keys():
     if len(sourceIDscan) > 0:
         interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
         if len(timeStamp) < 3: continue
-        IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR, R_DIR)
+        IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR)
         if len(IQU[0]) > 0:
             StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
             print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
@@ -118,6 +117,8 @@ timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 #-------- Loop for SPW
 DxList, DyList, FreqList = [], [], []
 for spw_index, spw in enumerate(spwList):
+    SPW_StokesDic = StokesDic
+    print('Step 1. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
@@ -185,6 +186,7 @@ for spw_index, spw in enumerate(spwList):
     QCpUS, UCmQS =  np.zeros(PAnum), np.zeros(PAnum)
     if 'QUmodel' not in locals(): QUmodel = False
     CS, SN = np.cos(2.0* PA), np.sin(2.0* PA)
+    print('Step 2. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in scanDic.keys():
         scanLS = scanDic[sourceName]
         if len(scanLS) < 1 : continue
@@ -194,7 +196,7 @@ for spw_index, spw in enumerate(spwList):
             timeIndex = timeIndex + list(range(scanST[scanIndex], scanST[scanIndex] + timeNum[scanIndex]))
         timeDic[sourceName] = timeIndex
         if QUmodel:
-            QUsol = np.array(StokesDic[sourceName])[[1,2]]/StokesDic[sourceName][0]
+            QUsol = np.array(SPW_StokesDic[sourceName])[[1,2]]/SPW_StokesDic[sourceName][0]
         else:
             timeIndex = list(set(timeIndex) - set(flagOutLier(Vis[0].real, 5.0) + flagOutLier(Vis[0].imag, 5.0) + flagOutLier(Vis[3].real, 5.0) + flagOutLier(Vis[3].imag, 5.0)))
             timeDic[sourceName] = timeIndex
@@ -277,21 +279,30 @@ for spw_index, spw in enumerate(spwList):
     #-------- Antenna-based on-axis D-term (chAvg)
     StokesI = np.ones(PAnum)
     FluxList, VisampList = [], []
-    for sourceName in StokesDic.keys():
+    print('Step 3. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
+    for sourceName in SPW_StokesDic.keys():
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        FluxList   = FluxList + [StokesDic[sourceName][0]]
+        print('SPW%d : %s : Flux=%e Visamp=%e' % (spw, sourceName, SPW_StokesDic[sourceName][0], abs(np.mean(caledVis[0][:,timeIndex]))))
+        FluxList   = FluxList + [SPW_StokesDic[sourceName][0]]
         VisampList = VisampList + [abs(np.mean(caledVis[0][:,timeIndex]))]
     #
     scaleFact = np.sum(FluxList) / np.sum(VisampList)
+    caledVis = scaleFact* caledVis
+    GainCaledVisSpec = scaleFact* GainCaledVisSpec
+    #QCpUS = scaleFact* QCpUS
+    #UCmQS = scaleFact* UCmQS
+    print('Step 4. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
+    print('SPW%d : scaleFact=%e' % (spw, scaleFact))
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        caledVis[:,:,timeIndex] *= scaleFact
-        QCpUS[timeIndex] *= scaleFact
-        UCmQS[timeIndex] *= scaleFact
-        StokesI[timeIndex] *= abs(np.mean(caledVis[0][:,timeIndex]))
+        #caledVis[:,:,timeIndex] *= scaleFact
+        #QCpUS[timeIndex] *= scaleFact
+        #UCmQS[timeIndex] *= scaleFact
+        StokesI[timeIndex] = abs(np.mean(caledVis[0][:,timeIndex]))* StokesI[timeIndex]
     #
+    print('Step 5. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
@@ -307,17 +318,18 @@ for spw_index, spw in enumerate(spwList):
         Isol, Qsol, Usol = StokesVis[0].real, StokesVis[1].real, StokesVis[2].real
         Ierr, Qerr, Uerr = abs(StokesVis[0].imag), abs(StokesVis[1].imag), abs(StokesVis[2].imag)
         text_sd = '%s: I= %6.3f  Q= %6.3f+-%6.4f  U= %6.3f+-%6.4f EVPA = %6.2f deg' % (sourceName, Isol, Qsol, Qerr, Usol, Uerr, np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
-        StokesDic[sourceName] = (np.array([Isol, Qsol, Usol, 0.0])).tolist()
+        SPW_StokesDic[sourceName] = (np.array([Isol, Qsol, Usol, 0.0])).tolist()
         StokesI[timeIndex] = Isol
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
         #for index in timeIndex: GainCaledVisSpec[:,:,:,index] *= Isol
         #GainCaledVisSpec *= StokesI
-        GainCaledVisSpec[:,:,:,timeIndex] *= Isol
+        #GainCaledVisSpec[:,:,:,timeIndex] *= Isol
     #
     useTimeIndex.sort()
     #-------- get D-term spectra
     print('  -- Determining D-term spectra')
+    print('Step 6. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for ch_index in list(range(int(chNum/bunchNum))):
         DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVisSpec[ch_index][:,:,useTimeIndex], QCpUS[useTimeIndex], UCmQS[useTimeIndex], Dx, Dy, StokesI[useTimeIndex])
         progress = (ch_index + 1.0) / (chNum / bunchNum)
@@ -346,12 +358,13 @@ for spw_index, spw in enumerate(spwList):
     PS = InvPAVector(PA, np.ones(PAnum))
     for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
     maxP = 0.0
+    print('Step 7. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in sourceList:
         scanLS = scanDic[sourceName]
         colorIndex = lineCmap(sourceList.index(sourceName) / 8.0)
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        QUsol = np.array([StokesDic[sourceName][1], StokesDic[sourceName][2]])
+        QUsol = np.array([SPW_StokesDic[sourceName][1], SPW_StokesDic[sourceName][2]])
         maxP = max(maxP, np.sqrt(QUsol.dot(QUsol)))
         EVPA = 0.5* np.arctan2(QUsol[1], QUsol[0])
         ThetaPlot = PA[timeIndex] - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
@@ -366,12 +379,12 @@ for spw_index, spw in enumerate(spwList):
         plt.plot(RADDEG* ThetaRange, -QCpUS, '-', color=colorIndex, linestyle='dashdot',label=sourceName + ' YY* - I')   # YY* - 1.0
         plt.plot(RADDEG* ThetaRange,  UCmQS, '-', color=colorIndex, linestyle='solid')
         plt.plot(RADDEG* ThetaRange,  np.zeros(len(ThetaRange)), '-', color=colorIndex, linestyle='dotted')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - StokesDic[sourceName][0], 'k.')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[0][timeIndex].real - SPW_StokesDic[sourceName][0], 'k.')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].real, 'b,', label=sourceName + ' ReXY*')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[1][timeIndex].imag, 'c,', label=sourceName + ' ImXY*')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].real, 'b,')
         plt.plot(RADDEG* ThetaPlot, chAvgVis[2][timeIndex].imag, 'c,')
-        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - StokesDic[sourceName][0], 'k.')
+        plt.plot(RADDEG* ThetaPlot, chAvgVis[3][timeIndex].real - SPW_StokesDic[sourceName][0], 'k.')
         for scan in scanLS:
             scanIndex = scanList.index(scan)
             scanMJD = mjdSec[scanST[scanIndex]]
@@ -379,6 +392,7 @@ for spw_index, spw in enumerate(spwList):
             plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scanIndex]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
         #
     #
+    print('Step 8. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     plt.xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); plt.ylabel('Cross correlations [Jy]')
     plt.xlim([-90.0, 90.0])
     plt.ylim([-1.5* maxP, 1.5*maxP])
@@ -399,6 +413,7 @@ for spw_index, spw in enumerate(spwList):
     plt.close('all')
     #-------- Plot Stokes spectra
     polLabel, Pcolor = ['I', 'Q', 'U', 'V'], ['black', 'blue', 'red', 'green']
+    print('Step 9. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
@@ -413,7 +428,7 @@ for spw_index, spw in enumerate(spwList):
         np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
         np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesErr)
         np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
-        StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
+        SPW_StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
         #
         IMax = np.max(StokesSpec[0])
         StokesI_SP.step(Freq[chRange], StokesSpec[0][chRange], where='mid', label=polLabel[0], color=Pcolor[0])
@@ -430,18 +445,21 @@ for spw_index, spw in enumerate(spwList):
         figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refant, sourceName, spw))
         plt.close('all')
     #
+    print('Step 10. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
     #---- Save Stokes parameters of the calibraors
     fileDic = open('Stokes.%s-SPW%d.dic' % (prefix, spw), mode='wb')
-    pickle.dump(StokesDic, fileDic)
+    pickle.dump(SPW_StokesDic, fileDic)
     fileDic.close()
     StokesTextFile = open('Stokes.%s-SPW%d.txt' % (prefix, spw), mode='w')
     text_sd = 'Source       I      Q      U      V      p%    EVPA'
     print(text_sd); StokesTextFile.write(text_sd + '\n')
+    print('Step 11. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in sourceList:
-        if StokesDic[sourceName] == []: continue
-        text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, StokesDic[sourceName][0], StokesDic[sourceName][1], StokesDic[sourceName][2], StokesDic[sourceName][3], 100.0* np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0], 90.0* np.arctan2(StokesDic[sourceName][2], StokesDic[sourceName][1]) / np.pi)
+        if SPW_StokesDic[sourceName] == []: continue
+        text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, SPW_StokesDic[sourceName][0], SPW_StokesDic[sourceName][1], SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][3], 100.0* np.sqrt(SPW_StokesDic[sourceName][1]**2 + SPW_StokesDic[sourceName][2]**2)/SPW_StokesDic[sourceName][0], 90.0* np.arctan2(SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][1]) / np.pi)
         print(text_sd); StokesTextFile.write(text_sd + '\n')
     #
+    print('Step 12. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     StokesTextFile.close()
 #
