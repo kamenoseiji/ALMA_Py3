@@ -27,6 +27,13 @@ refant  = options.refant
 antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
+'''
+prefix = 'BL_X11e3e46_X4b5d'
+refant = 'CM03'
+antFlag = []
+spwList = [0,1,2,3]
+scanList =[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -96,6 +103,8 @@ for sourceID in srcDic.keys():
         if len(IQU[0]) > 0:
             StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
             print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+        else:
+            StokesDic.pop(sourceName)
     #
 #
 msmd.done()
@@ -261,19 +270,27 @@ for spw_index, spw in enumerate(spwList):
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     GainY *= twiddle
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
-    caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    # Vis    = np.mean(caledVis, axis=1)
+    #caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
+    caledVis = abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())* chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
     GainCaledVisSpec = VisSpec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
     del VisSpec
     #-------- Antenna-based on-axis D-term (chAvg)
     StokesI = np.ones(PAnum)
+    FluxList, VisampList = [], []
+    for sourceName in StokesDic.keys():
+        timeIndex = timeDic[sourceName]
+        if len(timeIndex) < 1 : continue
+        FluxList   = FluxList + [StokesDic[sourceName][0]]
+        VisampList = VisampList + [abs(np.mean(caledVis[0][:,timeIndex]))]
+    #
+    scaleFact = np.sum(FluxList) / np.sum(VisampList)
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        caledVis[:,:,timeIndex] *= StokesDic[sourceName][0]
-        QCpUS[timeIndex] *= StokesDic[sourceName][0]
-        UCmQS[timeIndex] *= StokesDic[sourceName][0]
-        StokesI[timeIndex] *= StokesDic[sourceName][0]
+        caledVis[:,:,timeIndex] *= scaleFact
+        QCpUS[timeIndex] *= scaleFact
+        UCmQS[timeIndex] *= scaleFact
+        StokesI[timeIndex] *= abs(np.mean(caledVis[0][:,timeIndex]))
     #
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
     #-------- D-term-corrected Stokes parameters

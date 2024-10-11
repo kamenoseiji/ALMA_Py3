@@ -593,19 +593,21 @@ def GetDterm(URI, antMap, band, refMJD):
 #
 def GetSourceDic(msfile):              # source Dictionary
     from Grid import sourceRename
+    msmd.open(msfile)
     sunAngleList = []
     tb.open( msfile + '/FIELD')
-    SourceID   = np.unique(tb.getcol('SOURCE_ID')).tolist()
-    SourceName = tb.getcol('NAME')[SourceID]
-    SourcePos  = tb.getcol('PHASE_DIR')[:,0].T[SourceID]
+    fieldList = np.unique(tb.getcol('NAME')).tolist()
+    fieldID = [msmd.fieldsforname(field)[0] for field in fieldList]
+    fieldPos  = tb.getcol('PHASE_DIR')[:,0].T[fieldID]
     tb.close()
-    SourceName = sourceRename(SourceName)
-    fieldDic = dict(zip(SourceID, [[]]* len(SourceID)))
-    for field_index, ID in enumerate(SourceID):
+    msmd.close()
+    fieldList = sourceRename(fieldList)
+    fieldDic = dict(zip(fieldID, [[]]* len(fieldID)))
+    for field_index, ID in enumerate(fieldID):
         fieldDic[ID] = {
-            'Name': SourceName[field_index],
-            'RA'  : SourcePos[field_index,0],
-            'DEC' : SourcePos[field_index,1],
+            'Name': fieldList[field_index],
+            'RA'  : fieldPos[field_index,0],
+            'DEC' : fieldPos[field_index,1],
             'SA'  : au.angleToSun(vis=msfile, field=field_index, verbose=False)}
     return fieldDic
 #
