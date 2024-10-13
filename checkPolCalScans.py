@@ -1,5 +1,5 @@
 import os
-SCR_DIR = '/home/skameno/ALMA_Py3/'
+SCR_DIR = '/users/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au
@@ -22,6 +22,10 @@ QUMODEL= options.QUMODEL
 BPscans = [scan for scan in options.BPscans]
 EQscans = [scan for scan in options.EQscans]
 prefix = options.prefix
+'''
+prefix = '2021.1.00276.S'
+QUMODEL = True
+'''
 msfile = prefix + '.ms'
 #-------- Check SPWs of atmCal
 logfile = open(prefix + '-PolQuery.log', 'w')
@@ -44,12 +48,14 @@ for band_index, BandName in enumerate(UniqBands):
     for spw in bpspwLists[band_index]: text_sd = text_sd + ' %d' % (spw)
     print(text_sd); logfile.write(text_sd + '\n')
 #
+#-------- Scan List
+ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
 #-------- Check source list
 print('---Checking source list')
 srcDic = GetSourceDic(msfile)
-sourceList = [ srcDic[ID]['Name'] for ID in srcDic.keys() ]; numSource = len(sourceList)
+srcID  = list(set([msmd.fieldsforscan(scan)[0] for scan in ONScans])); srcID.sort
+sourceList = [srcDic[ID]['Name'] for ID in srcID]; numSource = len(sourceList)
 SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-ONScans = np.sort(np.array(list(set(msmd.scansforintent("*CALIBRATE_AMPLI*")) | set(msmd.scansforintent("*CALIBRATE_BANDPASS*")) | set(msmd.scansforintent("*CALIBRATE_POLARIZATION*")) | set(msmd.scansforintent("*CALIBRATE_FLUX*")) | set(msmd.scansforintent("*CALIBRATE_PHASE*")) | set(msmd.scansforintent("*OBSERVE_CHECK_SOURCE*")) | set(msmd.scansforintent("*OBSERVE_TARGET*")) | set(msmd.scansforintent("*CALIBRATE_APPPHASE*")))))
 msmd.close()
 msmd.done()
 #-------- Loop for Bands

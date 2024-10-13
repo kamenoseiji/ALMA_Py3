@@ -1,10 +1,10 @@
+import numpy as np
 import os
 SCR_DIR = '/users/skameno/ALMA_Py3/'
 R_DIR = '/usr/bin/'
 wd = './'
 QUMODEL = True
-#INTList = 'POL,BANDPASS'
-INTList = 'BANDPASS,PHASE'
+INTList = 'POL,BANDPASS'
 flagAnt = ''
 sessionFile = open('SessionList', 'r')
 sessionList = sessionFile.readlines()
@@ -22,7 +22,7 @@ for sessionEntry in sessionList:
     for UID in UIDList:
         text_sd = text_sd + UID.replace("/", "_").replace(":","_").replace(" ","") + ','
     print(text_sd[:-1])
-    os.system(text_sd[:-1])
+    #os.system(text_sd[:-1])
     #-------- Step2 : Check a priori properties of polarization calibrators
     prefix = Session
     text_sd = 'casa -c %scheckPolCalScans.py -u %s -Q' % (SCR_DIR, Session)
@@ -40,7 +40,7 @@ for sessionEntry in sessionList:
     print(scanList)
     #-------- Step3 : Check parallel-hand antenna-based gain and generate flag table
     for spw in spwList:
-        text_sd = 'casa -c %scheckGain.py -u %s -s %d -T 0.1 -P -c ' % (SCR_DIR, prefix, spw)
+        text_sd = 'casa -c %scheckGain.py -u %s -s %d -T 0.2 -P -c ' % (SCR_DIR, prefix, spw)
         for scan in scanList: text_sd = text_sd + '%d,' % (scan)
         print(text_sd[:-1])
         os.system(text_sd[:-1])
@@ -75,7 +75,7 @@ for sessionEntry in sessionList:
     print(text_sd)
     os.system(text_sd)
     #-------- Step6 : Solve for D-term
-    text_sd = 'casa -c %ssolveDterm.py -u %s -R %s -s ' % (SCR_DIR, prefix, refantName)
+    text_sd = 'casa -c %ssolveDterm.py -u %s -Q -R %s -s ' % (SCR_DIR, prefix, refantName)
     for spw in spwList: text_sd = text_sd + '%d,' % (spw)
     text_sd = text_sd[:-1] + ' -c '
     for scan in scanList: text_sd = text_sd + '%d,' % (scan)
