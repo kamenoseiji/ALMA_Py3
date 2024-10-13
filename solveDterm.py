@@ -5,10 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -17,6 +16,8 @@ parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan List e.g. 3,6,9,42,67', default='')
+parser.add_option('-Q', dest='QUmodel', metavar='QUmodel',
+    help='Use QU model', action='store_true')
 parser.add_option('-R', dest='refant', metavar='refant',
     help='Reference antenna e.g. DA45', default='')
 parser.add_option('-s', dest='spwList', metavar='spwList',
@@ -24,15 +25,18 @@ parser.add_option('-s', dest='spwList', metavar='spwList',
 (options, args) = parser.parse_args()
 prefix  = options.prefix
 refant  = options.refant
+QUmodel = options.QUmodel
 antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = '2023.1.01268.S_X1104ab5_X13143'
+prefix = 'BL_X11e3e46_X4b5d'
 refant = 'CM03'
+QUmodel = True
 antFlag = []
-spwList = [0,1,2,3]
-scanList =[3,6,9,31,52,57]
+spwList = [0]
+scanList =[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -118,7 +122,6 @@ timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 DxList, DyList, FreqList = [], [], []
 for spw_index, spw in enumerate(spwList):
     SPW_StokesDic = StokesDic
-    print('Step 1. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
@@ -173,8 +176,8 @@ for spw_index, spw in enumerate(spwList):
     mjdSec, Az, El, PA, PAnum = np.array(mjdSec), np.array(Az), np.array(El), np.array(PA), len(PA)
     print('---- Antenna-based gain solution using tracking antennas')
     Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[3]) ])   # Parallel-pol gain
-    Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))
-    Gain = Gamp* Gain/abs(Gain)
+    Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))                                   # average in dual parallel polarization
+    Gain = Gamp* Gain/abs(Gain)                                                     # polarization-averaged gain
     #-------- Gain-calibrated visibilities
     print('  -- Apply parallel-hand gain calibration')
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
@@ -186,8 +189,8 @@ for spw_index, spw in enumerate(spwList):
     QCpUS, UCmQS =  np.zeros(PAnum), np.zeros(PAnum)
     if 'QUmodel' not in locals(): QUmodel = False
     CS, SN = np.cos(2.0* PA), np.sin(2.0* PA)
-    print('Step 2. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
-    for sourceName in scanDic.keys():
+    #for sourceName in scanDic.keys():
+    for sourceName in SPW_StokesDic.keys():
         scanLS = scanDic[sourceName]
         if len(scanLS) < 1 : continue
         timeIndex = []
@@ -205,7 +208,6 @@ for spw_index, spw in enumerate(spwList):
         #
         QCpUS[timeIndex] = QUsol[0]* CS[timeIndex] + QUsol[1]* SN[timeIndex]
         UCmQS[timeIndex] = QUsol[1]* CS[timeIndex] - QUsol[0]* SN[timeIndex]
-    #
     ##-------- XY phase determination
     print('  -- Degenerating pi-ambiguity in XY phase')
     XYphase = XY2Phase(UCmQS, Vis[[1,2]])    # XY*, YX* to estimate X-Y phase
@@ -271,38 +273,39 @@ for spw_index, spw in enumerate(spwList):
     #
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     GainY *= twiddle
+    #-------- SEFD amplitude calibration
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
-    #caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    caledVis = abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())* chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    GainCaledVisSpec = VisSpec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
-    del VisSpec
-    #-------- Antenna-based on-axis D-term (chAvg)
+    GainPhase  = Gain/abs(Gain)     # antenna-based phase solution
+    FluxList, antGainList = [], []
     StokesI = np.ones(PAnum)
-    FluxList, VisampList = [], []
-    print('Step 3. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in SPW_StokesDic.keys():
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        print('SPW%d : %s : Flux=%e Visamp=%e' % (spw, sourceName, SPW_StokesDic[sourceName][0], abs(np.mean(caledVis[0][:,timeIndex]))))
+        VisBL = np.mean(chAvgVis[[0,3]][:,:,timeIndex]* GainPhase[:,ant1][:,:,timeIndex]* GainPhase[:,ant0][:,:,timeIndex].conjugate(), axis=(0,2))  # Parallel pol vis.
+        antGainList = antGainList + [abs(gainComplex(VisBL))]
         FluxList   = FluxList + [SPW_StokesDic[sourceName][0]]
-        VisampList = VisampList + [abs(np.mean(caledVis[0][:,timeIndex]))]
     #
-    scaleFact = np.sum(FluxList) / np.sum(VisampList)
-    caledVis = scaleFact* caledVis
-    GainCaledVisSpec = scaleFact* GainCaledVisSpec
-    #QCpUS = scaleFact* QCpUS
-    #UCmQS = scaleFact* UCmQS
-    print('Step 4. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
-    print('SPW%d : scaleFact=%e' % (spw, scaleFact))
-    for sourceName in sourceList:
+    scaleFact = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
+    for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy' % (ant, spw, scaleFact[ant_index]))
+    antGainDiff = np.ones([UseAntNum, PAnum])
+    for sourceName in SPW_StokesDic.keys():
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        #caledVis[:,:,timeIndex] *= scaleFact
-        #QCpUS[timeIndex] *= scaleFact
-        #UCmQS[timeIndex] *= scaleFact
-        StokesI[timeIndex] = abs(np.mean(caledVis[0][:,timeIndex]))* StokesI[timeIndex]
+        antGain = np.mean(abs(Gain), axis=0)[:,timeIndex]   # antGain[ant, time]
+        antGainDiff[:,timeIndex] = 1.0/ (antGain.T / np.mean(antGain, axis=1)).T
+        Gain = ((GainPhase* antGainDiff).transpose(0,2,1)* np.sqrt(scaleFact)).transpose(0,2,1)
     #
-    print('Step 5. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
+    caledVis = Gain[polXindex][:,ant1]* Gain[polYindex][:,ant0].conjugate()* chAvgVis
+    GainCaledVisSpec = Gain[polXindex][:,ant1]* Gain[polYindex][:,ant0].conjugate()* VisSpec.transpose(1,0,2,3)
+    del VisSpec
+    for sourceName in SPW_StokesDic.keys():
+        timeIndex = timeDic[sourceName]
+        if len(timeIndex) < 1 : continue
+        SPW_StokesDic[sourceName][0] = abs(np.mean(caledVis[[0,3]][:,:,timeIndex]))
+        StokesI[timeIndex] = SPW_StokesDic[sourceName][0]
+        QCpUS[timeIndex]  *= SPW_StokesDic[sourceName][0]
+        UCmQS[timeIndex]  *= SPW_StokesDic[sourceName][0]
+    #-------- Antenna-based on-axis D-term (chAvg)
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
@@ -322,14 +325,10 @@ for spw_index, spw in enumerate(spwList):
         StokesI[timeIndex] = Isol
         QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
         UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
-        #for index in timeIndex: GainCaledVisSpec[:,:,:,index] *= Isol
-        #GainCaledVisSpec *= StokesI
-        #GainCaledVisSpec[:,:,:,timeIndex] *= Isol
     #
     useTimeIndex.sort()
     #-------- get D-term spectra
     print('  -- Determining D-term spectra')
-    print('Step 6. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for ch_index in list(range(int(chNum/bunchNum))):
         DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVisSpec[ch_index][:,:,useTimeIndex], QCpUS[useTimeIndex], UCmQS[useTimeIndex], Dx, Dy, StokesI[useTimeIndex])
         progress = (ch_index + 1.0) / (chNum / bunchNum)
@@ -358,7 +357,6 @@ for spw_index, spw in enumerate(spwList):
     PS = InvPAVector(PA, np.ones(PAnum))
     for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
     maxP = 0.0
-    print('Step 7. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in sourceList:
         scanLS = scanDic[sourceName]
         colorIndex = lineCmap(sourceList.index(sourceName) / 8.0)
@@ -392,7 +390,6 @@ for spw_index, spw in enumerate(spwList):
             plt.text( RADDEG* np.arctan(np.tan(PA[scanST[scanIndex]] - EVPA)), -1.5* maxP, text_sd, verticalalignment='bottom', fontsize=6, rotation=90)
         #
     #
-    print('Step 8. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     plt.xlabel('Linear polarization angle w.r.t. X-Feed [deg]'); plt.ylabel('Cross correlations [Jy]')
     plt.xlim([-90.0, 90.0])
     plt.ylim([-1.5* maxP, 1.5*maxP])
@@ -413,7 +410,6 @@ for spw_index, spw in enumerate(spwList):
     plt.close('all')
     #-------- Plot Stokes spectra
     polLabel, Pcolor = ['I', 'Q', 'U', 'V'], ['black', 'blue', 'red', 'green']
-    print('Step 9. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     for sourceName in sourceList:
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
@@ -445,7 +441,6 @@ for spw_index, spw in enumerate(spwList):
         figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refant, sourceName, spw))
         plt.close('all')
     #
-    print('Step 10. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     DxList, DyList = DxList + [DxSpec], DyList + [DySpec]
     #---- Save Stokes parameters of the calibraors
     fileDic = open('Stokes.%s-SPW%d.dic' % (prefix, spw), mode='wb')
@@ -454,12 +449,11 @@ for spw_index, spw in enumerate(spwList):
     StokesTextFile = open('Stokes.%s-SPW%d.txt' % (prefix, spw), mode='w')
     text_sd = 'Source       I      Q      U      V      p%    EVPA'
     print(text_sd); StokesTextFile.write(text_sd + '\n')
-    print('Step 11. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
-    for sourceName in sourceList:
+    #for sourceName in sourceList:
+    for sourceName in SPW_StokesDic.keys():
         if SPW_StokesDic[sourceName] == []: continue
         text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, SPW_StokesDic[sourceName][0], SPW_StokesDic[sourceName][1], SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][3], 100.0* np.sqrt(SPW_StokesDic[sourceName][1]**2 + SPW_StokesDic[sourceName][2]**2)/SPW_StokesDic[sourceName][0], 90.0* np.arctan2(SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][1]) / np.pi)
         print(text_sd); StokesTextFile.write(text_sd + '\n')
     #
-    print('Step 12. StokesDic J0423-0120 : %e' % (SPW_StokesDic['J0423-0120'][0]))
     StokesTextFile.close()
 #
