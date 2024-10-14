@@ -10,7 +10,7 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
 parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
 parser.add_option('-b', dest='BPprefix', metavar='BPprefix',
-    help='Bandpass uid and scan to apply e.g. uid___A002_X10dadb6_X18e6,3', default='')
+    help='Bandpass uid and scan to apply e.g. uid___A002_X10dadb6_X18e63', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan ID  e.g. 3,5,7', default='')
 parser.add_option('-s', dest='spw', metavar='spw',
