@@ -31,12 +31,12 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'BL_Xee522e_Xf83'
-refant = 'DA41'
-QUmodel = True
+prefix = '2019.1.01482.T_Xfb8480_X2052'
+refant = 'DA58'
+QUmodel = False
 antFlag = []
-spwList = [5]
-scanList =[2,4,5,6,7,9,10,11,12,14,15,16,17,19,20,21,22,24,25,26]
+spwList = [0]
+scanList =[3,6,9,23,32,33,45,46,60,69]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
