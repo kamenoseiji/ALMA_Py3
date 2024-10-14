@@ -1,5 +1,5 @@
 import os
-SCR_DIR = '/users/skameno/ALMA_Py3/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au
@@ -23,7 +23,7 @@ BPscans = [scan for scan in options.BPscans]
 EQscans = [scan for scan in options.EQscans]
 prefix = options.prefix
 '''
-prefix = '2021.1.00276.S'
+prefix = 'BL_Xee522e_Xf83'
 QUMODEL = True
 '''
 msfile = prefix + '.ms'
@@ -71,7 +71,7 @@ for band_index, BandName in enumerate(UniqBands):
     azelTime, AntID, AZ, EL = GetAzEl(msfile)
     azelTime_index = np.where( AntID == 0 )[0].tolist() 
     azel = np.r_[AZ[azelTime_index], EL[azelTime_index]].reshape(2, len(azelTime_index))
-    OnAZ, OnEL, OnPA, sourceIDscan, BPquality, EQquality, FLscore, refTime = [], [], [], [], [], [], np.zeros(scanNum), []
+    OnAZ, OnEL, OnPA, sourceScan, BPquality, EQquality, FLscore, refTime = [], [], [], [], [], [], np.zeros(scanNum), []
     #-------- Check QU catalog
     if QUMODEL: # A priori QU model from Rdata
         os.system('rm -rf CalQU.data')
@@ -90,13 +90,16 @@ for band_index, BandName in enumerate(UniqBands):
     text_sd = 'Scan Source        AZ   EL     PA   dPA   pRes   BPqual EQqual'
     print(text_sd); logfile.write(text_sd + '\n')
     for scan_index, scan in enumerate(onsourceScans):
-        sourceIDscan.append( msmd.sourceidforfield(msmd.fieldsforscan(scan)[0]))
-        interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], onsourceScans[scan_index])
+        fieldID = msmd.fieldsforscan(scan)[0]
+        interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], scan)
         AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, 0, AZ, EL)
         PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; dPA = np.std(np.sin(PA)) #dPA = abs(np.sin(max(PA) - min(PA)))
-        OnAZ.append(np.median(AzScan)); OnEL.append(np.median(ElScan)); OnPA.append(np.median(PA))
+        OnAZ = OnAZ + [np.median(AzScan)]
+        OnEL = OnEL + [np.median(ElScan)]
+        OnPA = OnPA + [np.median(PA)]
         refTime = refTime + [np.median(timeStamp)]
-        sourceName = sourceList[sourceIDscan[scan_index]]
+        sourceName = srcDic[fieldID]['Name']
+        sourceScan = sourceScan + [sourceName]
         if sourceName not in StokesDic:
             QCpUS, UCmQS = 0.0, 0.0
             BPquality = BPquality + [-9999.9]
@@ -119,27 +122,16 @@ for band_index, BandName in enumerate(UniqBands):
 
         text_sd = ' %3d %10s %+6.1f %4.1f %6.1f %5.2f %+5.3f %7.2f %+6.0f' % (onsourceScans[scan_index], sourceName, 180.0*OnAZ[scan_index]/np.pi, 180.0*OnEL[scan_index]/np.pi, 180.0*OnPA[scan_index]/np.pi, 180.0*dPA/np.pi, UCmQS, BPquality[-1], EQquality[-1])
         print(text_sd); logfile.write(text_sd + '\n')
-        if sourceIDscan[scan_index] in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList[sourceIDscan[scan_index]])]
-    #
-    #-------- Select Bandpass Calibrator
-    if len(BPscans) == 0:
-        BPscanIndex = np.argmax(BPquality)
-    else:
-        BPscanIndex = BPscans[band_index]
-    #
-    BPScan = onsourceScans[BPscanIndex]; BPcal = sourceList[sourceIDscan[BPscanIndex]]
-    BPEL = OnEL[onsourceScans.index(BPScan)]
-    #-------- Select Equalization Calibrator
-    if len(EQscans) == 0:
-        EQscanIndex = np.argmax(EQquality)
-    else:
-        EQscanIndex = EQscans[band_index]
-    #
-    EQScan = onsourceScans[EQscanIndex]; EQcal = sourceList[sourceIDscan[EQscanIndex]]
-    text_sd = '%s BPscan %d [%s EL=%4.1f]' % (BandName, BPScan, BPcal, 180.0* OnEL[onsourceScans.index(BPScan)]/np.pi); print(text_sd); logfile.write(text_sd + '\n')
-    text_sd = '%s EQscan %d [%s EL=%4.1f]' % (BandName, EQScan, BPcal, 180.0* OnEL[onsourceScans.index(EQScan)]/np.pi); print(text_sd); logfile.write(text_sd + '\n')
+        if fieldID in SSOList: FLscore[scan_index] = np.exp(np.log(np.sin(OnEL[scan_index])-0.34))* SSOscore[bandID-1][SSOCatalog.index(sourceList)]
+    #-------- Select Bandpass Calibrator and Equalization Calibrator
+    BPscanIndex = np.argmax(BPquality) if len(BPscans) == 0 else BPscans[band_index]
+    EQscanIndex = np.argmax(EQquality) if len(EQscans) == 0 else EQscans[band_index]
+    BPScan = onsourceScans[BPscanIndex]; BPcal = sourceScan[BPscanIndex]; BPEL = OnEL[BPscanIndex]
+    EQScan = onsourceScans[EQscanIndex]; EQcal = sourceScan[EQscanIndex]; EQEL = OnEL[EQscanIndex]
+    text_sd = '%s BPscan %d [%s EL=%4.1f]' % (BandName, BPScan, BPcal, 180.0* BPEL/np.pi); print(text_sd); logfile.write(text_sd + '\n')
+    text_sd = '%s EQscan %d [%s EL=%4.1f]' % (BandName, EQScan, BPcal, 180.0* EQEL/np.pi); print(text_sd); logfile.write(text_sd + '\n')
     #-------- SSO in observed source list
-    BandSSOList = list( set(SSOList) & set(sourceIDscan) )
+    BandSSOList = list( set(SSOList) & set(srcDic.keys()) )
     if len(BandSSOList) == 0: Apriori = True
     #-------- Polarization setup
     scnspw = bpspwLists[band_index]; scnspwNum = len(scnspw)

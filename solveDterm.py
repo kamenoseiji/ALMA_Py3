@@ -8,6 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -30,13 +31,12 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'BL_X11e3e46_X4b5d'
-refant = 'CM03'
+prefix = 'BL_Xee522e_Xf83'
+refant = 'DA41'
 QUmodel = True
 antFlag = []
-spwList = [0]
-scanList =[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85]
-'''
+spwList = [5]
+scanList =[2,4,5,6,7,9,10,11,12,14,15,16,17,19,20,21,22,24,25,26]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -66,6 +66,10 @@ ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 #-------- Check source list
 srcDic = GetSourceDic(msfile)
+srcIDList = list(srcDic.keys())
+msmd.open(msfile)
+for sourceID in srcIDList:
+    if len(set(msmd.scansforfield(sourceID)) & set(scanList)) < 1 : srcDic.pop(sourceID)        # Filter source by scan list
 for SSOkey in [key for key in srcDic.keys() if srcDic[key]['RA'] == 0.0]: del srcDic[SSOkey]    # Remove SSO
 sourceList = np.unique([srcDic[ID]['Name'] for ID in srcDic.keys()]).tolist(); numSource = len(sourceList)
 sourceScan = []
@@ -73,7 +77,6 @@ scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each sou
 timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
 StokesDic = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters for each source
 #-------- Check scan list
-msmd.open(msfile)
 if 'scanList' in locals():
     scanList.sort()
     scanLS = scanList
@@ -99,16 +102,12 @@ for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
     sourceIDscan = msmd.scansforfield(sourceID).tolist()
     scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
-    if len(sourceIDscan) > 0:
-        interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
-        if len(timeStamp) < 3: continue
-        IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR)
-        if len(IQU[0]) > 0:
-            StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-            print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
-        else:
-            StokesDic.pop(sourceName)
-    #
+    interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
+    if len(timeStamp) < 3: continue
+    IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR)
+    if len(IQU[0]) > 0:
+        StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
+        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
 #
 msmd.done()
 if not 'bunchNum' in locals(): bunchNum = 1
