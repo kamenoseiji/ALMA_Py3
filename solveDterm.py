@@ -8,7 +8,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -37,6 +36,7 @@ QUmodel = False
 antFlag = []
 spwList = [0]
 scanList =[3,6,9,23,32,33,45,46,60,69]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -284,23 +284,20 @@ for spw_index, spw in enumerate(spwList):
         antGainList = antGainList + [abs(gainComplex(VisBL))]
         FluxList   = FluxList + [SPW_StokesDic[sourceName][0]]
     #
-    scaleFact = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
-    for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy' % (ant, spw, scaleFact[ant_index]))
-    antGainDiff = np.ones([UseAntNum, PAnum])
+    SEFD = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
+    for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy' % (ant, spw, SEFD[ant_index]))
     for sourceName in SPW_StokesDic.keys():
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        antGain = np.mean(abs(Gain), axis=0)[:,timeIndex]   # antGain[ant, time]
-        antGainDiff[:,timeIndex] = 1.0/ (antGain.T / np.mean(antGain, axis=1)).T
-        Gain = ((GainPhase* antGainDiff).transpose(0,2,1)* np.sqrt(scaleFact)).transpose(0,2,1)
+        SPW_StokesDic[sourceName][0] = np.mean(SEFD *np.mean(abs(Gain[:,:,timeIndex]), axis=(0,2))**2) # Calibrated Stokes I
+        Gain[:,:,timeIndex] /= np.sqrt(SPW_StokesDic[sourceName][0])
     #
-    caledVis = Gain[polXindex][:,ant1]* Gain[polYindex][:,ant0].conjugate()* chAvgVis
-    GainCaledVisSpec = Gain[polXindex][:,ant1]* Gain[polYindex][:,ant0].conjugate()* VisSpec.transpose(1,0,2,3)
+    caledVis = chAvgVis / (Gain[polXindex][:,ant1].conjugate()* Gain[polYindex][:,ant0])
+    GainCaledVisSpec = VisSpec.transpose(1,0,2,3) / (Gain[polXindex][:,ant1].conjugate()* Gain[polYindex][:,ant0])
     del VisSpec
     for sourceName in SPW_StokesDic.keys():
         timeIndex = timeDic[sourceName]
         if len(timeIndex) < 1 : continue
-        SPW_StokesDic[sourceName][0] = abs(np.mean(caledVis[[0,3]][:,:,timeIndex]))
         StokesI[timeIndex] = SPW_StokesDic[sourceName][0]
         QCpUS[timeIndex]  *= SPW_StokesDic[sourceName][0]
         UCmQS[timeIndex]  *= SPW_StokesDic[sourceName][0]
