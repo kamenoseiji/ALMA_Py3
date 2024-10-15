@@ -52,7 +52,7 @@ for sessionEntry in sessionList:
     #-------- Step4 : Bandpass table
     refantName = np.load('%s.Ant.npy' % (prefix))[0]
     for scan in scanList:
-        text_sd = 'casa -c %scheckBP.py -u %s -c %d -P -s ' % (SCR_DIR, prefix, scan)
+        text_sd = 'casa -c %scheckBP.py -u %s -c %d -R %s -P -s ' % (SCR_DIR, prefix, scan, refantName)
         for spw in spwList: text_sd = text_sd + '%d,' % (spw)
         fp = open('%s-PolFlag.log' % (prefix))
         fgLines = fp.readlines()
