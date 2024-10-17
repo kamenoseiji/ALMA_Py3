@@ -8,6 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -30,13 +31,12 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = '2019.1.01482.T_Xfb8480_X2052'
-refant = 'DA58'
-QUmodel = False
+prefix = 'Grid_X11edb41_X112a'
+refant = 'CM03'
+QUmodel = True
 antFlag = []
 spwList = [0]
-scanList =[3,6,9,23,32,33,45,46,60,69]
-'''
+scanList =[10,12,14,16,18]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -97,7 +97,7 @@ for spw_index, spw in enumerate(spwList):
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
 #-------- Check Stokes Parameters for each source
-if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
+#if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
 for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
     sourceIDscan = msmd.scansforfield(sourceID).tolist()
