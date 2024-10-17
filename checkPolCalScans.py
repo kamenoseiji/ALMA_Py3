@@ -1,5 +1,5 @@
 import os
-SCR_DIR = '/home/skameno/ALMA_Py3/'
+SCR_DIR = '/users/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au
@@ -23,7 +23,7 @@ BPscans = [scan for scan in options.BPscans]
 EQscans = [scan for scan in options.EQscans]
 prefix = options.prefix
 '''
-prefix = 'BL_Xee522e_Xf83'
+prefix = '2023.1.00675.S_X10ed869_X5fa3'
 QUMODEL = True
 '''
 msfile = prefix + '.ms'
