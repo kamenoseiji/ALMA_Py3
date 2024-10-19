@@ -583,7 +583,7 @@ def plotQUXY(pp, scanDic):
         visChav = visChav / spwNum
         ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)), '.', fillstyle='full', color=cmap(sourceColorDic[sourceName]), label=sourceName)
         ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)), '1', fillstyle='none', color=cmap(sourceColorDic[sourceName]))
-        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).real, 'o', color=cmap(sourceColorDic[sourceName]), label=sourceName)
+        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).real, 'o', fillstyle='none', mew=0.2, color=cmap(sourceColorDic[sourceName]), label=sourceName)
         CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).imag, '.', color=cmap(sourceColorDic[sourceName]))
         plotMax = np.max([plotMax, np.max(abs(visChav[0] - np.mean(visChav[[0,3]], axis=0)))])
         plotMax = np.max([plotMax, np.max(abs(np.mean(visChav[[1,2]], axis=0)))])
