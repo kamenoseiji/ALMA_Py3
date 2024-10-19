@@ -572,19 +572,18 @@ def plotQUXY(pp, scanDic):
         spwNum = len(scanDic[scan]['I'])
         PA = scanDic[scan]['PA']
         CS, SN = np.cos(PA), np.sin(PA)
-        visChav = np.zeros([spwNum, len(PA)], dtype=complex); spwQ, spwU = [], []
+        visChav = np.zeros([spwNum, len(PA)], dtype=complex); Qspw, Uspw = [], []
+        EVPA = 0.5* np.arctan2(np.mean(scanDic[scan]['U']), np.mean(scanDic[scan]['Q']))
         for spw_index in list(range(spwNum)):
             visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
-            spwQ = spwQ + [np.mean(scanDic[scan]['QCpUS'][spw_index]*CS - scanDic[scan]['UCmQS'][spw_index]*SN)]
-            spwU = spwU + [np.mean(scanDic[scan]['QCpUS'][spw_index]*SN + scanDic[scan]['UCmQS'][spw_index]*CS)]
         #
-        EVPA = 0.5* np.arctan2(np.mean(spwU), np.mean(spwQ))
+        #print('Scan %d : %s EVPA=%.1f PA=%.1f' % (scan, sourceName, RADDEG* EVPA, RADDEG*np.mean(PA)))
         ThetaPlot = PA - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
         visChav = visChav / spwNum
-        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)), '.', fillstyle='full', color=cmap(sourceColorDic[sourceName]), label=sourceName)
+        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)), 'x', fillstyle='full', color=cmap(sourceColorDic[sourceName]), label=sourceName)
         ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)), '1', fillstyle='none', color=cmap(sourceColorDic[sourceName]))
         CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).real, 'o', fillstyle='none', mew=0.2, color=cmap(sourceColorDic[sourceName]), label=sourceName)
-        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).imag, '.', color=cmap(sourceColorDic[sourceName]))
+        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).imag, ',', color=cmap(sourceColorDic[sourceName]))
         plotMax = np.max([plotMax, np.max(abs(visChav[0] - np.mean(visChav[[0,3]], axis=0)))])
         plotMax = np.max([plotMax, np.max(abs(np.mean(visChav[[1,2]], axis=0)))])
     #

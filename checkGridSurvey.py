@@ -402,6 +402,8 @@ for BandName in RXList:
         #---- Update scanDic record entry
         CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
         scanDic[scan]['I'] = [ScanFlux[scan_index, spw_index, 0]* np.ones(len(CS)) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['Q']  = [ScanFlux[scan_index, spw_index, 1] for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['U']  = [ScanFlux[scan_index, spw_index, 2] for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['QCpUS'] = [ScanFlux[scan_index, spw_index, 1]* CS + ScanFlux[scan_index, spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['UCmQS'] = [ScanFlux[scan_index, spw_index, 2]* CS - ScanFlux[scan_index, spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['visChav'] = visChavList
