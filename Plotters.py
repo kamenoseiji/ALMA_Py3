@@ -3,8 +3,8 @@ import analysisUtils as au
 import numpy as np
 import scipy
 import datetime
-from interferometry import GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl
-from Grid import tauSMTH
+from interferometry import GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG
+from Grid import tauSMTH, SSOCatalog
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import matplotlib.cm as cm
@@ -391,7 +391,7 @@ def plotGain(prefix, spw):
         AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
         for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
-        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*180.0/math.pi, '.', markersize=3, color=polColor[pol_index])
+        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index])*RADDEG, '.', markersize=3, color=polColor[pol_index])
         if len(flag_index) > 0: ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
         gainXmed, gainYmed = gainXmed + [ampMed[0]], gainYmed + [ampMed[1]]
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
@@ -482,7 +482,7 @@ def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
         XYP  = XYspec[spw_index]
-        PhsPL.plot( Freq, np.angle(XYP)*180.0/math.pi, '.', label = 'SPW %d' % (spw))
+        PhsPL.plot( Freq, np.angle(XYP)*RADDEG, '.', label = 'SPW %d' % (spw))
         PhsPL.axis([np.min(Freq), np.max(Freq), -180.0, 180.0])
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
@@ -551,6 +551,57 @@ def plotFlag(pp, prefix, antList, DT, spwList, FGList):
         FGPL.set_yticklabels(antList.tolist())
     #
     figFG.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
+#
+#-------- Plot XY cross correlation versus QU
+def plotQUXY(pp, scanDic):
+    figQU = plt.figure(figsize = (8, 11))
+    figQU.text(0.25, 0.05, 'Linear polarization angle w.r.t. X-Feed [deg]')
+    #figQU.text(0.03, 0.45, 'Cross correlations [Jy]', rotation=90)
+    sourceList = list(set([scanDic[scan]['source'] for scan in scanDic.keys()]))
+    sourceColorDic = dict(zip(sourceList, list(range(len(sourceList)))))
+    ParaPolPL  = figQU.add_subplot( 2, 1, 1 )
+    CrosPolPL  = figQU.add_subplot( 2, 1, 2 )
+    cmap = plt.get_cmap("tab10")
+    plotMax = 0.0
+    for scan in scanDic.keys():
+        sourceName = scanDic[scan]['source']
+        if sourceName in SSOCatalog: continue
+        spwNum = len(scanDic[scan]['I'])
+        PA = scanDic[scan]['PA']
+        CS, SN = np.cos(PA), np.sin(PA)
+        visChav = np.zeros([spwNum, len(PA)], dtype=complex); spwQ, spwU = [], []
+        for spw_index in list(range(spwNum)):
+            visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
+            spwQ = spwQ + [np.mean(scanDic[scan]['QCpUS'][spw_index]*CS - scanDic[scan]['UCmQS'][spw_index]*SN)]
+            spwU = spwU + [np.mean(scanDic[scan]['QCpUS'][spw_index]*SN + scanDic[scan]['UCmQS'][spw_index]*CS)]
+        #
+        EVPA = 0.5* np.arctan2(np.mean(spwU), np.mean(spwQ))
+        ThetaPlot = PA - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
+        visChav = visChav / spwNum
+        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)), '.', fillstyle='full', color=cmap(sourceColorDic[sourceName]), label=sourceName)
+        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)), '1', fillstyle='none', color=cmap(sourceColorDic[sourceName]))
+        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).real, 'o', color=cmap(sourceColorDic[sourceName]), label=sourceName)
+        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).imag, '.', color=cmap(sourceColorDic[sourceName]))
+        plotMax = np.max([plotMax, np.max(abs(visChav[0] - np.mean(visChav[[0,3]], axis=0)))])
+        plotMax = np.max([plotMax, np.max(abs(np.mean(visChav[[1,2]], axis=0)))])
+    #
+    ParaPolPL.axis([-90.0, 90.0, -1.2*plotMax, 1.2*plotMax])
+    ParaPolPL.grid(linewidth=0.5, linestyle='dotted')
+    ParaPolPL.set_ylabel('Parallel-hand correlation - Stokes I [Jy]')
+    CrosPolPL.axis([-90.0, 90.0, -1.2*plotMax, 1.2*plotMax])
+    CrosPolPL.grid(linewidth=0.5, linestyle='dotted')
+    CrosPolPL.set_ylabel('Cross-hand correlation [Jy]')
+    box = ParaPolPL.get_position()
+    ParaPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    ParaPolPL.legend(loc = 'upper right', prop={'size' :9}, numpoints = 1, bbox_to_anchor = (1.3,1))
+    box = CrosPolPL.get_position()
+    CrosPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    CrosPolPL.legend(loc = 'upper right', prop={'size' :9}, numpoints = 1, bbox_to_anchor = (1.3,1))
+    figQU.suptitle('Cross Polarization Correlations %s' % (scanDic[scan]['msfile'][:-3]))
+    figQU.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
     return

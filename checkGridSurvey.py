@@ -8,8 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-from matplotlib.backends.backend_pdf import PdfPages
-from Plotters import plotSP, plotXYP, plotBLAV
+from Plotters import plotSP, plotXYP, plotBLAV, plotQUXY
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
@@ -257,10 +256,6 @@ for BandName in RXList:
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
-        #pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, scan))
-        #plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList)
-        #pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[antMap[0]], scan))
-        #plotXYP(pp, prefix, BandbpSPW[BandName]['spw'], XYSPWList)
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -493,6 +488,9 @@ for BandName in RXList:
     ingestFile.close()
     plt.close('all')
     pp.close()
+    #-------- Plot QUXY
+    pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName))
+    plotQUXY(pp, scanDic)
     del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
 del RXList, antList, BandbpSPW, bpSPWs, OnScanList
 msmd.close()
