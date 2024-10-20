@@ -1,14 +1,16 @@
 import math
+from casatools import quanta as qatool
 import analysisUtils as au
 import numpy as np
 import scipy
 import datetime
 from interferometry import GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG
-from Grid import tauSMTH, SSOCatalog
+from Grid import tauSMTH, SSOCatalog, lmStokes
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
+qa = qatool()
 polColor = ['b', 'g', 'm', 'y']
 polName = ['X', 'Y', 'XY', 'YX']
 #
@@ -555,6 +557,54 @@ def plotFlag(pp, prefix, antList, DT, spwList, FGList):
     pp.close()
     return
 #
+#-------- Plot Stokes parameters vs uv distance
+def plotFL(pp, scanDic, SPWDic):
+    polLabel = ['I', 'Q', 'U', 'V']
+    Pcolor   = ['black', 'blue', 'red', 'green']
+    for scan_index, scan in enumerate(scanDic.keys()):
+        if len(scanDic[scan]['Flag']) == 0: continue
+        figFL, axes = plt.subplots(3, 4, figsize = (11, 8))
+        figFL.suptitle(scanDic[scan]['msfile'][:-3])
+        figFL.text(0.45, 0.05, 'Projected baseline [m]')
+        UVW = scanDic[scan]['UVW']; uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+        sourceName = scanDic[scan]['source']
+        text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
+        timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
+        #---- Display results
+        uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['I'])
+        axes[0,0].text(0.0, 1.15*180, text_src)
+        axes[0,3].text(0.0, 1.15*180, timeLabel)
+        spwNum = len(scanDic[scan]['I'])
+        for spw_index, spw in enumerate(SPWDic['spw']):
+            StokesVis = scanDic[scan]['StokesVis'][spw_index]
+            ScanFlux, ScanSlope, ErrFlux = lmStokes(StokesVis, uvDist)
+            #-------- Plot Stokes visibilities
+            axes[0,spw_index].plot( np.array([0.0, uvMax]), np.array([0.0, 0.0]), '-', color='grey')        # phase-0 line
+            axes[1,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[0], ScanFlux[0]+ uvMax* ScanSlope[0]]), '-', color=Pcolor[0])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[1], ScanFlux[1]+ uvMax* ScanSlope[1]]), '-', color=Pcolor[1])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[2], ScanFlux[2]+ uvMax* ScanSlope[2]]), '-', color=Pcolor[2])
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[3], ScanFlux[3]+ uvMax* ScanSlope[3]]), '-', color=Pcolor[3])
+            #
+            axes[0,spw_index].plot( uvDist, 180.0* np.angle(StokesVis[0])/ np.pi, '.', label=polLabel[0], color=Pcolor[0])  # Plot visibility phase
+            axes[1,spw_index].plot( uvDist, StokesVis[0].real, '.', label=polLabel[0], color=Pcolor[0])     # Plot Stokes I
+            axes[2,spw_index].plot( uvDist, StokesVis[1].real, '.', label=polLabel[1], color=Pcolor[1])     # Plot Stokes Q
+            axes[2,spw_index].plot( uvDist, StokesVis[2].real, '.', label=polLabel[2], color=Pcolor[2])     # Plot Stokes U
+            axes[2,spw_index].plot( uvDist, StokesVis[3].real, '.', label=polLabel[3], color=Pcolor[3])     # Plot Stoees V
+            axes[0,spw_index].axis([0.0, uvMax, -180, 180])
+            axes[1,spw_index].axis([0.0, uvMax, 0.0, 1.25*IMax])
+            axes[2,spw_index].axis([0.0, uvMax, -0.25*IMax, 0.25*IMax])
+            axes[2,spw_index].text(0.0, 1.02*180, 'SPW%2d %5.1f GHz' % (spw, 1.0e-9* np.median(SPWDic['freq'][spw_index])))
+        #
+        axes[0,0].set_ylabel('Phase [deg]')
+        axes[1,0].set_ylabel('Stokes I [Jy]')
+        axes[2,0].set_ylabel('Stokes Q,U,V [Jy]')
+        axes[1,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+        axes[2,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+        plt.show()
+        figFL.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
 #-------- Plot XY cross correlation versus QU
 def plotQUXY(pp, scanDic):
     figQU = plt.figure(figsize = (8, 11))
