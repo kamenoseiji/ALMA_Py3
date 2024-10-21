@@ -611,31 +611,50 @@ def plotQUXY(pp, scanDic):
     figQU.text(0.25, 0.05, 'Linear polarization angle w.r.t. X-Feed [deg]')
     #figQU.text(0.03, 0.45, 'Cross correlations [Jy]', rotation=90)
     sourceList = list(set([scanDic[scan]['source'] for scan in scanDic.keys()]))
-    sourceColorDic = dict(zip(sourceList, list(range(len(sourceList)))))
     ParaPolPL  = figQU.add_subplot( 2, 1, 1 )
     CrosPolPL  = figQU.add_subplot( 2, 1, 2 )
     cmap = plt.get_cmap("tab10")
     plotMax = 0.0
-    for scan in scanDic.keys():
-        sourceName = scanDic[scan]['source']
+    for source_index, sourceName in enumerate(sourceList):
         if sourceName in SSOCatalog: continue
-        spwNum = len(scanDic[scan]['I'])
-        PA = scanDic[scan]['PA']
-        CS, SN = np.cos(PA), np.sin(PA)
-        visChav = np.zeros([spwNum, len(PA)], dtype=complex); Qspw, Uspw = [], []
-        EVPA = 0.5* np.arctan2(np.mean(scanDic[scan]['U']), np.mean(scanDic[scan]['Q']))
-        for spw_index in list(range(spwNum)):
-            visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
+        scanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'] == sourceName]
+        ThetaPlot, VisXX, VisYY, VisXY = [], [], [], []
+        for scan in scanList:
+            spwNum = len(scanDic[scan]['I'])
+            PA = scanDic[scan]['PA']
+            CS, SN = np.cos(PA), np.sin(PA)
+            visChav = np.zeros([spwNum, len(PA)], dtype=complex)
+            EVPA = 0.5* np.arctan2(np.mean(scanDic[scan]['U']), np.mean(scanDic[scan]['Q']))
+            for spw_index in list(range(spwNum)): visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
+            for spw_index in list(range(spwNum)): visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
+            Theta = PA - EVPA
+            ThetaPlot = ThetaPlot + np.arctan(np.tan(Theta)).tolist()
+            visChav = visChav / spwNum
+            VisXX = VisXX + (0.5*(abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)))).tolist()
+            VisYY = VisYY + (0.5*(abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)))).tolist()
+            VisXY = VisXY + (0.5*np.mean(visChav[[1,2]], axis=0)).tolist()
         #
-        #print('Scan %d : %s EVPA=%.1f PA=%.1f' % (scan, sourceName, RADDEG* EVPA, RADDEG*np.mean(PA)))
-        ThetaPlot = PA - EVPA; ThetaPlot = np.arctan(np.tan(ThetaPlot))
-        visChav = visChav / spwNum
-        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)), 'x', fillstyle='full', color=cmap(sourceColorDic[sourceName]), label=sourceName)
-        ParaPolPL.plot( RADDEG* ThetaPlot, abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)), '1', fillstyle='none', color=cmap(sourceColorDic[sourceName]))
-        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).real, 'o', fillstyle='none', mew=0.2, color=cmap(sourceColorDic[sourceName]), label=sourceName)
-        CrosPolPL.plot( RADDEG* ThetaPlot, np.mean(visChav[[1,2]], axis=0).imag, ',', color=cmap(sourceColorDic[sourceName]))
-        plotMax = np.max([plotMax, np.max(abs(visChav[0] - np.mean(visChav[[0,3]], axis=0)))])
-        plotMax = np.max([plotMax, np.max(abs(np.mean(visChav[[1,2]], axis=0)))])
+        Q, U = np.mean(np.array(scanDic[scan]['Q'])), np.mean(np.array(scanDic[scan]['U']))
+        ThetaPlot = np.array(ThetaPlot)
+        ThetaMin, ThetaMax = np.min(ThetaPlot), np.max(ThetaPlot)
+        ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)
+        PArange = ThetaRange + EVPA
+        CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
+        UCmQS, QCpUS = U*CSrange - Q* SNrange, Q*CSrange + U* SNrange
+        ThetaRange[ThetaRange >  1.56] = np.inf
+        ThetaRange[ThetaRange < -1.56] = -np.inf
+        VisXX, VisYY, VisXY, QCpUS, UCmQS = np.array(VisXX), np.array(VisYY), np.array(VisXY), np.array(QCpUS), np.array(UCmQS)
+        ParaPolPL.plot( RADDEG* ThetaRange, QCpUS, '-', color=cmap(source_index), linestyle='dashed')
+        ParaPolPL.plot( RADDEG* ThetaRange,-QCpUS, '-', color=cmap(source_index), linestyle='dashdot')
+        CrosPolPL.plot( RADDEG* ThetaRange, UCmQS, '-', color=cmap(source_index), linestyle='solid')
+        CrosPolPL.plot( RADDEG* ThetaRange, np.zeros(len(ThetaRange)), '-', color=cmap(source_index), linestyle='dotted')
+        ParaPolPL.plot( RADDEG* ThetaPlot, VisXX, 'x', fillstyle='full', color=cmap(source_index), label=sourceName)
+        ParaPolPL.plot( RADDEG* ThetaPlot, VisYY, '1', fillstyle='none', color=cmap(source_index))
+        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.real, 'o', fillstyle='none', mew=0.2, color=cmap(source_index), label=sourceName)
+        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.imag, ',', color=cmap(source_index))
+        plotMax = np.max([plotMax, np.max(abs(VisXX))])
+        plotMax = np.max([plotMax, np.max(abs(VisYY))])
+        plotMax = np.max([plotMax, np.max(abs(VisXY))])
     #
     ParaPolPL.axis([-90.0, 90.0, -1.2*plotMax, 1.2*plotMax])
     ParaPolPL.grid(linewidth=0.5, linestyle='dotted')
