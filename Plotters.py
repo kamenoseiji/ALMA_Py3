@@ -600,7 +600,7 @@ def plotFL(pp, scanDic, SPWDic):
         axes[2,0].set_ylabel('Stokes Q,U,V [Jy]')
         axes[1,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
         axes[2,spw_index].legend(loc = 'best', prop={'size' :7}, numpoints = 1)
-        plt.show()
+        #plt.show()
         figFL.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
