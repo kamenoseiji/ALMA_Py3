@@ -79,7 +79,7 @@ for BandName in RXList:
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
         AV_bl = np.sum(AV_bl, axis=0)
-        errBL = list(set(np.where(AV_bl > 2.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
+        errBL = list(set(np.where(AV_bl > 5.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
         if 0 < len(errBL) < 3 : # Single baseline error
             flagSet = {}
             for bl in errBL: flagSet = flagSet or set(Bl2Ant(bl))
@@ -318,6 +318,7 @@ for BandName in RXList:
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if len(scanDic[scan]['Flag']) == 0: continue
         if scan in QSOscanList : continue              # filter QSO out
+        if scanDic[scan]['source'] not in SSOCatalog : continue    # not a usable SSO
         uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW[BandName]['spw'])])
     SSOList = list(FscaleDic.keys())
