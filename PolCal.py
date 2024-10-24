@@ -29,7 +29,7 @@ def GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, timeText, FreqGHz):    #
         I, Q, U = float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3])
         if abs(Q) > 0.5*I: Q = 0.0
         if abs(U) > 0.5*I: U = 0.0
-        StokesDic[sourceName] = [FreqGHz, float(eachLine.split()[1]), float(eachLine.split()[2]), float(eachLine.split()[3]), 0.0]
+        StokesDic[sourceName] = [FreqGHz, I, Q, U, 0.0]
     #
     return StokesDic
 #
