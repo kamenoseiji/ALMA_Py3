@@ -690,6 +690,10 @@ def isoDateTime( integerTime ):
 	TU = str(integerTime).split('.')
 	return( qa.time(TU[0]+'s', form="fits")[0] + '.' + TU[1])
 
+def PhaseDiff(phase):
+    x = np.exp((0.0 + 1.0j)* phase)
+    return np.angle( x[1:]* x[0:-1].conjugate() )
+#
 def AllanVar(x, lag):
     vecSize = len(x);	diffSize = vecSize - lag;	avSize = diffSize - lag
     temp = x[lag:vecSize] - x[0:diffSize]
