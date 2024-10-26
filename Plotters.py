@@ -296,6 +296,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
                 text_delay = text_delay + '%+f ' % (0.5e9* delayAnt/ BW)
                 PhsPL.fill_between(plotFreq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
                 PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
+                print('%s %s %+.4f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(plotFreq), np.max(plotFreq), plotMin, plotMax])
