@@ -13,8 +13,9 @@ parser.add_option('-t', dest='timeBunch', metavar='timeBunch',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 timeBunch = int(options.timeBunch)
 '''
-prefix = 'uid___A002_X11f70c4_Xe2f2'
-timeBunch = 1
+#prefix = 'uid___A002_X11f70c4_Xe2f2'
+prefix = 'uid___A002_X11f64ba_X2675'
+timeBunch = 2
 '''
 msfile = prefix + '.ms'
 spwList = GetBPchavSPWs(msfile)
@@ -39,12 +40,12 @@ for spw_index, spw in enumerate(spwList):
         phaseAvAnt  = np.array([np.apply_along_axis(AllanVarPhase30, 1, np.angle(Gain[0])), np.apply_along_axis(AllanVarPhase30, 1, np.angle(Gain[1]))])    # [pol,ant]
         phaseDiffAnt = np.array([np.apply_along_axis(PhaseDiff, 1, np.angle(Gain[0])), np.apply_along_axis(PhaseDiff, 1, np.angle(Gain[0]))])   # phaseDiffAnt[pol, ant, time]
         phaseMed = np.median(abs(phaseDiffAnt))
-        jump_index = np.where( 100* phaseAvAnt > phaseMed )
+        jump_index = np.where( 900* phaseAvAnt > phaseMed )
         jumpPolList = np.unique(jump_index[0]).tolist()
         jumpAntList = np.unique(jump_index[1]).tolist()
         for ant_index in jumpAntList:
             if SNR[ant_index] < 3: continue
-            jumpTimingIndex = np.where(abs(phaseDiffAnt[0,ant_index]) > 9.0* phaseMed)[0].tolist() + np.where(abs(phaseDiffAnt[1,ant_index]) > 9.0* phaseMed)[0].tolist()
+            jumpTimingIndex = np.where(abs(phaseDiffAnt[0,ant_index]) > 7.0* phaseMed)[0].tolist() + np.where(abs(phaseDiffAnt[1,ant_index]) > 7.0* phaseMed)[0].tolist()
             jumpTimingIndex = np.sort(np.unique(np.array(jumpTimingIndex)))
             if len(jumpTimingIndex) > 0:
                 jumpGap= np.array([
