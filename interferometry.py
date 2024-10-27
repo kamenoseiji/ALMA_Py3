@@ -450,6 +450,23 @@ def GetBPcalSPWs(msfile):
     msmd.close()
     return BPspwList
 #
+#-------- Get Bandpass CHAV SPWs
+def GetBPchavSPWs(msfile):
+    msmd.open(msfile)
+    bpSPWs  = msmd.spwsforintent("CALIBRATE_BANDPASS*").tolist(); bpSPWs.sort()
+    if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_POLARIZATION*").tolist(); bpSPWs.sort()
+    if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); bpSPWs.sort()
+    if len(bpSPWs) == 0: bpSPWs  = msmd.spwsforintent("CALIBRATE_DELAY*").tolist(); bpSPWs.sort()
+    SPWnames= msmd.namesforspws(bpSPWs)
+    msmd.close()
+    return [spw for spw_index, spw in enumerate(bpSPWs) if 'CH_AVG' in SPWnames[spw_index] ]
+#
+def GetSPWnames(msfile, spwList):
+    msmd.open(msfile)
+    SPWnames= msmd.namesforspws(spwList)
+    msmd.close()
+    return SPWnames
+#
 def GetSPWFreq(msfile, SPWdic):
     RXList = list(SPWdic.keys())
     for BandName in RXList:
@@ -611,32 +628,6 @@ def GetSourceDic(msfile):              # source Dictionary
             'SA'  : au.angleToSun(vis=msfile, field=field_index, verbose=False)}
     return fieldDic
 #
-'''
-def GetSourceList(msfile):              # source list
-    tb.open( msfile + '/FIELD')
-    SourceID   = tb.getcol('SOURCE_ID')
-    SourceName = tb.getcol('NAME')
-    SourcePos  = tb.getcol('PHASE_DIR')[:,0].T
-    tb.close()
-    IDNum = np.max(SourceID) + 1
-    sourceList, posList = ['']*IDNum, np.zeros([IDNum,2])
-    IDList = np.unique(SourceID).tolist()
-    for ID in IDList:
-        IDindex = SourceID.tolist().index(ID)
-        sourceList[ID] = SourceName[IDindex]
-        posList[ID]    = SourcePos[IDindex]
-    #
-    return sourceList, posList
-#
-def GetSunAngle(msfile):    # Output sun angle for source
-    sunAngleList = []
-    sourceDic = GetSourceDic(msfile)
-    for source_index, source in enumerate(sourceDic.keys()):
-        sunAngleList = sunAngleList + [au.angleToSun(vis=msfile, field=source_index, verbose=False)]
-    #
-    return sunAngleList
-#
-'''
 def GetAzEl(msfile):
 	Out = msfile + '/' + 'POINTING'
 	tb.open(Out)
@@ -1815,7 +1806,7 @@ def gainComplexErr( bl_vis, niter=2 ):
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()
     CompSol = np.zeros(antNum, dtype=complex)
     #---- Initial solution
-    CompSol[0] = sqrt(abs(bl_vis[0])) + 0j
+    CompSol[0] = 1.0e-6 + sqrt(abs(bl_vis[0])) + 0j     # add 1.0e-6 to avoid division by 0
     CompSol[1:antNum] = bl_vis[kernelBL] / CompSol[0]
     #----  Iteration
     for iter_index in range(niter):
