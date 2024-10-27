@@ -1,3 +1,4 @@
+from interferometry import GetBPchavSPWs
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -7,9 +8,20 @@ parser.add_option('-s', dest='spwList', metavar='spwList',
 #
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-spwList = options.spwList
-os.system('rm -rf WVR')
-wvrgcal(vis=prefix + '.ms', caltable='WVR', wvrspw=[4], toffset=0, statsource='', wvrflag=[])
-applycal(vis=prefix + '.ms', spw=spwList, interp='nearest', gaintable='WVR', spwmap=[], calwt=True, flagbackup=False)
-os.system('rm -rf ' + prefix + '.WVR.ms')
-split(vis=prefix + '.ms', spw=spwList, datacolumn='corrected', outputvis=prefix+'.WVR.ms')
+msfile  = prefix + '.ms'
+spwList = [] if options.spwList == '' else [int(spw) for spw in options.spwList.split(',')]
+if len(spwList) < 1: spwList = GetBPchavSPWs(msfile)
+spwChar = ''
+for spw in spwList: spwChar = spwChar + '%d,' % (spw)
+spwChar = spwChar[:-1]
+print(spwChar)
+msmd.open(msfile)
+WVRspw = msmd.wvrspws().tolist()
+msmd.done()
+if len(WVRspw) > 0:
+    os.system('rm -rf %s.WVR' % (prefix))
+    wvrgcal(vis=prefix + '.ms', caltable=prefix + '.WVR', wvrspw=WVRspw, toffset=0, statsource='', wvrflag=[], minnumants=2 )
+    applycal(vis=prefix + '.ms', spw=spwChar, interp='nearest', gaintable=prefix + '.WVR', spwmap=[], calwt=True, flagbackup=False)
+    os.system('rm -rf ' + prefix + '.WVR.ms')
+    split(vis=prefix + '.ms', spw=spwChar, datacolumn='corrected', outputvis=prefix+'.WVR.ms')
+#
