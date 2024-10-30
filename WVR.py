@@ -1,3 +1,4 @@
+import os
 from interferometry import GetBPchavSPWs
 from optparse import OptionParser
 parser = OptionParser()
