@@ -3,7 +3,6 @@ import numpy as np
 from interferometry import RADDEG, GetAntName,GetSPWnames,GetBPchavSPWs,GetBPcalScans,GetVisAllBL,gainComplexErr,AllanVarPhase,PhaseDiff,specBunch,bunchVec
 from Plotters import plotGain
 qa = qatool()
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -21,6 +20,7 @@ jumpTH    = float(options.jumpTH)
 prefix = 'uid___A002_X11f64ba_X410d.WVR'
 timeBunch = 2
 jumpTH = 30.0
+'''
 msfile = prefix + '.ms'
 spwList = GetBPchavSPWs(msfile)
 antList = GetAntName(msfile)
@@ -30,10 +30,8 @@ PHscanList = msmd.scansforintent('*PHASE*').tolist()
 msmd.done()
 def AllanVarPhase30(phase): return AllanVarPhase(phase, 30)
 BPlogfile = open(prefix + '-PhaseJump.bplog', 'w')
-PHlogfile = open(prefix + '-PhaseJump.phlog', 'w')
 #-------- Antenna-based gain solutions
-#for spw_index, spw in enumerate(spwList):
-for spw_index, spw in enumerate([1]):
+for spw_index, spw in enumerate(spwList):
     #-------- CHECK Bandpas Scan
     for scan_index, scan in enumerate(BPscanList):
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
@@ -63,7 +61,7 @@ for spw_index, spw in enumerate([1]):
                 jumpGap= np.array([
                 PhaseDiff(np.array([np.angle(Gain[0,ant_index,jumpTimingIndex[0]]), np.angle(Gain[0,ant_index,jumpTimingIndex[-1]+1])]))[0],
                 PhaseDiff(np.array([np.angle(Gain[1,ant_index,jumpTimingIndex[0]]), np.angle(Gain[1,ant_index,jumpTimingIndex[-1]+1])]))[0]])
-                if np.max(jumpGap) > jumpTH:
+                if np.max(abs(jumpGap))* RADDEG > jumpTH:
                     RealJumpAnts = RealJumpAnts + [ant_index]
                     text_sd = '%s %d %s %+6.1f %+6.1f %s' % (prefix, spw, antList[ant_index], RADDEG* jumpGap[0], RADDEG*jumpGap[1], au.call_qa_time('%fs' % (timeStamp[jumpTimingIndex[0]]), form='fits', prec=6))
                     print(text_sd); BPlogfile.write(text_sd + '\n')
@@ -77,14 +75,48 @@ for spw_index, spw in enumerate([1]):
             np.save('%s-SPW%d.GA.npy' % (prefix, spw), Gain.transpose(1,0,2)[RealJumpAnts])
             np.save('%s-SPW%d.FG.npy' % (prefix, spw), np.ones([len(RealJumpAnts), len(timeStamp)]))
             plotGain(prefix, spw)
-    #-------- CHECK Phasecal Scan
-    '''
+            os.system('mv GA_%s-SPW%d.pdf BP_%s-SPW%d.pdf' % (prefix, spw, prefix, spw))
+        #
+    #
+#
+BPlogfile.close()
+os.system('rm %s*.npy' % (prefix))
+PHlogfile = open(prefix + '-PhaseJump.phlog', 'w')
+#-------- CHECK Phasecal Scan
+for spw_index, spw in enumerate(spwList):
+    scanVis, scanTime = [], []
     for scan_index, scan in enumerate(PHscanList):
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
         timeNum, polNum, chNum = Xspec.shape[3], Xspec.shape[0], Xspec.shape[1]
         print('Loading Visibilities: SPW%d Scan%d : %d records' % (spw, scan, timeNum))
-        chAvgVis = Xspec[:,0]   # chAvgVis[pol, bl, time]
+        scanVis = scanVis + [np.mean(Xspec[:,0], axis=2)]   # chAvgVis[pol, bl, time]
+        scanTime = scanTime + [np.median(timeStamp)]
     #
-    '''
-BPlogfile.close()
+    scanVis  = np.array(scanVis).transpose(1,2,0)
+    scanTime = np.array(scanTime)
+    temp = [np.apply_along_axis(gainComplexErr, 0, scanVis[0]), np.apply_along_axis(gainComplexErr, 0, scanVis[-1])]
+    Gain, Gerr = np.array([temp[0][0], temp[1][0]]), np.array([temp[0][1], temp[1][1]])
+    SNR = np.sum(np.mean(abs(Gain), axis=2) / np.median(Gerr.real, axis=2), axis=0)
+    jumpTHant = [max(jumpTH/RADDEG, 5.0/snr) for snr in SNR.tolist()]   # phase jump threshold, cut by SNR
+    phaseDiffAnt = np.array([np.apply_along_axis(PhaseDiff, 1, np.angle(Gain[0])), np.apply_along_axis(PhaseDiff, 1, np.angle(Gain[0]))])   # phaseDiffAnt[pol, ant, time]
+    RealJumpAnts = []
+    for ant_index, ant in enumerate(antList):
+        jumpTimingIndex = np.where(abs(phaseDiffAnt[0,ant_index]) > jumpTHant[ant_index])[0].tolist() + np.where(abs(phaseDiffAnt[1,ant_index]) > jumpTHant[ant_index])[0].tolist()    # phase diff > 5 sigma
+        jumpTimingIndex = np.sort(np.unique(np.array(jumpTimingIndex)))
+        if len(jumpTimingIndex) > 0: RealJumpAnts = RealJumpAnts + [ant_index]
+        for jumpTiming in jumpTimingIndex:
+            jumpGap = phaseDiffAnt[:,ant_index][:,jumpTiming]
+            text_sd = '%s %d %s %+6.1f %+6.1f %s' % (prefix, spw, ant, RADDEG* jumpGap[0], RADDEG*jumpGap[1], au.call_qa_time('%fs' % (scanTime[jumpTiming]), form='fits', prec=6))
+            print(text_sd); PHlogfile.write(text_sd + '\n')
+        #
+    #-------- Plot phase jumps
+    if len(RealJumpAnts) > 0:
+        np.save(prefix + '.Ant.npy', antList[RealJumpAnts])
+        np.save('%s-SPW%d.TS.npy' % (prefix, spw), scanTime)
+        np.save('%s-SPW%d.GA.npy' % (prefix, spw), Gain.transpose(1,0,2)[RealJumpAnts])
+        np.save('%s-SPW%d.FG.npy' % (prefix, spw), np.ones([len(RealJumpAnts), len(scanTime)]))
+        plotGain(prefix, spw)
+        os.system('mv GA_%s-SPW%d.pdf PH_%s-SPW%d.pdf' % (prefix, spw, prefix, spw))
+    #
 PHlogfile.close()
+os.system('rm %s*.npy' % (prefix))
