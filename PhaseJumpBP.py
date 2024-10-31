@@ -1,3 +1,4 @@
+import os
 import analysisUtils as au
 import numpy as np
 from interferometry import RADDEG, GetAntName,GetSPWnames,GetBPchavSPWs,GetBPcalScans,GetVisAllBL,gainComplexErr,AllanVarPhase,PhaseDiff,specBunch,bunchVec
@@ -10,7 +11,7 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
 parser.add_option('-t', dest='timeBunch', metavar='timeBunch',
     help='Time average', default='2')
 parser.add_option('-j', dest='jumpTH', metavar='jumpTH',
-    help='Phase jump threshold [deg]', default='20')
+    help='Phase jump threshold [deg]', default='30')
 #
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
