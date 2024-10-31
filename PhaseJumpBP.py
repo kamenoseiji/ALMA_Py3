@@ -1,7 +1,7 @@
 import os
 import analysisUtils as au
 import numpy as np
-from interferometry import RADDEG, GetAntName,GetSPWnames,GetBPchavSPWs,GetBPcalScans,GetVisAllBL,gainComplexErr,AllanVarPhase,PhaseDiff,specBunch,bunchVec
+from interferometry import RADDEG, GetAntName,GetSPWnames,GetPHchavSPWs,GetBPcalScans,GetVisAllBL,gainComplexErr,AllanVarPhase,PhaseDiff,specBunch,bunchVec
 from Plotters import plotGain
 qa = qatool()
 from optparse import OptionParser
@@ -18,15 +18,15 @@ prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 timeBunch = int(options.timeBunch)
 jumpTH    = float(options.jumpTH)
 '''
-prefix = 'uid___A002_X11f64ba_X410d.WVR'
+prefix = 'uid___A002_X11fc8d6_X5b78.WVR'
 timeBunch = 2
 jumpTH = 30.0
 '''
 msfile = prefix + '.ms'
-spwList = GetBPchavSPWs(msfile)
+spwList = GetPHchavSPWs(msfile)
 antList = GetAntName(msfile)
 msmd.open(msfile)
-BPscanList = msmd.scansforintent('*BANDPASS*').tolist()
+BPscanList = list(set(msmd.scansforintent('*BANDPASS*')) & set(msmd.scansforspw(spwList[0])))
 PHscanList = msmd.scansforintent('*PHASE*').tolist()
 msmd.done()
 def AllanVarPhase30(phase): return AllanVarPhase(phase, 30)

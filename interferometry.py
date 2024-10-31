@@ -461,6 +461,14 @@ def GetBPchavSPWs(msfile):
     msmd.close()
     return [spw for spw_index, spw in enumerate(bpSPWs) if 'CH_AVG' in SPWnames[spw_index] ]
 #
+#-------- Get Phase-cal CHAV SPWs
+def GetPHchavSPWs(msfile):
+    msmd.open(msfile)
+    phSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); phSPWs.sort()
+    SPWnames= msmd.namesforspws(phSPWs)
+    msmd.close()
+    return [spw for spw_index, spw in enumerate(phSPWs) if 'CH_AVG' in SPWnames[spw_index] ]
+#
 def GetSPWnames(msfile, spwList):
     msmd.open(msfile)
     SPWnames= msmd.namesforspws(spwList)
