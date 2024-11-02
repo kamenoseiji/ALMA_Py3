@@ -18,21 +18,20 @@ prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 timeBunch = int(options.timeBunch)
 jumpTH    = float(options.jumpTH)
 '''
-prefix = 'uid___A002_X11fc8d6_X5b78.WVR'
+prefix = 'uid___A002_X11fc8d6_X5d9b'
 timeBunch = 2
 jumpTH = 30.0
 '''
 msfile = prefix + '.ms'
 spwList = GetPHchavSPWs(msfile)
 antList = GetAntName(msfile)
-msmd.open(msfile)
-BPscanList = list(set(msmd.scansforintent('*BANDPASS*')) & set(msmd.scansforspw(spwList[0])))
-PHscanList = msmd.scansforintent('*PHASE*').tolist()
-msmd.done()
 def AllanVarPhase30(phase): return AllanVarPhase(phase, 30)
 BPlogfile = open(prefix + '-PhaseJump.bplog', 'w')
 #-------- Antenna-based gain solutions
 for spw_index, spw in enumerate(spwList):
+    msmd.open(msfile)
+    BPscanList = list(set(msmd.scansforintent('*BANDPASS*')) & set(msmd.scansforspw(spw)))
+    msmd.done()
     #-------- CHECK Bandpas Scan
     for scan_index, scan in enumerate(BPscanList):
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
@@ -85,6 +84,9 @@ os.system('rm %s*.npy' % (prefix))
 PHlogfile = open(prefix + '-PhaseJump.phlog', 'w')
 #-------- CHECK Phasecal Scan
 for spw_index, spw in enumerate(spwList):
+    msmd.open(msfile)
+    PHscanList = np.sort(np.array(list(set(msmd.scansforintent('*PHASE*')) & set(msmd.scansforspw(spw))))).tolist()
+    msmd.done()
     scanVis, scanTime = [], []
     for scan_index, scan in enumerate(PHscanList):
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
