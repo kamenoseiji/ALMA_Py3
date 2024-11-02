@@ -101,6 +101,7 @@ for BandName in RXList:
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
     if BandName not in ['RB_01', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
     if BandName == 'RB_01': SSOList = []
+    SSOList = []
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
     #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
@@ -315,12 +316,15 @@ for BandName in RXList:
             XspecList[spw_index][scan_index] = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         #
     #-------- Aperture Efficiencies Determination using Solar System Objects
-    for scan_index, scan in enumerate(BandScanList[BandName]):
-        if len(scanDic[scan]['Flag']) == 0: continue
-        if scan in QSOscanList : continue              # filter QSO out
-        if scanDic[scan]['source'] not in SSOCatalog : continue    # not a usable SSO
-        uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-        FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW[BandName]['spw'])])
+    if 'Apriori' not in locals(): Apriori = False
+    if not Apriori:
+        for scan_index, scan in enumerate(BandScanList[BandName]):
+            if len(scanDic[scan]['Flag']) == 0: continue
+            if scan in QSOscanList : continue              # filter QSO out
+            if scanDic[scan]['source'] not in SSOCatalog : continue    # not a usable SSO
+            uvw = np.mean(scanDic[scan]['UVW'], axis=2) #; uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+            FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW[BandName], uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW[BandName]['spw'])])
+        #
     SSOList = list(FscaleDic.keys())
     for SSO in SSOList:
         if FscaleDic[SSO] == None: del FscaleDic[SSO]
