@@ -1,4 +1,4 @@
-SCR_DIR = '/users/skameno/ALMA_Py3/'
+SCR_DIR = '/home/skameno/ALMA_Py3/'
 import sys
 import math
 import numpy as np
@@ -8,6 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -30,13 +31,14 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'Grid_X11edb41_X112a'
-refant = 'CM03'
+prefix = '2023.1.00533.S_X11fe144_X23dc1'
+refant = 'DA45'
 QUmodel = True
 antFlag = []
-spwList = [0]
-scanList =[10,12,14,16,18]
-'''
+spwList = [0,1,2,3]
+#scanList =[11,30,60,88]
+#scanList =[43,46,48,51,53,60,62,65,66,69,71,74,76,83,85,88]
+scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -76,6 +78,7 @@ sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
 timeDic   = dict(zip(sourceList, [[]]*numSource)) # Time index list for each source
 StokesDic = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters for each source
+StokesDicCat = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters in AMAPOLA
 #-------- Check scan list
 if 'scanList' in locals():
     scanList.sort()
@@ -98,18 +101,19 @@ spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
 #-------- Check Stokes Parameters for each source
 #if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
+'''
 for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
-    sourceIDscan = msmd.scansforfield(sourceID).tolist()
+    sourceIDscan = set(msmd.scansforfield(sourceID)) and scanList
     scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
     interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
     if len(timeStamp) < 3: continue
     IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR)
     if len(IQU[0]) > 0:
-        StokesDic[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDic[sourceName][0], 100.0*np.sqrt(StokesDic[sourceName][1]**2 + StokesDic[sourceName][2]**2)/StokesDic[sourceName][0]))
+        StokesDicCat[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
+        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDicCat[sourceName][0], 100.0*np.sqrt(StokesDicCat[sourceName][1]**2 + StokesDicCat[sourceName][2]**2)/StokesDicCat[sourceName][0]))
 #
-msmd.done()
+'''
 if not 'bunchNum' in locals(): bunchNum = 1
 def bunchVecCH(spec): return bunchVec(spec, bunchNum)
 #-------- AZ, EL, PA
@@ -120,10 +124,21 @@ timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 #-------- Loop for SPW
 DxList, DyList, FreqList = [], [], []
 for spw_index, spw in enumerate(spwList):
-    SPW_StokesDic = StokesDic
+    SPW_StokesDic = StokesDicCat
     mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
+    for sourceID in srcDic.keys():
+        sourceName = srcDic[sourceID]['Name']
+        sourceIDscan = set(msmd.scansforfield(sourceID)) and scanList
+        scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
+        interval, timeStamp = GetTimerecord(msfile, 0, 1, spw, sourceIDscan[0])
+        IQU = GetPolQuery(sourceName, timeStamp[0], np.median(Freq)*1.0e-9, SCR_DIR)
+        if len(IQU[0]) > 0:
+            StokesDicCat[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
+            print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDicCat[sourceName][0], 100.0*np.sqrt(StokesDicCat[sourceName][1]**2 + StokesDicCat[sourceName][2]**2)/StokesDicCat[sourceName][0]))
+        #
+    #
     DxSpec, DySpec = np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
     caledVis = np.ones([4,UseBlNum, 0], dtype=complex)
     if 'BPprefix' not in locals():  BPprefix = prefix
@@ -174,9 +189,10 @@ for spw_index, spw in enumerate(spwList):
     #-------- Gain solutions
     mjdSec, Az, El, PA, PAnum = np.array(mjdSec), np.array(Az), np.array(El), np.array(PA), len(PA)
     print('---- Antenna-based gain solution using tracking antennas')
-    Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[3]) ])   # Parallel-pol gain
+    Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[-1]) ])   # Parallel-pol gain
     Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))                                   # average in dual parallel polarization
     Gain = Gamp* Gain/abs(Gain)                                                     # polarization-averaged gain
+    # GainFlagTimeIndex = np.where(np.mean(abs(Gain), axis=(0,1)) / np.median(abs(Gain)) > 2.0 )[0].tolist()
     #-------- Gain-calibrated visibilities
     print('  -- Apply parallel-hand gain calibration')
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
@@ -282,7 +298,8 @@ for spw_index, spw in enumerate(spwList):
         if len(timeIndex) < 1 : continue
         VisBL = np.mean(chAvgVis[[0,3]][:,:,timeIndex]* GainPhase[:,ant1][:,:,timeIndex]* GainPhase[:,ant0][:,:,timeIndex].conjugate(), axis=(0,2))  # Parallel pol vis.
         antGainList = antGainList + [abs(gainComplex(VisBL))]
-        FluxList   = FluxList + [SPW_StokesDic[sourceName][0]]
+        #FluxList   = FluxList + [SPW_StokesDic[sourceName][0]]
+        FluxList   = FluxList + [StokesDicCat[sourceName][0]]
     #
     SEFD = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
     for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy' % (ant, spw, SEFD[ant_index]))
@@ -453,3 +470,4 @@ for spw_index, spw in enumerate(spwList):
     #
     StokesTextFile.close()
 #
+msmd.done()
