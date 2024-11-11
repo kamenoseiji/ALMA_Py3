@@ -100,20 +100,6 @@ for spw_index, spw in enumerate(spwList):
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
 #-------- Check Stokes Parameters for each source
-#if os.path.isfile('./Flux.Rdata'): os.system('rm Flux.Rdata')  # to update AMAPOLA Database
-'''
-for sourceID in srcDic.keys():
-    sourceName = srcDic[sourceID]['Name']
-    sourceIDscan = set(msmd.scansforfield(sourceID)) and scanList
-    scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
-    interval, timeStamp = GetTimerecord(msfile, 0, 1, spwList[0], sourceIDscan[0])
-    if len(timeStamp) < 3: continue
-    IQU = GetPolQuery(sourceName, timeStamp[0], BANDFQ[bandID], SCR_DIR)
-    if len(IQU[0]) > 0:
-        StokesDicCat[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
-        print('---- %s : expected I=%.1f p=%.1f%%' % (sourceName, StokesDicCat[sourceName][0], 100.0*np.sqrt(StokesDicCat[sourceName][1]**2 + StokesDicCat[sourceName][2]**2)/StokesDicCat[sourceName][0]))
-#
-'''
 if not 'bunchNum' in locals(): bunchNum = 1
 def bunchVecCH(spec): return bunchVec(spec, bunchNum)
 #-------- AZ, EL, PA
