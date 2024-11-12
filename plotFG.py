@@ -16,6 +16,10 @@ parser.add_option('-s', dest='spwList', metavar='spwList',
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 spwList = [int(spw) for spw in options.spwList.split(',')]
+'''
+prefix = '2023.1.00533.S_X11fe144_X23dc1'
+spwList = [0]
+'''
 #-------- Load Flag data
 ANfileName = '%s.Ant.npy' % (prefix)
 if not os.path.isfile(ANfileName):
@@ -36,15 +40,25 @@ for spw_index, spw in enumerate(spwList):
         continue
     FG = np.load(FGfileName)
     FGList = FGList + [FG]
+    antNum, timeNum = FG.shape[0], FG.shape[1]
     #-------- antennas to flag
-    flagAntList = antList[np.unique(np.where(FG < 1.0)[0])].tolist()
-    for ant in flagAntList:
-        ant_index = np.where(antList == ant)[0][0]
+    flagAntIndex = np.where( np.quantile(FG, 0.25, axis=1) < 1)[0].tolist()
+    flagAntList = antList[flagAntIndex]
+    unFlaggedIndex = list(set(range(antNum)) - set(flagAntIndex))
+    unFlaggedAntNum = len(unFlaggedIndex)
+    for ant_index, ant in enumerate(flagAntList):
         text_sd = 'SPW%d %s' % (spw, ant)
-        flaggedTimeIndex = np.where(FG[ant_index] < 1.0)[0]
-        if len(np.where(np.diff(flaggedTimeIndex) == 1)[0]) > 0.01* len(TS) : # more than 1% of continuously flagged time
-            print(text_sd)
-            logfile.write(text_sd + '\n')
+        print(text_sd)
+        logfile.write(text_sd + '\n')
+    #-------- Time to flag
+    '''
+    flagTimeList = np.where( np.quantile(FG[unFlaggedIndex], 3.0/unFlaggedAntNum, axis=0) < 1)[0].tolist()
+    for time_index in flagTimeList:
+        text_sd = 'SPW%d %.3f' % (spw, TS[time_index])
+        print(text_sd)
+        logfile.write(text_sd + '\n')
+    #
+    '''
 #
 logfile.close()
 plotFlag(pp, prefix, antList, DT, spwList, FGList)
