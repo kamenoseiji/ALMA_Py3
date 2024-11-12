@@ -30,14 +30,15 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = '2023.1.00533.S_X11fe144_X23dc1'
+prefix = '2023.1.00486.S_X12055db_X37cb'
 refant = 'DA45'
 QUmodel = True
-antFlag = ['DA52','DA61','DV06','DV08','DV24']
-spwList = [2]
+antFlag = ['DV18']
+spwList = [0]
 #scanList =[11,30,60,88]
 #scanList =[43,46,48,51,53,60,62,65,66,69,71,74,76,83,85,88]
-scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
+#scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
+scanList = [3 , 6 , 9 , 25, 33, 34, 42, 60, 68, 69, 80, 97, 98, 101, 117, 125, 126, 134, 152, 160, 161, 172, 189]
 '''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
@@ -118,7 +119,7 @@ for spw_index, spw in enumerate(spwList):
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
     for sourceID in srcDic.keys():
         sourceName = srcDic[sourceID]['Name']
-        sourceIDscan = set(msmd.scansforfield(sourceID)) and scanList
+        sourceIDscan = list(set(msmd.scansforfield(sourceID)) & set(scanList))
         scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
         interval, timeStamp = GetTimerecord(msfile, 0, 1, spw, sourceIDscan[0])
         IQU = GetPolQuery(sourceName, timeStamp[0], np.median(Freq)*1.0e-9, SCR_DIR)
