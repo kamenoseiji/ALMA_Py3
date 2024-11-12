@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, gainComplexVec, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, GetVisAllBL, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap
 from optparse import OptionParser
@@ -33,8 +33,8 @@ scanList = [int(scan) for scan in options.scanList.split(',')]
 prefix = '2023.1.00533.S_X11fe144_X23dc1'
 refant = 'DA45'
 QUmodel = True
-antFlag = []
-spwList = [0,1,2,3]
+antFlag = ['DA52','DA61','DV06','DV08','DV24']
+spwList = [2]
 #scanList =[11,30,60,88]
 #scanList =[43,46,48,51,53,60,62,65,66,69,71,74,76,83,85,88]
 scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
@@ -91,10 +91,12 @@ else:
 useTimeStampList = []
 FGantList = np.load('%s.Ant.npy' % (prefix))
 UseAntIndexInFG = indexList(UseAntList,FGantList)
+unFlaggedAntNum = len(UseAntIndexInFG)
 for spw_index, spw in enumerate(spwList):
     if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
     if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
-    useTimeStampList = useTimeStampList + [TS[np.where(np.min(FG[UseAntIndexInFG], axis=0) > 0.9)[0].tolist()]]
+    UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 3.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
+    useTimeStampList = useTimeStampList + [TS[UseTimeList]]
 #
 #-------- Check band and BandPA
 spwName = msmd.namesforspws(spwList)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
@@ -175,7 +177,7 @@ for spw_index, spw in enumerate(spwList):
     #-------- Gain solutions
     mjdSec, Az, El, PA, PAnum = np.array(mjdSec), np.array(Az), np.array(El), np.array(PA), len(PA)
     print('---- Antenna-based gain solution using tracking antennas')
-    Gain = np.array([ gainComplexVec(chAvgVis[0]), gainComplexVec(chAvgVis[-1]) ])   # Parallel-pol gain
+    Gain = np.array([ np.apply_along_axis(gainComplex, 0, chAvgVis[0]), np.apply_along_axis(gainComplex, 0, chAvgVis[-1]) ])   # Parallel-pol gain
     Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))                                   # average in dual parallel polarization
     Gain = Gamp* Gain/abs(Gain)                                                     # polarization-averaged gain
     # GainFlagTimeIndex = np.where(np.mean(abs(Gain), axis=(0,1)) / np.median(abs(Gain)) > 2.0 )[0].tolist()
