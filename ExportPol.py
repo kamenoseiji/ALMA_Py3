@@ -1,4 +1,5 @@
 import os
+import math
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-I', dest='INTList', metavar='INTList',
@@ -110,9 +111,8 @@ for file_index, prefix in enumerate(prefixList):
     chanbin = [1] * len(chWids)
     for spw_index, spw in enumerate(bpsSPWList[file_index]):
         chBunch = max(1, round(freqRes / chWids[spw_index]))
-        if chBunch < chNums[spw_index]: 
-            chanbin[spw_index] = int(chNums[spw_index] / int(chNums[spw_index] / chBunch))
-        #
+        chBunch = int(chNums[spw_index] / math.ceil(chNums[spw_index]/chBunch))
+        if chBunch < chNums[spw_index]: chanbin[spw_index] = int(chNums[spw_index] / int(chNums[spw_index] / chBunch))
         print('%s SPW=%d chWid=%.2f targetRes=%.2f chNum=%d chBin=%d' % (prefix, spw, chWids[spw_index], freqRes, chNums[spw_index], chanbin[spw_index]))
     #---- scan List
     msmd.open(prefix + '.ms')

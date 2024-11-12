@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import stats
 from optparse import OptionParser
-from interferometry import GetAntName, GetTimerecord, GetChNum, GetPSpecScan
+from interferometry import GetAntName, GetTimerecord, GetChNum, GetPSpecScan, indexList
 from Plotters import plotAC
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -16,17 +16,19 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 (options, args) = parser.parse_args()
 #-------- checkAspec : power spectrum (autocorrelation)
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-antList = [ant for ant in options.antName.split(',')]
-#scanList  =  options.scanList.split(',')
+plotAntList = [ant for ant in options.antName.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
-#spwList = options.spwList.split(',')
 spwList = [int(spw) for spw in options.spwList.split(',')]
-#exec(open(SCR_DIR + 'interferometry.py').read())
-#exec(open(SCR_DIR + 'Plotters.py').read())
+'''
+prefix = 'uid___A002_X11fc8d6_X10ea5'
+plotAntList = ['DV19']
+scanList = [3]
+spwList = [25,27,29,31]
+'''
 #-------- Procedures
 msfile = prefix + '.ms'
-#antList = GetAntName(msfile)
-antNum = len(antList)
+antList = GetAntName(msfile)
+antNum = len(plotAntList)
 scanNum = len(scanList)
 spwNum = len(spwList)
 #-------- Time Records
@@ -48,11 +50,11 @@ for spw_index, spw in enumerate(spwList):
 #
 #-------- Load autocorrelation power spectra
 polIndex = [0, -1]
-for ant_index, ant in enumerate(antList):
+for ant_index, antID in enumerate(indexList(np.array(plotAntList), antList)):
     for spw_index, spw in enumerate(spwList):
         timePointer = 0
         for scan_index, scan in enumerate(scanList):
-            timeStamp, Pspec = GetPSpecScan(msfile, ant_index, spw, scan)    # Pspec[pol, ch, time]
+            timeStamp, Pspec = GetPSpecScan(msfile, antID, spw, scan)    # Pspec[pol, ch, time]
             recNum = len(timeStamp)
             AC[spw_index][ant_index, timePointer:(timePointer + recNum)] = Pspec[polIndex].transpose(2, 0, 1) # AC[spw][ant, time, pol, ch] 
             timePointer += recNum
@@ -60,4 +62,4 @@ for ant_index, ant in enumerate(antList):
     #
 #
 #-------- Plot BP
-plotAC(prefix + '-Scan%d' % (scanList[0]), antList, spwList, freqList, AC)
+plotAC(prefix + '-Scan%d' % (scanList[0]), plotAntList, spwList, freqList, AC)
