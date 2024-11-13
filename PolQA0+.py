@@ -1,7 +1,6 @@
 import numpy as np
 import os
-SCR_DIR = '/users/skameno/ALMA_Py3/'
-R_DIR = '/usr/bin/'
+SCR_DIR = os.getenv('HOME') + '/ALMA_Py3/'
 wd = './'
 QUMODEL = True
 INTList = 'POL,BANDPASS'

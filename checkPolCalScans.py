@@ -1,11 +1,11 @@
 import os
-SCR_DIR = '/users/skameno/ALMA_Py3/'
 import sys
 import numpy as np
 import analysisUtils as au
 from interferometry import BANDPA, BANDFQ, GetBPcalSPWs, GetSourceDic, indexList, GetAzEl, GetTimerecord, AzElMatch, AzEl2PA
 from Grid import SSOCatalog, SSOscore, ELshadow
 from optparse import OptionParser
+SCR_DIR = os.getenv('HOME') + '/ALMA_Py3/'
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='uid  e.g. uid___A002_X11adad7_X19ab0', default='')

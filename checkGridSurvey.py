@@ -5,7 +5,7 @@ import numpy as np
 import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplexErr, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, gainComplexVec, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
+from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplex, gainComplexErr, gainComplexVec, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from Plotters import plotSP, plotXYP, plotBLAV, plotFL, plotQUXY
@@ -135,8 +135,8 @@ for BandName in RXList:
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
-    checkVis    = np.mean(Xspec[[0,3]][:,chRange], axis=1) / scanDic[checkScan]['I']
-    Gain =  np.array([gainComplexVec(checkVis[0]), gainComplexVec(checkVis[1])])
+    checkVis    = np.mean(Xspec[[0,-1]][:,chRange], axis=1) / scanDic[checkScan]['I']
+    Gain =  np.array([np.apply_along_axis(gainComplex, 0, checkVis[0]), np.apply_along_axis(gainComplex, 0, checkVis[-1])])
     antCoh = np.array([np.median(abs(Gain[0,ant_index]* Gain[1,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)])
     Aeff = 8.0* kb* antCoh / (np.pi* antDia[useAntMap]**2)
     for ant_index, ant in enumerate(useAntMap):
@@ -203,7 +203,7 @@ for BandName in RXList:
         outLierVis = np.where(abs(bl_vis) > 10.0)
         scanFlag = list(set(range(bl_vis.shape[1])) - set(np.unique(outLierVis[1]))); scanFlag.sort()
         if len(scanFlag) > 1:
-            scanGain[:,scanFlag] = gainComplexVec(bl_vis[:,scanFlag])
+            scanGain[:,scanFlag] = np.apply_along_axis(gainComplex, 0, bl_vis[:,scanFlag])
             scanFlag = np.unique(np.where(np.max(abs(scanGain), axis=0)  <  min([1.0, 5.0*np.median(abs(scanGain))]))).tolist()
         #-------- Store to scanDic
         scanDic[scan]['Flag'] = scanFlag
@@ -238,7 +238,7 @@ for BandName in RXList:
             chNum   = BandbpSPW[BandName]['chNum'][spw_index]
             Xspec = XspecList[spw_index][scan_index][:,:,:,scanFlag]         # Xspec[pol, ch, bl, time]
             XPspec = np.mean(Xspec/ (scanPhase[ant0]* scanPhase[ant1].conjugate()), axis=3)   # antenna-based phase correction
-            BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)])
+            BP_ant = np.array([gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[-1].T)])
             #---- Amplitude normalization
             for pol_index in [0,1]:
                 BP_eq_gain = np.mean(abs(BP_ant[pol_index][:,chRange]), axis=1)

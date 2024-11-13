@@ -211,7 +211,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     # scanDic   : scan dictionary ['msfile', 'source', 'mjdSec', 'EL', 'PA', 'I', 'QCpUS', 'Tau', 'Tsys', 'Gain']
     # SSODic    : SSO dictionary
     # XSList    : Cross Correlation XspecList[spw][pol, ch, bl, time]
-    from interferometry import GetAntD, Bl2Ant, ANT0, ANT1, kb, gainComplexVec
+    from interferometry import GetAntD, Bl2Ant, ANT0, ANT1, kb, gainComplex
     SSOname = scanDic['source']
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
     uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
@@ -249,7 +249,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
         primaryBeam = 1.13* 299792458 / (np.pi * antDia* centerFreq)
         SSOmodelVis = SSODic[SSOname][1][spw_index]*  diskVisBeam(SSODic[SSOname][2], uvWave[0], uvWave[1], primaryBeam[ant0]* primaryBeam[ant0]* np.sqrt(2.0 / (primaryBeam[ant0]**2 + primaryBeam[ant1]**2))) + 1.0e-9
         VisChav = np.mean(XSList[spw_index][:,chRange][:,:,SAbl], axis=(1,3)) / SSOmodelVis[SAbl]
-        Gain = gainComplexVec(VisChav.T).T  # Gain[pol, ant]
+        Gain = np.apply_along_axis(gainComplex, 1, VisChav)  # Gain[pol, ant]
         Aeff = 8.0* kb* abs(Gain)**2 / (np.pi* antDia[SAant]**2)
         Ae, Wg = np.zeros([antNum, 2]), np.zeros([antNum, 2])
         for ant_index, SA in enumerate(SAant):

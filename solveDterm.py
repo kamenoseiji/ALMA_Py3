@@ -1,4 +1,5 @@
-SCR_DIR = '/users/skameno/ALMA_Py3/'
+import os
+SCR_DIR = os.getenv('HOME') + '/ALMA_Py3/'
 import sys
 import math
 import numpy as np
