@@ -215,7 +215,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
-                plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(minAC) - 1.0
+                plotMax, plotMin = maxAC + 1.0,  minAC - 1.0
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 118.0
                 if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.3*plotMax - 0.3* plotMin, antList[ant_index], fontsize=10)
                 ACPL.axis([np.min(Freq), np.max(Freq), plotMin, 1.1* plotMax - 0.1* plotMin])

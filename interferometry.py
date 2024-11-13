@@ -31,7 +31,7 @@ kb        = 1.38064852e3 # Boltzman constant (* 1e26 for Jy scaling)
 RADDEG = 180.0 / math.pi
 ALMA_long= -67.755/180.0* np.pi     # ALMA AOS Longitude
 ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
-#======== Baseline and Antenna Indexing
+#-------- Baseline and Antenna Indexing
 KERNEL_BL = (arange(64)*arange(1,65)/2).astype(int)
 def indexList( refArray, motherArray ):     # Compare two arrays and return matched index
     IL = []
@@ -154,7 +154,7 @@ def P2CL(P):
     #
     return CLList
 #
-#======== Statistical basics
+#-------- Statistical basics
 def linearRegression( x, y, err):
     weight = 1.0 / err**2
     Sw, Swxx, Swx, Swy, Swxy = np.sum(weight), np.sum( weight* x**2), weight.dot(x), weight.dot(y), np.sum(weight* x* y)
@@ -301,7 +301,7 @@ def ecliptic2radec( longitude, latitude, mjd ):          # ecliptic -> J2000, mj
     Xb, Yb, Zb = Xa, cs* Ya - sn* Za, sn* Ya + cs* Za
     return np.arctan2(Yb, Xb), np.arcsin(Zb)
 #
-#======== MS data interface
+#-------- MS data interface
 def AzElMatch( refTime, scanTime, AntID, targetAnt, Az, El ):
     antTimeIndex = np.where(AntID == targetAnt)[0].tolist()
     if len(antTimeIndex) == 0: antTimeIndex = np.where(AntID == 0)[0].tolist()
@@ -446,11 +446,7 @@ def GetBPcalSPWs(msfile):
     BPspwList = []
     for spw in bpSPWs:
         chNum, chWid, freq = GetChNum(msfile, spw)
-<<<<<<< HEAD
         if chNum > 7:   BPspwList = BPspwList + [spw]   # Filter out WVR and CHAVG spectral windows
-=======
-        if chNum > 5:   BPspwList = BPspwList + [spw]   # Filter out WVR and CHAVG spectral windows
->>>>>>> 5b66f3e18ffd5af3bfa4beb6bffde6210dfa5401
     msmd.close()
     return BPspwList
 #
