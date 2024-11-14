@@ -2,7 +2,11 @@
 Scripts used for ALMA array diagnostics, mainly in Python 3, executable on CASA version 6 or later.
 
 - How to download the codes:
-  At preferred directory, type "git clone https://github.com/kamenoseiji/ALMA_Py3.git". Then, scripts will be extracted in ALMA_Py3 directory.
+  At preferred directory, type 
+
+  git clone https://github.com/kamenoseiji/ALMA_Py3.git
+
+  Then, scripts will be extracted in ALMA_Py3 directory.
 
 - Requirements
   + CASA version 6 or later
@@ -13,7 +17,11 @@ Scripts used for ALMA array diagnostics, mainly in Python 3, executable on CASA 
 - How to use
   + Run with casa -c
   + Run with option -h to show help.
-  + For example, 'casa -c ~/ALMA_Py3/checkBP.py -h' will show:
+  + For example, running
+
+casa -c ~/ALMA_Py3/checkBP.py -h
+
+  will show:
 
 Usage: checkBP.py [options]
 
