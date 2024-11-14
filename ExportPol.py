@@ -68,7 +68,8 @@ for UID in UIDList:
     prefix = UID.replace("/", "_").replace(":","_").replace(" ","")
     prefixList = prefixList + [prefix]
     if os.path.isdir(prefix): continue
-    text_sd = 'python /users/skameno/bin/ScanExporterPlus2.py -u %s -i ' % (UID)
+    if os.path.isdir(prefix + '.ms'): continue
+    text_sd = 'python %s/ALMA_Py3/ScanExporterPlus2.py -u %s -i ' % (os.getenv('HOME'), UID)
     for INT in INTList: text_sd = text_sd + INT + ','
     text_sd = text_sd[:-1]
     print(text_sd)
