@@ -395,14 +395,18 @@ def GetVisibility(msfile, ant1, ant2, spwID, scanID):
 #-------- Load visibilities into dictionary
 def loadXspecScan(scanVisDic, prefix, spw,  bunchNum):
     def bunchVecCH(spec): return bunchVec(spec, bunchNum)
+    init_timeIndex = 0
     for scan_index, scan in enumerate(scanVisDic.keys()):
         print('-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan))
         timeStamp, Pspec, Xspec = GetVisAllBL(prefix + '.ms', spw, scan)  # Xspec[POL, CH, BL, TIME]
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
+        timeNum = len(timeStamp)
         scanVisDic[scan] = {
             'msfile': prefix,
+            'index': list(range(init_timeIndex, init_timeIndex + timeNum)),
             'mjdSec': timeStamp,
             'visSpec': Xspec}
+        init_timeIndex += timeNum
     return scanVisDic
 #-------- Load visiblities in all SPWs and scans
 def loadScanSPW(msfile, spwList, scanList):
