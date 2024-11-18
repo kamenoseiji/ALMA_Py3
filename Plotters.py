@@ -1,3 +1,4 @@
+import os
 import math
 from casatools import quanta as qatool
 import analysisUtils as au
@@ -548,7 +549,7 @@ def plotFlag(pp, prefix, antList, DT, spwList, FGList):
         FGPL = figFG.add_subplot(len(spwList), 1, spw_index + 1 )
         FG = FGList[spw_index]
         for ant_index, ant in enumerate(antList):
-            FGPL.scatter(DT, np.linspace(ant_index, ant_index, len(DT)), vmin=0, vmax=1, marker='s', s=1, c= 1.0 - FG[ant_index], cmap=cm.seismic)
+            FGPL.scatter(DT, np.linspace(ant_index, ant_index, len(DT)), vmin=0, vmax=1, marker='s', s=1, c= 1.0 - FG[ant_index], cmap=cm.cool)
         FGPL.set_title('SPW%d' % (spw))
         FGPL.tick_params(labelsize=3)
         FGPL.set_yticks(list(range(antNum)))
@@ -607,11 +608,39 @@ def plotFL(pp, scanDic, SPWDic):
     plt.close('all')
     pp.close()
     return
+#-------- Plot Stokes Spectra
+def plotStokesSpec(prefix, refantName, sourceName, spw):
+    polLabel, Pcolor = ['I', 'Q', 'U', 'V'], ['black', 'blue', 'red', 'green']
+    StokesSpecFile = '%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refantName, sourceName, spw)
+    StokesFreqFile = '%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refantName, sourceName, spw)
+    if not os.path.isfile(StokesSpecFile): return
+    StokesSpec = np.load(StokesSpecFile)
+    Freq = np.load(StokesFreqFile)
+    figSP = plt.figure(figsize = (11, 8))
+    figSP.suptitle(prefix + ' ' + sourceName)
+    figSP.text(0.45, 0.05, 'Frequency [GHz]')
+    figSP.text(0.03, 0.45, 'Stokes visibility amplitude [Jy]', rotation=90)
+    StokesI_SP = figSP.add_subplot( 2, 1, 1 )
+    StokesP_SP = figSP.add_subplot( 2, 1, 2 )
+    IMax = np.max(StokesSpec[0])
+    StokesI_SP.step(Freq, StokesSpec[0], where='mid', label=polLabel[0], color=Pcolor[0])
+    StokesP_SP.step(Freq, StokesSpec[1], where='mid', label=polLabel[1], color=Pcolor[1])
+    StokesP_SP.step(Freq, StokesSpec[2], where='mid', label=polLabel[2], color=Pcolor[2])
+    StokesP_SP.step(Freq, StokesSpec[3], where='mid', label=polLabel[3], color=Pcolor[3])
+    StokesI_SP.tick_params(axis='both', labelsize=6)
+    StokesP_SP.tick_params(axis='both', labelsize=6)
+    StokesI_SP.axis([np.min(Freq), max(Freq), 0.0, 1.25*IMax])
+    StokesP_SP.axis([np.min(Freq), max(Freq), -0.15*IMax, 0.15*IMax])
+    StokesI_SP.text(min(Freq), IMax*1.35, sourceName)
+    StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+    StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
+    figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refantName, sourceName, spw))
+    plt.close('all')
+    return
 #-------- Plot XY cross correlation versus QU
 def plotQUXY(pp, scanDic):
     figQU = plt.figure(figsize = (8, 11))
     figQU.text(0.25, 0.05, 'Linear polarization angle w.r.t. X-Feed [deg]')
-    #figQU.text(0.03, 0.45, 'Cross correlations [Jy]', rotation=90)
     sourceList = list(set([scanDic[scan]['source'] for scan in scanDic.keys()]))
     ParaPolPL  = figQU.add_subplot( 2, 1, 1 )
     CrosPolPL  = figQU.add_subplot( 2, 1, 2 )
@@ -621,39 +650,42 @@ def plotQUXY(pp, scanDic):
         if sourceName in SSOCatalog: continue
         scanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'] == sourceName]
         ThetaPlot, VisXX, VisYY, VisXY = [], [], [], []
+        #-------- PA range to draw model
         for scan in scanList:
-            spwNum = len(scanDic[scan]['I'])
             PA = scanDic[scan]['PA']
-            CS, SN = np.cos(PA), np.sin(PA)
-            visChav = np.zeros([spwNum, len(PA)], dtype=complex)
-            EVPA = 0.5* np.arctan2(np.mean(scanDic[scan]['U']), np.mean(scanDic[scan]['Q']))
-            for spw_index in list(range(spwNum)): visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
-            for spw_index in list(range(spwNum)): visChav = visChav + np.mean(scanDic[scan]['visChav'][spw_index], axis=1)
+            Q, U = np.mean(np.array(scanDic[scan]['Q'])), np.mean(np.array(scanDic[scan]['U']))
+            EVPA = 0.5* np.arctan2(U, Q)
             Theta = PA - EVPA
             ThetaPlot = ThetaPlot + np.arctan(np.tan(Theta)).tolist()
-            visChav = visChav / spwNum
-            VisXX = VisXX + (0.5*(abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0)))).tolist()
-            VisYY = VisYY + (0.5*(abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0)))).tolist()
-            VisXY = VisXY + (0.5*np.mean(visChav[[1,2]], axis=0)).tolist()
-        #
-        Q, U = np.mean(np.array(scanDic[scan]['Q'])), np.mean(np.array(scanDic[scan]['U']))
         ThetaPlot = np.array(ThetaPlot)
         ThetaMin, ThetaMax = np.min(ThetaPlot), np.max(ThetaPlot)
         ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)
         PArange = ThetaRange + EVPA
+        #-------- Draw model
         CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
         UCmQS, QCpUS = U*CSrange - Q* SNrange, Q*CSrange + U* SNrange
-        ThetaRange[ThetaRange >  1.56] = np.inf
-        ThetaRange[ThetaRange < -1.56] = -np.inf
-        VisXX, VisYY, VisXY, QCpUS, UCmQS = np.array(VisXX), np.array(VisYY), np.array(VisXY), np.array(QCpUS), np.array(UCmQS)
         ParaPolPL.plot( RADDEG* ThetaRange, QCpUS, '-', color=cmap(source_index), linestyle='dashed')
         ParaPolPL.plot( RADDEG* ThetaRange,-QCpUS, '-', color=cmap(source_index), linestyle='dashdot')
         CrosPolPL.plot( RADDEG* ThetaRange, UCmQS, '-', color=cmap(source_index), linestyle='solid')
         CrosPolPL.plot( RADDEG* ThetaRange, np.zeros(len(ThetaRange)), '-', color=cmap(source_index), linestyle='dotted')
-        ParaPolPL.plot( RADDEG* ThetaPlot, VisXX, 'x', fillstyle='full', color=cmap(source_index), label=sourceName)
-        ParaPolPL.plot( RADDEG* ThetaPlot, VisYY, '1', fillstyle='none', color=cmap(source_index))
-        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.real, 'o', fillstyle='none', mew=0.2, color=cmap(source_index), label=sourceName)
-        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.imag, ',', color=cmap(source_index))
+        #-------- Plot data points
+        for scan in scanList:
+            spwNum = len(scanDic[scan]['I'])
+            visChav = np.mean(np.array(scanDic[scan]['visChav']), axis=0)   # visChav[Stokes, time]
+            if visChav.ndim > 2: visChav = np.mean(visChav, axis=1)
+            VisXX = VisXX + (abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0))).tolist()
+            VisYY = VisYY + (abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0))).tolist()
+            VisXY = VisXY + np.mean(visChav[[1,2]], axis=0).tolist()
+            text_sd = 'Scan %d : %s' % (scan, qa.time('%fs' % (scanDic[scan]['mjdSec'][0]), form='fits', prec=6)[0][11:21])
+            text_PA = RADDEG* np.arctan(np.tan((scanDic[scan]['PA'][0] - EVPA)))
+            rotText, posText = 90, 'bottom'
+            if text_PA < 0: rotText, posText = -90, 'top'
+            CrosPolPL.text(text_PA, 0, text_sd, verticalalignment=posText, fontsize=6, rotation=rotText)
+        VisXX, VisYY, VisXY, QCpUS, UCmQS = np.array(VisXX), np.array(VisYY), np.array(VisXY), np.array(QCpUS), np.array(UCmQS)
+        ParaPolPL.plot( RADDEG* ThetaPlot, VisXX, 'x', fillstyle='full', color=cmap(source_index), label=sourceName + ' XX')
+        ParaPolPL.plot( RADDEG* ThetaPlot, VisYY, '1', fillstyle='none', color=cmap(source_index), label=sourceName + ' YY')
+        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.real, 'o', fillstyle='none', mew=0.2, color=cmap(source_index), label=sourceName + ' re')
+        CrosPolPL.plot( RADDEG* ThetaPlot, VisXY.imag, ',', color=cmap(source_index), label=sourceName + ' im')
         plotMax = np.max([plotMax, np.max(abs(VisXX))])
         plotMax = np.max([plotMax, np.max(abs(VisYY))])
         plotMax = np.max([plotMax, np.max(abs(VisXY))])
@@ -666,10 +698,10 @@ def plotQUXY(pp, scanDic):
     CrosPolPL.set_ylabel('Cross-hand correlation [Jy]')
     box = ParaPolPL.get_position()
     ParaPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    ParaPolPL.legend(loc = 'upper right', prop={'size' :9}, numpoints = 1, bbox_to_anchor = (1.3,1))
+    ParaPolPL.legend(loc = 'upper right', prop={'size' :4.5}, ncol=2, numpoints=1, labelspacing=0.05, bbox_to_anchor = (1.3,1))
     box = CrosPolPL.get_position()
     CrosPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    CrosPolPL.legend(loc = 'upper right', prop={'size' :9}, numpoints = 1, bbox_to_anchor = (1.3,1))
+    CrosPolPL.legend(loc = 'upper right', prop={'size' :4.5}, ncol=2, numpoints=1, labelspacing=0.05, bbox_to_anchor = (1.3,1))
     figQU.suptitle('Cross Polarization Correlations %s' % (scanDic[scan]['msfile'][:-3]))
     figQU.savefig(pp, format='pdf')
     plt.close('all')

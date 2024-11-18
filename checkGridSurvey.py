@@ -369,7 +369,6 @@ for BandName in RXList:
     ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4])
     text_Stokes = np.repeat('',len(BandbpSPW[BandName]['spw'])).tolist()
     #-------- Store Stokes parameters into scanDic
-    #for scan_index, scan in enumerate(BandScanList[BandName]):
     for scan_index, scan in enumerate(scanDic.keys()):
         if len(scanDic[scan]['Flag']) == 0: continue
         sourceName = scanDic[scan]['source']
@@ -427,7 +426,6 @@ for BandName in RXList:
     text_sd = 'D-term        '; logfile.write(text_sd); print(text_sd, end='')
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         IList, QCpUSList, UCmQSList, visChavList = [], [], [], []
-        #for scan_index, scan in enumerate(BandScanList[BandName]):
         for scan_index, scan in enumerate(QSOscanList):
             if len(scanDic[scan]['Flag']) == 0: continue
             if min(scanDic[scan]['EL']) < ELshadow : continue
@@ -435,7 +433,6 @@ for BandName in RXList:
             QCpUSList   = QCpUSList + scanDic[scan]['QCpUS'][spw_index].tolist()
             UCmQSList   = UCmQSList + scanDic[scan]['UCmQS'][spw_index].tolist()
             visChavList = visChavList + scanDic[scan]['visChav'][spw_index].transpose(2, 0, 1).tolist()
-        #
         Dterm[:,spw_index, 0], Dterm[:,spw_index,1] = VisMuiti_solveD(np.array(visChavList).transpose(1, 2, 0), np.array(QCpUSList), np.array(UCmQSList), Dcat[antMap,0,spw_index], Dcat[antMap,1,spw_index], np.array(IList))
     #---- Display D-terms
     for ant_index, ant in enumerate(antList[antMap]): DtermDic[ant] = Dterm[ant_index]
