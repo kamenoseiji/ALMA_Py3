@@ -32,16 +32,16 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = '2023.1.00486.S_X12055db_X37cb'
+prefix = '2023.1.00486.S_X120b4e9_Xc0fc'
 refant = 'DA45'
 QUmodel = True
-antFlag = ['DV18']
+antFlag = []
 spwList = [0]
 #scanList =[11,30,60,88]
 #scanList =[43,46,48,51,53,60,62,65,66,69,71,74,76,83,85,88]
 #scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
 #scanList = [3 , 6 , 9 , 25, 33, 34, 42, 60, 68, 69, 80, 97, 98, 101, 117, 125, 126, 134, 152, 160, 161, 172, 189]
-scanList = [3,6,9,33,69,80,101,125,134,160,189]
+scanList = [3, 6, 33, 34, 68, 69, 97]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -266,7 +266,6 @@ for spw_index, spw in enumerate(spwList):
     plt.close('all')
     del figXY
     XYvis[0] -= (DtotP + DtotM* QCpUS); XYvis[1] -= (DtotP + DtotM* QCpUS).conjugate()
-    a=1/0
     #-------- Fine estimation of Q and U using XY and YX
     print('  -- XY phase correction')
     Vis    = np.mean(caledVis, axis=1)
@@ -280,6 +279,7 @@ for spw_index, spw in enumerate(spwList):
     #
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     GainY *= twiddle
+    a = 1/0
     #-------- SEFD amplitude calibration
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
     GainPhase  = Gain/abs(Gain)     # antenna-based phase solution
@@ -312,6 +312,7 @@ for spw_index, spw in enumerate(spwList):
         UCmQS[timeIndex]  *= SPW_StokesDic[sourceName][0]
     #-------- Antenna-based on-axis D-term (chAvg)
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
+    a=1/0
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
     print('  -- D-term-corrected visibilities')

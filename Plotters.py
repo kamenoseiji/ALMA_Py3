@@ -637,6 +637,28 @@ def plotStokesSpec(prefix, refantName, sourceName, spw):
     figSP.savefig('SP_%s-REF%s-%s-SPW%d.pdf' % (prefix, refantName, sourceName, spw))
     plt.close('all')
     return
+#-------- Plot XY cross correlation diagram
+def plotXYVis(pp, scanDic, DdotP, DdotM):
+    cmap = plt.get_cmap("tab20")
+    figXY = plt.figure(figsize = (11,8))
+    XYP = figXY.add_subplot( 1, 1, 1 )
+    plotMax = 0.0
+    for scan_index, scan in enumerate(scanDic.keys()):
+        plotY = DdotP + DdotM* scanDic[scan]['QCpUS'] + scanDic[scan]['UCmQS']* np.exp((1.0j)*scanDic[scan]['XYphase'])
+        XYP.plot( scanDic[scan]['UCmQS'], plotY.real, '-', color=cmap(2* scan_index))
+        XYP.plot( scanDic[scan]['UCmQS'], plotY.imag, '-', color=cmap(2* scan_index + 1))
+        XYP.plot( scanDic[scan]['UCmQS'], np.mean(scanDic[scan]['scanVis'][[1,2]].real, axis=0), '.', color=cmap(2* scan_index), label='Scan%d %s' % (scan, scanDic[scan]['source']))
+        XYP.plot( scanDic[scan]['UCmQS'], 0.5*np.diff(scanDic[scan]['scanVis'][[2,1]].imag, axis=0)[0], '.', color=cmap(2* scan_index + 1))
+        plotMax = max(plotMax, np.max(abs(scanDic[scan]['UCmQS'])))
+    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title(scanDic[scan]['msfile'])
+    XYP.axis([-1.25*plotMax, 1.25*plotMax, -1.25*plotMax, 1.25*plotMax]); XYP.grid()
+    box = XYP.get_position()
+    XYP.set_position([box.x0, box.y0, box.width* 0.75, box.height])
+    XYP.legend(loc = 'upper left', prop={'size' :8}, numpoints = 1, bbox_to_anchor = (1,1))
+    figXY.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
 #-------- Plot XY cross correlation versus QU
 def plotQUXY(pp, scanDic):
     figQU = plt.figure(figsize = (8, 11))
@@ -708,3 +730,4 @@ def plotQUXY(pp, scanDic):
     pp.close()
     return
 #
+

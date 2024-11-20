@@ -8,7 +8,7 @@ import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
-from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY
+from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
 '''
 from optparse import OptionParser
 parser = OptionParser()
@@ -32,15 +32,12 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = '2023.1.00486.S_X12055db_X37cb'
+prefix = '2023.1.00486.S_X120b4e9_Xc0fc'
 refant = 'DA45'
 QUmodel = True
 antFlag = []
 spwList = [0]
-#scanList =[11,30,60,88]
-#scanList =[43,46,48,51,53,60,62,65,66,69,71,74,76,83,85,88]
-#scanList = [11, 14, 16, 19, 21, 28, 30, 33, 34, 37, 43, 46, 48, 51, 53, 60, 62, 65, 66, 69, 71, 74, 76, 83, 85, 88]
-scanList = [3,6,9,33,69,80,101,125,134,160,189]
+scanList =[3, 6, 33, 34, 68, 69, 97]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -116,7 +113,7 @@ timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 DxList, DyList, FreqList = [], [], []
 for spw_index, spw in enumerate(spwList):
     SPW_StokesDic = StokesDicCat
-    mjdSec, Az, El, PA, XspecList, timeNum, scanST = [], [], [], [], [], [], []
+    #mjdSec, Az, El, PA, XspecList [], [], [], [], [], [], []
     #-------- time-independent spectral setups
     chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); FreqList = FreqList + [1.0e-9* bunchVecCH(Freq) ]
     for sourceID in srcDic.keys():
@@ -175,7 +172,7 @@ for spw_index, spw in enumerate(spwList):
                 scanVisXList = scanVisXList + scanVisDic[scan]['scanVis'][0].tolist()
                 scanVisYList = scanVisYList + scanVisDic[scan]['scanVis'][-1].tolist()
             QUsol   = XXYY2QU(np.array(PAList,), np.array([scanVisXList, scanVisYList]))             # XX*, YY* to estimate Q, U
-        text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/np.pi); print(text_sd)
+            text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/np.pi); print(text_sd)
         for scan in scanLS:
             CS, SN = np.cos(2.0* scanVisDic[scan]['PA']), np.sin(2.0* scanVisDic[scan]['PA'])
             scanVisDic[scan]['QCpUS'] = QUsol[0]* CS + QUsol[1]* SN
@@ -196,7 +193,7 @@ for spw_index, spw in enumerate(spwList):
         Gain = np.array([GainX, GainY* XYsign])
         scanVisDic[scan]['visChav'] = scanVisDic[scan]['visChav'] / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
         scanVisDic[scan]['scanVis'] = scanVisDic[scan]['visChav'].transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
-        scanVisDic[scan]['Gain'] = Gain
+        scanVisDic[scan]['Gain'] *= Gain
     #-------- Fine estimation of Q and U using XY and YX
     for sourceName in SPW_StokesDic.keys():
         scanLS = scanDic[sourceName]
@@ -210,8 +207,8 @@ for spw_index, spw in enumerate(spwList):
         text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
         for scan in scanLS:
             CS, SN = np.cos(2.0* scanVisDic[scan]['PA']), np.sin(2.0* scanVisDic[scan]['PA'])
-            scanVisDic[scan]['QCpUS'] = QUsol[0]* CS + QUsol[1]* SN
-            scanVisDic[scan]['UCmQS'] = QUsol[1]* CS - QUsol[0]* SN
+            scanVisDic[scan]['QCpUS'] = Qsol* CS + Usol* SN
+            scanVisDic[scan]['UCmQS'] = Usol* CS - Qsol* SN
     #-------- XY phase correction
     mjdList, scanVisXYList, scanVisYXList, UCmQSList, QCpUSList = [], [], [], [], []
     for scan_index, scan in enumerate(scanVisDic.keys()):
@@ -221,96 +218,50 @@ for spw_index, spw in enumerate(spwList):
         QCpUSList = QCpUSList + scanVisDic[scan]['QCpUS'].tolist()
         UCmQSList = UCmQSList + scanVisDic[scan]['UCmQS'].tolist()
     #
-    mjdSec = np.array(mjdList)
+    mjdSec = np.array(mjdList); timeNum = len(mjdSec)
     XYphase, DdotP, DdotM = XY2PhaseVec(mjdSec - np.median(mjdSec), np.array([scanVisXYList, scanVisYXList]), np.array(UCmQSList), np.array(QCpUSList), 1000)
-    twiddle = np.exp((1.0j)* XYphase)
     for scan_index, scan in enumerate(scanVisDic.keys()):
         timeIndex = scanVisDic[scan]['index']
-        scanVisDic[scan]['scanVis'][1] /= twiddle[timeIndex]
-        scanVisDic[scan]['scanVis'][2] *= twiddle[timeIndex]
+        scanVisDic[scan]['XYphase'] = XYphase[timeIndex]
+        twiddle = np.exp((1.0j)* scanVisDic[scan]['XYphase'])
+        scanVisDic[scan]['scanVis'][1] /= twiddle
+        scanVisDic[scan]['scanVis'][2] *= twiddle
         #XYvis = Vis[[1,2]]; XYV = 0.5*(XYvis[0] + XYvis[1].conjugate())
-    #
     #-------- Display XY cross correlation
     ArrayDx, ArrayDy = 0.5* (DdotP - DdotM), 0.5* (DdotP + DdotM)
     text_Dx, text_Dy = 'Array Dx = %+.4f %+.4fi' % (ArrayDx.real, ArrayDx.imag), 'Array Dy = %+.4f %+.4fi' % (ArrayDy.real, ArrayDy.imag)
     print(text_Dx + ' ' + text_Dy)
-    figXY = plt.figure(figsize = (8, 8))
-    XYP = figXY.add_subplot( 1, 1, 1 )
-    plotMax = 0.0
-    for scan_index, scan in enumerate(scanVisDic.keys()):
-        plotY = DdotP + DdotM* scanVisDic[scan]['QCpUS'] + scanVisDic[scan]['UCmQS']* twiddle[scanVisDic[scan]['index']]
-        XYP.plot( scanVisDic[scan]['UCmQS'], plotY.real, '-')
-        XYP.plot( scanVisDic[scan]['UCmQS'], plotY.imag, '-')
-        XYP.plot( scanVisDic[scan]['UCmQS'], np.sum(scanVisDic[scan]['scanVis'][[1,2]].real, axis=0), '.', label='Re <XY*> SC%d' % (scan))
-        XYP.plot( scanVisDic[scan]['UCmQS'], np.diff(scanVisDic[scan]['scanVis'][[2,1]].imag, axis=0)[0], '.', label='Im <XY*> SC%d' % (scan))
-        plotMax = max(plotMax, np.max(abs(scanVisDic[scan]['UCmQS'])))
-    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, refant))
-    XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
-    #XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
-    plt.show()
-    a=1/0
-    '''
-    for sourceName in sourceList:
-        timeIndex = timeDic[sourceName]
-        if len(timeIndex) < 3 : continue
-        plotY = DtotP + DtotM* QCpUS + UCmQS* np.exp((0.0 + 1.0j)*XYphase)
-        XYP.plot( UCmQS[timeIndex], plotY[timeIndex].real, '-', label=text_Dx); XYP.plot( UCmQS[timeIndex], plotY[timeIndex].imag, '-', label=text_Dy)
-        XYP.plot( UCmQS[timeIndex], XYV[timeIndex].real, '.', label='Re <XY*>'); XYP.plot( UCmQS[timeIndex], XYV[timeIndex].imag, '.', label='Im <XY*>')
-    #
-    XYP.set_xlabel('U $\cos 2 \psi $ - Q $\sin 2 \psi$'); XYP.set_ylabel('<XY*>'); XYP.set_title('%s-SPW%d-REF%s' % (prefix, spw, refant))
-    XYP.axis([-plotMax, plotMax, -plotMax, plotMax]); XYP.grid()
-    XYP.legend(loc = 'best', prop={'size' :12}, numpoints = 1)
-    plt.show()
-    figXY.savefig('XY_%s-REF%s-SPW%d.pdf' % (prefix, refant, spw))
-    plt.close('all')
-    a=1/0
-    del figXY
-    XYvis[0] -= (DtotP + DtotM* QCpUS); XYvis[1] -= (DtotP + DtotM* QCpUS).conjugate()
-    '''
-    #-------- Fine estimation of Q and U using XY and YX
-    print('  -- XY phase correction')
-    Vis    = np.mean(caledVis, axis=1)
-    for sourceName in sourceList:
-        timeIndex = timeDic[sourceName]
-        if len(timeIndex) < 1 : continue
-        Qsol, Usol = XY2Stokes(PA[timeIndex], Vis[[1,2]][:,timeIndex])
-        text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
-        QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
-        UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
-    #
-    GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
-    GainY *= twiddle
+    pp = PdfPages('XY_%s-REF%s-SPW%d.pdf' % (prefix, refant, spw))
+    plotXYVis(pp, scanVisDic, DdotP, DdotM)
     #-------- SEFD amplitude calibration
-    Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
-    GainPhase  = Gain/abs(Gain)     # antenna-based phase solution
     FluxList, antGainList = [], []
-    StokesI = np.ones(PAnum)
     for sourceName in SPW_StokesDic.keys():
-        timeIndex = timeDic[sourceName]
-        if len(timeIndex) < 1 : continue
-        VisBL = np.mean(chAvgVis[[0,3]][:,:,timeIndex]* GainPhase[:,ant1][:,:,timeIndex]* GainPhase[:,ant0][:,:,timeIndex].conjugate(), axis=(0,2))  # Parallel pol vis.
-        antGainList = antGainList + [abs(gainComplex(VisBL))]
-        FluxList   = FluxList + [StokesDicCat[sourceName][0]]
-    #
+        scanLS = scanDic[sourceName]
+        for scan in scanLS:
+            antGainList = antGainList + [np.median(abs(scanVisDic[scan]['Gain']), axis=2)]
+            FluxList   = FluxList + [StokesDicCat[sourceName][0]]
     SEFD = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
-    for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy' % (ant, spw, SEFD[ant_index]))
+    for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy / %.2f Jy' % (ant, spw, SEFD[0, ant_index], SEFD[1, ant_index]))
     for sourceName in SPW_StokesDic.keys():
-        timeIndex = timeDic[sourceName]
-        if len(timeIndex) < 1 : continue
-        SPW_StokesDic[sourceName][0] = np.mean(SEFD *np.mean(abs(Gain[:,:,timeIndex]), axis=(0,2))**2) # Calibrated Stokes I
-        Gain[:,:,timeIndex] /= np.sqrt(SPW_StokesDic[sourceName][0])
-    #
-    caledVis = chAvgVis / (Gain[polXindex][:,ant1].conjugate()* Gain[polYindex][:,ant0])
-    GainCaledVisSpec = VisSpec.transpose(1,0,2,3) / (Gain[polXindex][:,ant1].conjugate()* Gain[polYindex][:,ant0])
-    del VisSpec
-    for sourceName in SPW_StokesDic.keys():
-        timeIndex = timeDic[sourceName]
-        if len(timeIndex) < 1 : continue
-        StokesI[timeIndex] = SPW_StokesDic[sourceName][0]
-        QCpUS[timeIndex]  *= SPW_StokesDic[sourceName][0]
-        UCmQS[timeIndex]  *= SPW_StokesDic[sourceName][0]
+        scanLS = scanDic[sourceName]
+        fluxList = []
+        for scan in scanLS:
+            fluxList = fluxList + [np.median(SEFD* np.median(abs(scanVisDic[scan]['Gain']), axis=2)**2)]
+        SPW_StokesDic[sourceName][0] = np.mean(np.array(fluxList))
+        for scan in scanLS:
+            scanVisDic[scan]['Gain'] /= np.sqrt(SPW_StokesDic[sourceName][0])
+            scanVisDic[scan]['visChav'] *= SPW_StokesDic[sourceName][0]
+            scanVisDic[scan]['QCpUS'] *= SPW_StokesDic[sourceName][0]
+            scanVisDic[scan]['UCmQS'] *= SPW_StokesDic[sourceName][0]
+    caledVis, QCpUS, UCmQS, StokesI = np.ones([4, UseBlNum, timeNum], dtype=complex), np.ones(timeNum), np.ones(timeNum), np.ones(timeNum)
+    for scan_index, scan in enumerate(scanVisDic.keys()):
+        caledVis[:,:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav']
+        QCpUS[scanVisDic[scan]['index']] = scanVisDic[scan]['QCpUS']
+        UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
+        StokesI[scanVisDic[scan]['index']] = SPW_StokesDic[scanVisDic[scan]['source']][0]
     #-------- Antenna-based on-axis D-term (chAvg)
     Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
+    a=1/0
     #-------- D-term-corrected Stokes parameters
     Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
     print('  -- D-term-corrected visibilities')
