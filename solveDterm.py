@@ -244,6 +244,7 @@ for spw_index, spw in enumerate(spwList):
     caledVis[1] /= twiddle
     caledVis[2] *= twiddle
     XYvis = Vis[[1,2]]; XYV = 0.5*(XYvis[0] + XYvis[1].conjugate())
+    a = 1/0
     #-------- Display XY cross correlation
     plotMax = 1.2* max(abs(XYV))
     ArrayDx, ArrayDy = 0.5* (DtotP - DtotM), 0.5* (DtotP + DtotM)
@@ -279,7 +280,6 @@ for spw_index, spw in enumerate(spwList):
     #
     GainX, GainY = polariGain(caledVis[0], caledVis[3], QCpUS)
     GainY *= twiddle
-    a = 1/0
     #-------- SEFD amplitude calibration
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
     GainPhase  = Gain/abs(Gain)     # antenna-based phase solution
