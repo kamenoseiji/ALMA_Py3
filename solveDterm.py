@@ -238,13 +238,13 @@ for spw_index, spw in enumerate(spwList):
     Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
     caledVis = chAvgVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())
     Vis = caledVis.transpose(0,2,1).dot(blWeight)
+    a = 1/0
     #-------- XY phase correction
     XYphase, DtotP, DtotM = XY2PhaseVec(mjdSec - np.median(mjdSec), Vis[[1,2]], UCmQS, QCpUS, 1000)
     twiddle = np.exp((1.0j)* XYphase)
     caledVis[1] /= twiddle
     caledVis[2] *= twiddle
     XYvis = Vis[[1,2]]; XYV = 0.5*(XYvis[0] + XYvis[1].conjugate())
-    a = 1/0
     #-------- Display XY cross correlation
     plotMax = 1.2* max(abs(XYV))
     ArrayDx, ArrayDy = 0.5* (DtotP - DtotM), 0.5* (DtotP + DtotM)
