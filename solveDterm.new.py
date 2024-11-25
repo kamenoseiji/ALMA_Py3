@@ -201,40 +201,29 @@ for sourceName in SPW_StokesDic.keys():
         scanVisYXList = scanVisYXList + scanVisDic[scan]['scanVis'][2].tolist()
     Qsol, Usol = XY2Stokes(np.array(PAList), np.array([scanVisXYList, scanVisYXList]))
     text_sd = '[XY,YX] %s:  Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, Qsol, Usol, 100.0* np.sqrt(Qsol**2 + Usol**2), np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
+    SPW_StokesDic[sourceName][1], SPW_StokesDic[sourceName][2] = Qsol* SPW_StokesDic[sourceName][0], Usol* SPW_StokesDic[sourceName][0]
     for scan in scanLS:
         CS, SN = np.cos(2.0* scanVisDic[scan]['PA']), np.sin(2.0* scanVisDic[scan]['PA'])
         scanVisDic[scan]['QCpUS'] = Qsol* CS + Usol* SN
         scanVisDic[scan]['UCmQS'] = Usol* CS - Qsol* SN
         QCpUS[scanVisDic[scan]['index']] = scanVisDic[scan]['QCpUS']
         UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
-        
+del PAList, scanVisXYList, scanVisYXList
 #-------- 2nd polarized gain adjustment
 GainX, GainY = polariGain(caledVis[0], caledVis[-1], np.array(QCpUS))
 Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
 for scan_index, scan in enumerate(scanVisDic.keys()):
     time_index = scanVisDic[scan]['index']
     caledVis[:,:,time_index] = scanVisDic[scan]['visChav'] / (Gain[polYindex][:,ant0][:,:,time_index]* Gain[polXindex][:,ant1][:,:,time_index].conjugate())
-#
-a=1/0
+    scanVisDic[scan]['Gain'] = Gain[:,:,time_index]
+    scanVisDic[scan]['scanVis'] = caledVis[:,:,time_index].transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
 #-------- XY phase correction
-scanVisXYList, scanVisYXList, UCmQSList, QCpUSList = [], [], [], []
-for scan_index, scan in enumerate(scanVisDic.keys()):
-    time_index = scanVisDic[scan]['index']
-    scanVisXYList = scanVisXYList + scanVisDic[scan]['scanVis'][1].tolist()
-    scanVisYXList = scanVisYXList + scanVisDic[scan]['scanVis'][2].tolist()
-    QCpUS[time_index] = scanVisDic[scan]['QCpUS'].tolist()
-    UCmQS[time_index] = scanVisDic[scan]['UCmQS'].tolist()
-XYphase, DdotP, DdotM = XY2PhaseVec(mjdSec - np.median(mjdSec), np.array([scanVisXYList, scanVisYXList]), np.array(UCmQSList), np.array(QCpUSList), 1000)
+XYphase, DdotP, DdotM = XY2PhaseVec(mjdSec - np.median(mjdSec), np.mean(caledVis[[1,2]], axis=1), UCmQS, QCpUS, 1000)
 for scan_index, scan in enumerate(scanVisDic.keys()):
     time_index = scanVisDic[scan]['index']
     twiddle = np.exp((1.0j)* XYphase[time_index])
     scanVisDic[scan]['XYphase'] = XYphase[time_index]
-    #scanVisDic[scan]['Gain'][1] *= twiddle
-    scanVisDic[scan]['Gain'][0] = Gain[0][:,time_index]
-    scanVisDic[scan]['Gain'][1] = Gain[1][:,time_index]* twiddle
-    scanVisDic[scan]['scanVis'] = caledVis[:,:,time_index].transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
-    #scanVisDic[scan]['scanVis'][1] *= twiddle.conjugate()
-    #scanVisDic[scan]['scanVis'][2] *= twiddle
+    scanVisDic[scan]['Gain'][1] *= twiddle
 #-------- Display XY cross correlation
 ArrayDx, ArrayDy = 0.5* (DdotP - DdotM), 0.5* (DdotP + DdotM)
 text_Dx, text_Dy = 'Array Dx = %+.4f %+.4fi' % (ArrayDx.real, ArrayDx.imag), 'Array Dy = %+.4f %+.4fi' % (ArrayDy.real, ArrayDy.imag)
@@ -255,46 +244,45 @@ for sourceName in SPW_StokesDic.keys():
     fluxList = []
     for scan in scanLS:
         fluxList = fluxList + [np.median(SEFD* np.median(abs(scanVisDic[scan]['Gain']), axis=2)**2)]
-    SPW_StokesDic[sourceName][0] = np.mean(np.array(fluxList))
+    SPW_StokesDic[sourceName] = (np.mean(np.array(fluxList))/SPW_StokesDic[sourceName][0] * np.array(SPW_StokesDic[sourceName])).tolist()
     for scan in scanLS:
         scanVisDic[scan]['Gain'] /= np.sqrt(SPW_StokesDic[sourceName][0])
-        scanVisDic[scan]['QCpUS'] *= SPW_StokesDic[sourceName][0]
-        scanVisDic[scan]['UCmQS'] *= SPW_StokesDic[sourceName][0]
+        CS, SN = np.cos(2.0* scanVisDic[scan]['PA']), np.sin(2.0* scanVisDic[scan]['PA'])
+        scanVisDic[scan]['QCpUS'] = SPW_StokesDic[sourceName][1]* CS + SPW_StokesDic[sourceName][2]* SN
+        scanVisDic[scan]['UCmQS'] = SPW_StokesDic[sourceName][2]* CS - SPW_StokesDic[sourceName][1]* SN
+        StokesI[scanVisDic[scan]['index']] = SPW_StokesDic[sourceName][0]
+        QCpUS[scanVisDic[scan]['index']] = scanVisDic[scan]['QCpUS']
+        UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
+del FluxList, antGainList
 for scan_index, scan in enumerate(scanVisDic.keys()):
     caledVis[:,:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav'] / (scanVisDic[scan]['Gain'][polYindex][:,ant0]* scanVisDic[scan]['Gain'][polXindex][:,ant1].conjugate())
-    QCpUS[scanVisDic[scan]['index']] = scanVisDic[scan]['QCpUS']
-    UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
-    StokesI[scanVisDic[scan]['index']] = SPW_StokesDic[scanVisDic[scan]['source']][0]
 #-------- Antenna-based on-axis D-term (chAvg)
 Dx, Dy = VisMuiti_solveD(caledVis, QCpUS, UCmQS, np.repeat(ArrayDx, UseAntNum), np.repeat(ArrayDy, UseAntNum), StokesI)
 #-------- D-term-corrected Stokes parameters
 Minv = InvMullerVector(Dx[ant1], Dy[ant1], Dx[ant0], Dy[ant0], np.ones(UseBlNum, dtype=complex))
 print('  -- D-term-corrected visibilities')
-useTimeIndex = []
-for sourceName in sourceList:
-    timeIndex = timeDic[sourceName]
-    useTimeIndex = useTimeIndex + timeIndex
-    srcTimeNum = len(timeIndex)
-    if srcTimeNum < 1 : continue
-    PS = InvPAVector(PA[timeIndex], np.ones(srcTimeNum))
-    StokesVis = PS.reshape(4, 4*srcTimeNum).dot(Minv.reshape(4, 4*UseBlNum).dot(caledVis[:,:,timeIndex].reshape(4*UseBlNum, srcTimeNum)).reshape(4*srcTimeNum)) / (srcTimeNum* UseBlNum)
-    Isol, Qsol, Usol = StokesVis[0].real, StokesVis[1].real, StokesVis[2].real
-    Ierr, Qerr, Uerr = abs(StokesVis[0].imag), abs(StokesVis[1].imag), abs(StokesVis[2].imag)
-    text_sd = '%s: I= %6.3f  Q= %6.3f+-%6.4f  U= %6.3f+-%6.4f EVPA = %6.2f deg' % (sourceName, Isol, Qsol, Qerr, Usol, Uerr, np.arctan2(Usol,Qsol)*90.0/np.pi); print(text_sd)
-    SPW_StokesDic[sourceName] = (np.array([Isol, Qsol, Usol, 0.0])).tolist()
-    StokesI[timeIndex] = Isol
-    QCpUS[timeIndex] = Qsol* CS[timeIndex] + Usol* SN[timeIndex]
-    UCmQS[timeIndex] = Usol* CS[timeIndex] - Qsol* SN[timeIndex]
-#
-useTimeIndex.sort()
+for sourceName in SPW_StokesDic.keys():
+    scanLS = scanDic[sourceName]
+    PAList, srcTimeList = [], []
+    for scan in scanLS:
+        PAList = PAList + scanVisDic[scan]['PA'].tolist()
+        srcTimeList = srcTimeList + scanVisDic[scan]['index']
+    srcTimeNum = len(srcTimeList)
+    PS = InvPAVector(np.array(PAList), np.ones(srcTimeNum))
+    StokesVis = PS.reshape(4, 4*srcTimeNum).dot(Minv.reshape(4, 4*UseBlNum).dot(caledVis[:,:,srcTimeList].reshape(4*UseBlNum, srcTimeNum)).reshape(4*srcTimeNum)) / (srcTimeNum* UseBlNum)
+    SPW_StokesDic[sourceName] = StokesVis.real.tolist()
+    text_sd = '%s: I= %6.3f+-%6.3f Jy  Q= %6.3f+-%6.3f Jy  U= %6.3f+-%6.3f Jy  EVPA = %6.2f+-%.2f deg' % (sourceName, StokesVis[0].real, abs(StokesVis[0].imag), StokesVis[1].real, abs(StokesVis[1].imag), StokesVis[2].real, abs(StokesVis[2].imag), np.arctan2(StokesVis[2].real, StokesVis[1].real)*90.0/np.pi, 90.0* abs(StokesVis[1].imag* StokesVis[2].real + StokesVis[2].imag* StokesVis[1].real) / (np.pi* abs(StokesVis[1]**2) + abs(StokesVis[2])**2)) 
+    print(text_sd)
 #-------- get D-term spectra
 print('  -- Determining D-term spectra')
-for ch_index in list(range(int(chNum/bunchNum))):
-    DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVisSpec[ch_index][:,:,useTimeIndex], QCpUS[useTimeIndex], UCmQS[useTimeIndex], Dx, Dy, StokesI[useTimeIndex])
-    progress = (ch_index + 1.0) / (chNum / bunchNum)
-    sys.stderr.write('\r\033[K' + get_progressbar_str(progress)); sys.stderr.flush()
-#
-sys.stderr.write('\n'); sys.stderr.flush()
+for scan_index, scan in enumerate(scanVisDic.keys()):
+    scanVisDic[scan]['visSpec'] = (scanVisDic[scan]['visSpec'].transpose(1,0,2,3) / (scanVisDic[scan]['Gain'][polYindex][:,ant0]* scanVisDic[scan]['Gain'][polXindex][:,ant1].conjugate())).transpose(1,0,2,3)
+for ch_index in list(range(chNum)):
+    GainCaledVis = np.ones([4, UseBlNum, timeNum], dtype=complex)
+    for scan_index, scan in enumerate(scanVisDic.keys()):
+        time_index = scanVisDic[scan]['index']
+        GainCaledVis[:,:,time_index] = scanVisDic[scan]['visSpec'][:,ch_index]
+    DxSpec[:,ch_index], DySpec[:,ch_index] = VisMuiti_solveD(GainCaledVis, QCpUS, UCmQS, Dx, Dy, StokesI)
 if 'Dsmooth' in locals():
     node_index = list(range(3, chNum/bunchNum, Dsmooth))
     bunchedFreq = bunchVecCH(Freq)
@@ -303,19 +291,25 @@ if 'Dsmooth' in locals():
         DY_real, DY_imag = scipy.interpolate.splrep(bunchedFreq, DySpec[ant_index].real, k=3, t=bunchedFreq[node_index]), scipy.interpolate.splrep(bunchedFreq, DySpec[ant_index].imag, k=3, t=bunchedFreq[node_index])
         DxSpec[ant_index] =scipy.interpolate.splev(bunchedFreq, DX_real) + (0.0 + 1.0j)* scipy.interpolate.splev(bunchedFreq, DX_imag)
         DySpec[ant_index] =scipy.interpolate.splev(bunchedFreq, DY_real) + (0.0 + 1.0j)* scipy.interpolate.splev(bunchedFreq, DY_imag)
-    #
-#
+del GainCaledVis
+for ant_index, ant in enumerate(antList[antMap]):
+    DtermFile = np.array([Freq, DxSpec[ant_index].real, DxSpec[ant_index].imag, DySpec[ant_index].real, DySpec[ant_index].imag])
+    np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, ant), DtermFile)
 #-------- D-term-corrected visibilities (invD dot Vis = PS)
-del chAvgVis, StokesVis
 print('  -- Applying D-term spectral correction')
-M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([UseBlNum,int(chNum/bunchNum)])).transpose(0,3,1,2)
-StokesVis = np.zeros([4, int(chNum/bunchNum), PAnum], dtype=complex )
-for time_index in useTimeIndex: StokesVis[:, :, time_index] = 4.0* np.mean(M* GainCaledVisSpec[:,:,:,time_index], axis=(2,3))
-del GainCaledVisSpec
-chAvgVis = np.mean(StokesVis[:,chRange], axis=1)
-XYC = chAvgVis[[1,2]]
-PS = InvPAVector(PA, np.ones(PAnum))
-for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
+M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([UseBlNum, chNum])).transpose(0,3,1,2) # M[pol, ch, pol, BL]
+for sourceName in SPW_StokesDic.keys():
+    scanLS = scanDic[sourceName]
+    for scan in scanLS:
+        PAnum = len(scanVisDic[scan]['PA'])
+        visSpec = np.zeros([4, chNum])
+        PS = InvPAVector(scanVisDic[scan]['PA'], np.ones(PAnum))
+        for time_index, mjdSec in enumerate(scanVisDic[scan]['mjdSec']):
+            visSpec = visSpec + PS[:,:,time_index].dot(np.sum( M* (scanVisDic[scan]['visSpec'].transpose(3,1,0,2)[time_index]* scanVisDic[scan]['blWeight']), axis=(2,3))).real
+        scanVisDic[scan]['scanVis'] = visSpec / len(scanVisDic[scan]['mjdSec'])
+del visSpec
+#XYC = chAvgVis[[1,2]]
+#for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
 maxP = 0.0
 for scan in scanVisDic.keys():
     sourceName = [source for source in scanDic.keys() if scan in scanDic[source]][0]
@@ -333,10 +327,6 @@ np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
 np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase )
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYvis )
 np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refant), XYC )
-for ant_index, ant in enumerate(antList[antMap]):
-    DtermFile = np.array([Freq, DxSpec[ant_index].real, DxSpec[ant_index].imag, DySpec[ant_index].real, DySpec[ant_index].imag])
-    np.save('%s-SPW%d-%s.DSpec.npy' % (prefix, spw, ant), DtermFile)
-#
 #-------- Store and Plot Stokes spectra
 for sourceName in SPW_StokesDic.keys():
     timeIndex = timeDic[sourceName]
