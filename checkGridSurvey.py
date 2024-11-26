@@ -462,6 +462,9 @@ for BandName in RXList:
     ingestFile.close()
     #-------- Plot QUXY
     pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName))
+    for scan_index, scan in enumerate(QSOscanList):
+        scanDic[scan]['scanVis'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2)).real
+        scanDic[scan]['visChav'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2))
     plotQUXY(pp, scanDic)
     #del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
 del RXList, antList, BandbpSPW, bpSPWs, OnScanList
