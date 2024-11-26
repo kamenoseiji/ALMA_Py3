@@ -63,6 +63,7 @@ UseAntNum = len(UseAntList); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refant), antList[antMap])
 #-------- Check source list
 srcDic = GetSourceDic(msfile)
 srcIDList = list(srcDic.keys())
@@ -103,7 +104,6 @@ azelTime, AntID, AZ, EL = GetAzEl(msfile)
 azelTime_index = np.where( AntID == refAntID )[0].tolist()
 if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
 timeThresh = np.median( np.diff( azelTime[azelTime_index]))
-#-------- Loop for SPW
 SPW_StokesDic = StokesDicCat
 mjdSec = []
 #-------- time-independent spectral setups
@@ -129,14 +129,18 @@ BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Ba
 scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
 for scan_index, scan in enumerate(scanVisDic.keys()): mjdSec = mjdSec + scanVisDic[scan]['mjdSec'].tolist()
 timeNum, mjdSec = len(mjdSec), np.array(mjdSec)
+np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
+Az, El, PA = np.zeros(timeNum), np.zeros(timeNum), np.zeros(timeNum)
 for scan_index, scan in enumerate(scanVisDic.keys()):
     scanVisDic[scan]['flag'] = indexList(TS[UseTimeList], scanVisDic[scan]['mjdSec'])
-    scanAz, scanEl = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
-    scanVisDic[scan]['EL'] = scanEl
-    scanVisDic[scan]['PA'] = AzEl2PA(scanAz, scanEl, ALMA_lat) + BandPA
+    Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
+    scanVisDic[scan]['EL'] = El[scanVisDic[scan]['index']]
+    scanVisDic[scan]['PA'] = AzEl2PA(Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']], ALMA_lat) + BandPA
     scanVisDic[scan]['source'] = [source for source in scanDic.keys() if scan in scanDic[source]][0]
     scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0) # bandpass cal
     scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)
+    PA[scanVisDic[scan]['index']] = scanVisDic[scan]['PA']
+np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refant), np.array([mjdSec, Az, El, PA]))
 caledVis, QCpUS, UCmQS, StokesI = np.ones([4, UseBlNum, timeNum], dtype=complex), np.ones(timeNum), np.ones(timeNum), np.ones(timeNum)
 #-------- Parallel-hand phase calibration
 print('---- Antenna-based gain solution using tracking antennas')
@@ -302,29 +306,31 @@ for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
     for scan in scanLS:
         PAnum = len(scanVisDic[scan]['PA'])
-        visSpec = np.zeros([4, chNum])
+        scanvisSpec = np.zeros([4, PAnum, chNum])
+        scanvisChav = np.zeros([4, PAnum], dtype=complex)
         PS = InvPAVector(scanVisDic[scan]['PA'], np.ones(PAnum))
-        for time_index, mjdSec in enumerate(scanVisDic[scan]['mjdSec']):
-            visSpec = visSpec + PS[:,:,time_index].dot(np.sum( M* (scanVisDic[scan]['visSpec'].transpose(3,1,0,2)[time_index]* scanVisDic[scan]['blWeight']), axis=(2,3))).real
-        scanVisDic[scan]['scanVis'] = visSpec / len(scanVisDic[scan]['mjdSec'])
-del visSpec
+        for time_index in list(range(PAnum)):
+            scanvisSpec[:,time_index] = PS[:,:,time_index].dot(np.sum( M* (scanVisDic[scan]['visSpec'].transpose(3,1,0,2)[time_index]* scanVisDic[scan]['blWeight']), axis=(2,3))).real
+            scanvisChav[:,time_index] = np.mean(np.sum( M* (scanVisDic[scan]['visSpec'].transpose(3,1,0,2)[time_index]* scanVisDic[scan]['blWeight']), axis=(2,3)), axis=1)
+        scanVisDic[scan]['scanVis'] = np.mean(scanvisSpec, axis=1)
+        scanVisDic[scan]['visChav'] = scanvisChav
+del scanvisSpec, scanvisChav
 #XYC = chAvgVis[[1,2]]
 #for ch_index in list(range(int(chNum/bunchNum))): StokesVis[:,ch_index] = np.sum(PS* StokesVis[:,ch_index], axis=1)
-maxP = 0.0
-for scan in scanVisDic.keys():
-    sourceName = [source for source in scanDic.keys() if scan in scanDic[source]][0]
-    scanVisDic[scan]['visChav'] = [chAvgVis[:,indexList(scanVisDic[scan]['mjdSec'], mjdSec)]]
-    scanVisDic[scan]['I']       = [SPW_StokesDic[sourceName][0]]
-    scanVisDic[scan]['Q']       = [SPW_StokesDic[sourceName][1]]
-    scanVisDic[scan]['U']       = [SPW_StokesDic[sourceName][2]]
+#maxP = 0.0
+#for scan in scanVisDic.keys():
+#    sourceName = [source for source in scanDic.keys() if scan in scanDic[source]][0]
+#    scanVisDic[scan]['visChav'] = [chAvgVis[:,indexList(scanVisDic[scan]['mjdSec'], mjdSec)]]
+#    scanVisDic[scan]['I']       = [SPW_StokesDic[sourceName][0]]
+#    scanVisDic[scan]['Q']       = [SPW_StokesDic[sourceName][1]]
+#    scanVisDic[scan]['U']       = [SPW_StokesDic[sourceName][2]]
 pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)
 #-------- Save Results
-np.save('%s-SPW%d-%s.Ant.npy' % (prefix, spw, refant), antList[antMap])
-np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refant), np.array([mjdSec, Az, El, PA]))
-np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
+#for scan_index, scan in enumerate(scanVisDic.keys()):
 np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
 np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase )
+a=1/0
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYvis )
 np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refant), XYC )
 #-------- Store and Plot Stokes spectra

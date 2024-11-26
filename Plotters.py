@@ -675,8 +675,8 @@ def plotQUXY(pp, scanDic):
         #-------- PA range to draw model
         for scan in scanList:
             PA = scanDic[scan]['PA']
-            Q, U = np.mean(np.array(scanDic[scan]['Q'])), np.mean(np.array(scanDic[scan]['U']))
-            EVPA = 0.5* np.arctan2(U, Q)
+            Stokes = np.mean(scanDic[scan]['scanVis'], axis=1)
+            EVPA = 0.5* np.arctan2(Stokes[2], Stokes[1])
             Theta = PA - EVPA
             ThetaPlot = ThetaPlot + np.arctan(np.tan(Theta)).tolist()
         ThetaPlot = np.array(ThetaPlot)
@@ -685,19 +685,18 @@ def plotQUXY(pp, scanDic):
         PArange = ThetaRange + EVPA
         #-------- Draw model
         CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
-        UCmQS, QCpUS = U*CSrange - Q* SNrange, Q*CSrange + U* SNrange
+        UCmQS, QCpUS = Stokes[2]*CSrange - Stokes[1]* SNrange, Stokes[1]*CSrange + Stokes[2]* SNrange
         ParaPolPL.plot( RADDEG* ThetaRange, QCpUS, '-', color=cmap(source_index), linestyle='dashed')
         ParaPolPL.plot( RADDEG* ThetaRange,-QCpUS, '-', color=cmap(source_index), linestyle='dashdot')
         CrosPolPL.plot( RADDEG* ThetaRange, UCmQS, '-', color=cmap(source_index), linestyle='solid')
         CrosPolPL.plot( RADDEG* ThetaRange, np.zeros(len(ThetaRange)), '-', color=cmap(source_index), linestyle='dotted')
         #-------- Plot data points
         for scan in scanList:
-            spwNum = len(scanDic[scan]['I'])
-            visChav = np.mean(np.array(scanDic[scan]['visChav']), axis=0)   # visChav[Stokes, time]
-            if visChav.ndim > 2: visChav = np.mean(visChav, axis=1)
-            VisXX = VisXX + (abs(visChav[0]) - abs(np.mean(visChav[[0,3]], axis=0))).tolist()
-            VisYY = VisYY + (abs(visChav[3]) - abs(np.mean(visChav[[0,3]], axis=0))).tolist()
-            VisXY = VisXY + np.mean(visChav[[1,2]], axis=0).tolist()
+            visChav = scanDic[scan]['visChav']   # visChav[Stokes, time]
+            #if visChav.ndim > 2: visChav = np.mean(visChav, axis=1)
+            VisXX = VisXX + (abs(scanDic[scan]['visChav'][0]) - abs(np.mean(scanDic[scan]['visChav'][[0,3]], axis=0))).tolist()
+            VisYY = VisYY + (abs(scanDic[scan]['visChav'][3]) - abs(np.mean(scanDic[scan]['visChav'][[0,3]], axis=0))).tolist()
+            VisXY = VisXY + np.mean(scanDic[scan]['visChav'][[1,2]], axis=0).tolist()
             text_sd = 'Scan %d : %s' % (scan, qa.time('%fs' % (scanDic[scan]['mjdSec'][0]), form='fits', prec=6)[0][11:21])
             text_PA = RADDEG* np.arctan(np.tan((scanDic[scan]['PA'][0] - EVPA)))
             rotText, posText = 90, 'bottom'
@@ -724,7 +723,7 @@ def plotQUXY(pp, scanDic):
     box = CrosPolPL.get_position()
     CrosPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     CrosPolPL.legend(loc = 'upper right', prop={'size' :4.5}, ncol=2, numpoints=1, labelspacing=0.05, bbox_to_anchor = (1.3,1))
-    figQU.suptitle('Cross Polarization Correlations %s' % (scanDic[scan]['msfile'][:-3]))
+    figQU.suptitle('Cross-Pol. Correlations %s' % (scanDic[scan]['msfile'][:-3]))
     figQU.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
