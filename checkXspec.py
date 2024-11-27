@@ -1,26 +1,45 @@
 #---- Script for Band-3 Astroholograpy Data
-#from scipy import stats
 import math
 import analysisUtils as au
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-#exec(open(SCR_DIR + 'interferometry.py').read())
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetTimerecord, GetChNum, GetVisAllBL, Bl2Ant
 from casatools import quanta as qatool
 qa = qatool()
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-b', dest='chBunch', metavar='chBunch',
+    help='Channel binning  e.g. 2', default='1')
+parser.add_option('-c', dest='scanID', metavar='scanID',
+    help='Scan ID  e.g. 2', default='2')
+parser.add_option('-s', dest='spwList', metavar='spwList',
+    help='SPW List e.g. 0,1,2,3', default='')
+parser.add_option('-S', dest='startTime', metavar='startTime',
+    help='Start time e.g. 2020-03-03T14:11:25', default='')
+parser.add_option('-i', dest='integTime', metavar='integTime',
+    help='Integration [s] e.g. 60', default='')
+parser.add_option('-M', dest='plotMax', metavar='plotMax',
+    help='Max amplitude to plot', default='')
+(options, args) = parser.parse_args()
 #-------- Definitions
-msfile = wd + prefix + '.ms'
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+BPscan  =  int(options.scanID)
+spwList = [int(spw) for spw in options.spwList.split(',')]
+chBunch =  int(options.chBunch)
+if options.plotMax != ''  : plotMax = float(options.plotMax)
+if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
+if options.integTime != '': integTime = float(options.integTime)
+#
+msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 spwNum  = len(spwList)
-if 'chBunch' not in locals(): chBunch = 1
-if 'startTime' in locals(): startMJD = qa.convert(startTime, 's')['value']
-#
 #-------- Procedures
-#timeRange = np.zeros([2])	# Start and End time period 
 blMap = list(range(blNum))
 #-------- Procedures
 interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], BPscan)
@@ -33,7 +52,8 @@ timeNum = min(timeNum, len(timeStamp))
 for spw_index in range(spwNum):
     figInch = max(16,antNum)
     fontSize = min(32, figInch)
-    figSPW = plt.figure(figsize=(figInch, figInch))
+    w, h = plt.figaspect(1)
+    figSPW = plt.figure(figsize=(figInch*w,figInch*h))
     figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=fontSize)
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=fontSize)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
@@ -114,8 +134,8 @@ for spw_index in range(spwNum):
     #
     plt.show()
     pngFile = 'PS_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
-    pdfFile = pngFile + '.pdf'
-    figSPW.savefig(pdfFile, format='pdf', dpi=144)
+    #pdfFile = pngFile + '.pdf'
+    figSPW.savefig(pngFile + '.png', format='png', dpi=72)
     plt.close('all')
-    os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
+    #os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
 #
