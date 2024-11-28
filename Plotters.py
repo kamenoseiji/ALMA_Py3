@@ -723,7 +723,7 @@ def plotQUXY(pp, scanDic):
     box = CrosPolPL.get_position()
     CrosPolPL.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     CrosPolPL.legend(loc = 'upper right', prop={'size' :4.5}, ncol=2, numpoints=1, labelspacing=0.05, bbox_to_anchor = (1.3,1))
-    figQU.suptitle('Cross-Pol. Correlations %s' % (scanDic[scan]['msfile'][:-3]))
+    figQU.suptitle('Cross-Pol. Correlations %s' % (scanDic[scan]['msfile']))
     figQU.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()

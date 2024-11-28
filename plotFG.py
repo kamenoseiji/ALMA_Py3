@@ -51,14 +51,12 @@ for spw_index, spw in enumerate(spwList):
         print(text_sd)
         logfile.write(text_sd + '\n')
     #-------- Time to flag
-    '''
     flagTimeList = np.where( np.quantile(FG[unFlaggedIndex], 3.0/unFlaggedAntNum, axis=0) < 1)[0].tolist()
     for time_index in flagTimeList:
         text_sd = 'SPW%d %.3f' % (spw, TS[time_index])
         print(text_sd)
         logfile.write(text_sd + '\n')
     #
-    '''
 #
 logfile.close()
 plotFlag(pp, prefix, antList, DT, spwList, FGList)
