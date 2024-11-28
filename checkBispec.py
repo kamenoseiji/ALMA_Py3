@@ -7,14 +7,40 @@ import datetime
 #exec(open(SCR_DIR + 'interferometry.py').read())
 from interferometry import ANT0, ANT1, Ant2Bl, Ant2BlD, indexList, bestRefant, GetAntName, GetUVW, GetVisAllBL, ParaPolBL, specBunch, bunchVec
 from Plotters import plotBispec
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-a', dest='antFlag', metavar='antFlag',
+    help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-b', dest='BPprefix', metavar='BPprefix',
+    help='Bandpass uid and scan to apply e.g. uid___A002_X10dadb6_X18e63', default='')
+parser.add_option('-c', dest='scanList', metavar='scanList',
+    help='Scan ID  e.g. 3,5,7', default='')
+parser.add_option('-s', dest='spw', metavar='spw',
+    help='SPW to plot e.g. 17', default='')
+parser.add_option('-t', dest='timeBunch', metavar='timeBunch',
+    help='Time average', default='1')
+parser.add_option('-R', dest='refant', metavar='refant',
+    help='Reference antenna e.g. DA42', default='')
+parser.add_option('-S', dest='startTime', metavar='startTime',
+    help='Start time e.g. 2020-03-03T14:11:25', default='')
+#
+(options, args) = parser.parse_args()
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+antFlag = [ant for ant in options.antFlag.split(',')]
+scanList= [int(scan) for scan in options.scanList.split(',')]
+spw     = int(options.spw)
+timeBunch = int(options.timeBunch)
+if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
+if options.refant != '': refant = options.refant
 #-------- Definitions
-if 'antFlag' not in locals(): antFlag = []
-msfile = wd + prefix + '.ms'
+msfile = prefix + '.ms'
 antList = GetAntName(msfile)
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 blMap = list(range(blNum))
-if 'startTime' in locals(): startMJD = qa.convert(startTime, 's')['value']
-if 'BPscan' not in locals(): BPscan = 3 # default bandpass scan
+#if 'startTime' in locals(): startMJD = qa.convert(startTime, 's')['value']
+#if 'BPscan' not in locals(): BPscan = 3 # default bandpass scan
 #-------- Array Configuration
 print('---Checking array configuration')
 flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
@@ -36,16 +62,14 @@ print('  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 figInch  = max(16,UseAntNum)
 fontSize = min(32, figInch)
 #-------- Bandpass Table
-if 'BPprefix' in locals():
-    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, antList[UseAnt[refantID]], BPscan, spw)
+#if 'BPprefix' in locals():
+if options.BPprefix != '':
+    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (options.BPprefix, antList[UseAnt[refantID]], BPscan, spw)
     print('---Loading bandpass table : ' + BPfileName)
     BP_ant = np.load(BPfileName)
-#
 #-------- Loop for Scan
-scanNum = len(scanList)
 DT = []
-for scan_index in range(scanNum):
-    scan = scanList[scan_index]
+for scan_index, scan in enumerate(scanList):
     #-------- Baseline-based cross power spectra
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)
     timeNum, polNum, chNum = Xspec.shape[3], Xspec.shape[0], Xspec.shape[1]; print
@@ -61,7 +85,7 @@ for scan_index in range(scanNum):
     #
     #-------- Antenna-based Gain correction
     chAvgVis = np.mean(BPCaledXspec[:, chRange], axis=1)
-    if 'timeBunch' in locals():
+    if timeBunch > 1:
         chAvgVis = np.array([specBunch(chAvgVis[0], 1, timeBunch), specBunch(chAvgVis[1], 1, timeBunch)])   # chAvgVis[pol, bl, time]
         timeNum = chAvgVis.shape[2]
         timeStamp = bunchVec(timeStamp, timeBunch)

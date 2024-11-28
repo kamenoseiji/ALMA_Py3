@@ -64,13 +64,13 @@ for spw_index in range(spwNum):
     chRange = list(range(int(round(chNum/chBunch * 0.05)), int(round(chNum/chBunch * 0.95))))
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
     #---- integration timerange
-    st_index = 0
-    if 'startMJD' in locals(): st_index = np.argmin( abs(timeStamp - startMJD) )
-    if st_index + timeNum > len(timeStamp): st_index = len(timeStamp) - timeNum
+    if 'startMJD' in locals(): startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1])
+    endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
+    st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
     timeRange = list(range(st_index, st_index + timeNum))
-    text_timerange = au.call_qa_time('%fs' % (timeStamp[st_index]), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (timeStamp[timeRange[-1]]), form='fits', prec=6)
+    text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
     print('Integration in %s (%.1f sec)' % (text_timerange, timeNum* integDuration))
-    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, (timeNum* integDuration)), fontsize=fontSize)
+    figSPW.suptitle('%s SPW=%d Scan=%d Integration in %s (%.1f sec)' % (prefix, spwList[spw_index], BPscan, text_timerange, timeNum* integDuration), fontsize=fontSize)
     #---- polarization format
     polNum = Xspec.shape[0]
     if polNum == 4: pol = [0,3]; polName = ['X', 'Y']         # parallel pol in full-pol correlations

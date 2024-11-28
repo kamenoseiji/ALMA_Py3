@@ -9,6 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -31,14 +32,13 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2023.1.00486.S_X120b4e9_Xc0fc'
-refant = 'DA45'
+prefix = '2018.1.00457.S_Xd54982_X128a'
+refant = 'DA44'
 QUmodel = True
 antFlag = []
 spw = 0
 BPscan = 0
-scanList =[3,6,9,25,33,34,42,60,68,69,80,97]
-'''
+scanList = [   3, 6, 9, 21, 26, 27, 34, 35, 45]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
