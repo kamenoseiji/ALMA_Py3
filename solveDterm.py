@@ -101,7 +101,6 @@ def bunchVecCH(spec): return bunchVec(spec, bunchNum)
 azelTime, AntID, AZ, EL = GetAzEl(msfile)
 azelTime_index = np.where( AntID == refAntID )[0].tolist()
 if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
-timeThresh = np.median( np.diff( azelTime[azelTime_index]))
 SPW_StokesDic = StokesDicCat
 mjdSec = []
 #-------- time-independent spectral setups
@@ -124,7 +123,7 @@ XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, s
 print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
 #-------- For visibilities in each scan
-scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
+scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum, TS[UseTimeList])
 for scan_index, scan in enumerate(scanVisDic.keys()): mjdSec = mjdSec + scanVisDic[scan]['mjdSec'].tolist()
 timeNum, mjdSec = len(mjdSec), np.array(mjdSec)
 np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
