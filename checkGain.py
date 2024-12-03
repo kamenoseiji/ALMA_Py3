@@ -15,6 +15,8 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan ID  e.g. 3,5,7', default='')
 parser.add_option('-s', dest='spw', metavar='spw',
     help='SPW e.g. 26', default='')
+parser.add_option('-p', dest='plotAnt', metavar='plotAnt',
+    help='Antennas to plot', default='')
 parser.add_option('-t', dest='timeBunch', metavar='timeBunch',
     help='Time average', default='1')
 parser.add_option('-T', dest='threshold', metavar='threshold', type="float",
@@ -28,6 +30,7 @@ parser.add_option('-R', dest='refant', metavar='refant',
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 antFlag = [ant for ant in options.antFlag.split(',')]
+plotAnt = [] if options.plotAnt == '' else [ant for ant in options.plotAnt.split(',')]
 timeBunch = int(options.timeBunch)
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw = int(options.spw)
@@ -131,4 +134,4 @@ np.save(prefix + '.Field.npy', np.array(fieldList))
 np.save('%s-SPW%d.TS.npy' % (prefix, spw), np.array(timeList)) 
 np.save('%s-SPW%d.GA.npy' % (prefix, spw), GAarray)
 np.save('%s-SPW%d.FG.npy' % (prefix, spw), FGarray) 
-if PLOTPDF: plotGain(prefix, spw)
+if PLOTPDF: plotGain(prefix, spw, plotAnt)
