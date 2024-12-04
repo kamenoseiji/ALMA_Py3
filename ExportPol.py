@@ -85,8 +85,8 @@ for prefix in prefixList:
 #
 #-------- Check SPW list
 bpsSPWList, chNumList, chWidList = [], [], []
-for file_index in list(range(fileNum)):
-    prefix = prefixList[file_index]
+for prefix in prefixList:
+    print(prefix)
     bpSPWs, chNums, chWids = GetBPcalSPWs(prefix + '.ms')
     bpsSPWList = bpsSPWList + [bpSPWs]
     chNumList  = chNumList  + [chNums]
