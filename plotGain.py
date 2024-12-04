@@ -26,8 +26,6 @@ if plotAntList == []: plotAntList = antList
 antMap = indexList(plotAntList, antList)
 plotAntList = antList[antMap].tolist()
 plotAntNum, columnNum = len(plotAntList), len(spwList)
-#polColor = ['b', 'g', 'm', 'y']
-#polName = ['X', 'Y', 'XY', 'YX']
 #-------- Load tables
 pp = PdfPages('GA_%s.pdf' %  (prefix))
 figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
