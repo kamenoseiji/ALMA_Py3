@@ -65,7 +65,10 @@ for spw_index in range(spwNum):
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
     #---- integration timerange
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
+<<<<<<< HEAD
     #if 'startMJD' in locals(): startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1])
+=======
+>>>>>>> 069ede8523f2757d985609a863a2a448fd7b85b7
     endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
     st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
     timeRange = list(range(st_index, st_index + timeNum))
