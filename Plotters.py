@@ -5,7 +5,7 @@ import analysisUtils as au
 import numpy as np
 import scipy
 import datetime
-from interferometry import GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG
+from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG
 from Grid import tauSMTH, SSOCatalog, lmStokes
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
@@ -371,32 +371,36 @@ def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2
     return
 #
 #-------- Plot Gain
-def plotGain(prefix, spw):
+def plotGain(prefix, spw, plotAntList=[]):
     #-------- Load tables
-    antFile = prefix + '.Ant.npy'; antList = np.load(antFile); antNum = len(antList)
+    antFile = prefix + '.Ant.npy'; antList = np.load(antFile)
+    if plotAntList == []: plotAntList = antList
+    plotAntNum = len(plotAntList)
+    columnNum  = max(int(np.floor(np.log(plotAntNum))), 1)
+    antMap = indexList(plotAntList, antList)
     timeFile = '%s-SPW%d.TS.npy' % (prefix, spw)
     GainFile = '%s-SPW%d.GA.npy' % (prefix, spw)    # Gain[ant, pol, time]
     FlagFile = '%s-SPW%d.FG.npy' % (prefix, spw)    # Flag[ant, time] 
     pp = PdfPages('GA_%s-SPW%d.pdf' %  (prefix, spw))
     DT, timeStamp, Gain, FG = [], np.load(timeFile), np.load(GainFile), np.load(FlagFile)
-    polNum = Gain.shape[1]
+    polList = polName[:Gain.shape[1]]
     for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
     #-------- Prepare Plots
     figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
     figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')
     figAmp.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d'))); figPhs.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')))
     figAmp.text(0.03, 0.45, 'Gain Amplitude = sqrt(correlated flux / SEFD)', rotation=90); figPhs.text(0.03, 0.45, 'Gain Phase [deg]', rotation=90)
-    plotMin, plotMax = 0.0, 1.1* np.percentile(np.max(abs(Gain), axis=1)* FG, 90)
+    plotMin, plotMax = 0.0, 1.1* np.percentile(np.max(abs(Gain[antMap]), axis=1)* FG[antMap], 90)
     #-------- Plot Gain
     gainXmed, gainYmed = [], []
-    for ant_index in list(range(antNum)):
-        ampMed = [0.0, 0.0]
+    for plot_index, ant in enumerate(plotAntList):
+        ant_index = np.where(antList == ant)[0][0]
         flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
-        AmpPL = figAmp.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
-        PhsPL = figPhs.add_subplot( int(np.ceil(antNum/2.0)), 2, ant_index + 1 )
-        for pol_index in list(range(polNum)): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index])
-        #for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate())*RADDEG, '-', color=polColor[pol_index])
-        for pol_index in list(range(polNum)): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate())*RADDEG, '.', markersize=3, color=polColor[pol_index])
+        ampMed = [0.0, 0.0]
+        AmpPL = figAmp.add_subplot( int(np.ceil(plotAntNum/columnNum)), columnNum, plot_index + 1 )
+        PhsPL = figPhs.add_subplot( int(np.ceil(plotAntNum/columnNum)), columnNum, plot_index + 1 )
+        for pol_index, pol in enumerate(polList): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index], label=pol)
+        for pol_index, pol in enumerate(polList): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate())*RADDEG, '.', markersize=3, color=polColor[pol_index], label=pol)
         if len(flag_index) > 0: ampMed = np.median(abs(Gain[ant_index][:, flag_index]), axis=1)
         gainXmed, gainYmed = gainXmed + [ampMed[0]], gainYmed + [ampMed[1]]
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))
@@ -407,13 +411,19 @@ def plotGain(prefix, spw):
         PhsPL.tick_params(labelsize=4)
         AmpPL.axis([np.min(DT), np.max(DT), plotMin, plotMax])
         PhsPL.axis([np.min(DT), np.max(DT), -180.0, 180.0])
-        if polNum == 2: text_sd = '%s : Gain(median) = (%.2f%% %.2f%%)' % (antList[ant_index], 100.0* ampMed[0], 100.0* ampMed[1])
-        else: text_sd = '%s : Gain(median) = (%.2f%%)' % (antList[ant_index], 100.0* ampMed[0])
+        text_sd = '%s : Gain(median) = (' % (antList[ant_index])
+        for pol_index, pol in enumerate(polList): text_sd = text_sd + '%.2f%% ' % (100.0* ampMed[pol_index])
+        text_sd = text_sd[:-1] + ')'
         print(text_sd)
         AmpPL.text( 0.05, 1.02, text_sd, transform=AmpPL.transAxes, fontsize=5)
         PhsPL.text( 0.05, 1.02, antList[ant_index], transform=PhsPL.transAxes, fontsize=5)
+        if plot_index == 0:
+            AmpPL.legend(loc = 'best', prop={'size' :4}, numpoints = 1)
+            PhsPL.legend(loc = 'best', prop={'size' :4}, numpoints = 1)
     #
     text_sd = 'all: Gain(median) = (%.2f%% %.2f%%)' % (100.0* np.median(gainXmed), 100.0* np.median(gainYmed)); print(text_sd)
+    figAmp.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/checkGain.py to generate this plot', fontsize=4)
+    figPhs.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/checkGain.py to generate this plot', fontsize=4)
     figAmp.savefig(pp, format='pdf'); figPhs.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()

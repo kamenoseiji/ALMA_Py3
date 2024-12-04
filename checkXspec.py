@@ -64,7 +64,7 @@ for spw_index in range(spwNum):
     chRange = list(range(int(round(chNum/chBunch * 0.05)), int(round(chNum/chBunch * 0.95))))
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
     #---- integration timerange
-    if 'startMJD' in locals(): startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1])
+    startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
     endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
     st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
     timeRange = list(range(st_index, st_index + timeNum))
