@@ -52,8 +52,8 @@ timeNum = min(timeNum, len(timeStamp))
 for spw_index in range(spwNum):
     figInch = max(16,antNum)
     fontSize = min(32, figInch)
-    w, h = plt.figaspect(1)
-    figSPW = plt.figure(figsize=(figInch*w,figInch*h))
+    #w, h = plt.figaspect(1)
+    figSPW = plt.figure(figsize=(figInch,figInch))
     figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=fontSize)
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=fontSize)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
@@ -136,7 +136,7 @@ for spw_index in range(spwNum):
     plt.show()
     pngFile = 'PS_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
     pdfFile = pngFile + '.pdf'
-    figSPW.savefig(pdfFile, format='pdf')
+    figSPW.savefig(pdfFile, format='pdf', dpi=144)
     plt.close('all')
     os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
 #
