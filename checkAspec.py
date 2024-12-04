@@ -7,7 +7,7 @@ parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 parser.add_option('-a', dest='antName', metavar='antName',
-    help='Antenna name', default='')
+    help='Antennas to plot e.g. PM01,PM03', default='')
 parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPW List e.g. 0,1,2,3', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
@@ -19,12 +19,6 @@ prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 plotAntList = [ant for ant in options.antName.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
-'''
-prefix = 'uid___A002_X11fc8d6_X10ea5'
-plotAntList = ['DV19']
-scanList = [3]
-spwList = [25,27,29,31]
-'''
 #-------- Procedures
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
