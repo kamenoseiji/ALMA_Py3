@@ -182,6 +182,7 @@ for band_index, bandName in enumerate(UniqBands):
     for spw_index, spw in enumerate(atmspwLists[band_index]):
         np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), freqList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # freqList[spw]
+        np.save('%s-%s-SPW%d.Tsky.npy' % (prefix, bandName, spw), TskyList[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.TantN.npy' % (prefix, bandName, spw), TantN[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0.npy' % (prefix, bandName, spw), Tau0[spw_index])    # freqList[spw]
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
