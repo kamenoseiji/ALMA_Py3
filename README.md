@@ -2,11 +2,11 @@
 Scripts used for ALMA array diagnostics, mainly in Python 3, executable on CASA version 6 or later.
 
 - How to download the codes:
-  At preferred directory, type 
-
+  + At preferred directory, type 
+  ```
   git clone https://github.com/kamenoseiji/ALMA_Py3.git
-
-  Then, scripts will be extracted in ALMA_Py3 directory.
+  ```
+  + Then, scripts will be extracted in ALMA_Py3 directory.
 
 - Requirements
   + CASA version 6 or later
@@ -15,7 +15,7 @@ Scripts used for ALMA array diagnostics, mainly in Python 3, executable on CASA 
   + matplotlib
 
 - Setup PYTHONPATH
-  To import modules, add following line in your ~/.bashrc (tweak the real path to ALMA_Py3) and activate by source ~/.bashrc
+  + To import modules, add following line in your ~/.bashrc (tweak the real path to ALMA_Py3) and activate by source ~/.bashrc
   ```
   export PYTHONPATH=${PYTHONPATH}:/users/skameno/ALMA_Py3/
   ```
@@ -29,6 +29,7 @@ casa -c ~/ALMA_Py3/checkBP.py -h
 
   will show:
 
+```
 Usage: checkBP.py [options]
 
 Options:
@@ -43,6 +44,7 @@ Options:
   -s spwList   SPW List e.g. 0,1,2,3
   -P           Plot PDF
   -R refant    reference antenna
+```
 
   + See Wiki page https://github.com/kamenoseiji/ALMA_Py3/wiki for delay.
 
