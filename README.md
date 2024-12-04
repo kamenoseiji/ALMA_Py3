@@ -46,7 +46,7 @@ Options:
   -R refant    reference antenna
 ```
 
-  + See Wiki page https://github.com/kamenoseiji/ALMA_Py3/wiki for delay.
+  + See Wiki page https://github.com/kamenoseiji/ALMA_Py3/wiki for details.
 
 
 
