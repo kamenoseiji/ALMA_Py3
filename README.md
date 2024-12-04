@@ -14,6 +14,12 @@ Scripts used for ALMA array diagnostics, mainly in Python 3, executable on CASA 
   + numpy
   + matplotlib
 
+- Setup PYTHONPATH
+  To import modules, add following line in your ~/.bashrc (tweak the real path to ALMA_Py3) and activate by source ~/.bashrc
+  ```
+  export PYTHONPATH=${PYTHONPATH}:/users/skameno/ALMA_Py3/
+  ```
+
 - How to use
   + Run with casa -c
   + Run with option -h to show help.
