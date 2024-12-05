@@ -56,10 +56,6 @@ antNum = len(antList)
 flagAnt = np.ones(antNum)
 index =  indexList(np.array(antFlag), antList)
 if len(index) > 0: flagAnt[index] = 0.0
-#if 'flagAnt' not in locals(): flagAnt = np.ones(antNum)
-#if 'antFlag' in locals():
-#    index =  indexList(np.array(antFlag), antList)
-#    if len(index) > 0: flagAnt[index] = 0.0
 useAnt = np.where(flagAnt == 1.0)[0].tolist(); useAntNum = len(useAnt)
 #-------- Check SPWs
 print('---Checking spectral windows and scans with atmCal for ' + prefix)
@@ -124,9 +120,12 @@ azelTime, AntID, AZ, EL = GetAzEl(msfile)
 #-------- Get Load Temperature
 tempAmb, tempHot  = np.zeros([useAntNum]), np.zeros([useAntNum])
 for ant_index in list(range(useAntNum)):
-    tempAmb[ant_index], tempHot[ant_index] = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
+    temp = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
+    if len(temp) == 0: continue
+    tempAmb[ant_index], tempHot[ant_index] = temp[0], temp[1]
     if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
     if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
+#
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE
 # timeON  : mjd of CALIBRATE_ATMOSPHERE#ON_SOURCE (becore Cycle 3, ambient + hot loads
 # timeAMB : mjd of CALIBRATE_ATMOSPHERE#AMBIENT (after Cycle 3)

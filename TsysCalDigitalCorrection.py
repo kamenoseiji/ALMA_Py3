@@ -22,6 +22,7 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -37,11 +38,17 @@ parser.add_option('-o', dest='ONTAU', metavar='ONTAU',
 #
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-antFlag = options.antFlag.split(',')
-antFlag = [ant for ant in antFlag]
+antFlag = [ant for ant in options.antFlag.split(',')]
 PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
+'''
+prefix = 'uid___A002_X1207c39_X10a2'
+antFlag = []
+PLOTTAU = True
+PLOTTSYS = True
+ONTAU = True
+
 SunAngleTsysLimit = 5.0 # [deg] 
 if 'PLOTTAU'  not in locals(): PLOTTAU  = False
 if 'PLOTTSYS' not in locals(): PLOTTSYS = False
@@ -121,7 +128,9 @@ azelTime, AntID, AZ, EL = GetAzEl(msfile)
 #-------- Get Load Temperature
 tempAmb, tempHot  = np.zeros([useAntNum]), np.zeros([useAntNum])
 for ant_index in list(range(useAntNum)):
-    tempAmb[ant_index], tempHot[ant_index] = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
+    temp = GetLoadTemp(msfile, useAnt[ant_index], atmspwLists[0][0])
+    if len(temp) == 0: continue
+    tempAmb[ant_index], tempHot[ant_index] = temp[0], temp[1]
     if tempAmb[ant_index] < 240: tempAmb[ant_index] += 273.15       # Old MS describes the load temperature in Celsius
     if tempHot[ant_index] < 240: tempHot[ant_index] += 273.15       #
 # timeOFF : mjd of CALIBRATE_ATMOSPHERE#OFF_SOURCE

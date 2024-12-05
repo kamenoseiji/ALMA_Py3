@@ -34,7 +34,6 @@ antDia = GetAntD(antList)
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
-#
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 bpSPWs = GetBPcalSPWs(msfile)
@@ -70,11 +69,14 @@ for BandName in RXList:
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
+    flagAnt = np.ones([antNum])
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan))); chavSPWs.sort()
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
     bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
     if BLCORR: bunchNum = 1
     for spw_index, spw in enumerate(chavSPWs):
+        Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, BandatmSPW[BandName]['spw'][spw_index]))
+        flagAnt[np.where(np.min(np.median(Trx, axis=(1,3)), axis=0) < 5)[0].tolist()] = 0.0 # flag unrealistic Trx out
         checkVis = XspecList[spw_index][0][[0,-1]][:,0]
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
@@ -89,10 +91,7 @@ for BandName in RXList:
             for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
             antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
         #
-    #
-    flagAnt = np.ones([antNum])
     flagAnt[indexList(antFlag, antList)] = 0.0
-    #flagAnt[np.where( np.min(np.median(np.array(TrxList), axis=(2,4)), axis=(0,1)) < 10)[0].tolist()] = 0.0 # flag unrealistic Trx out
     useAntMap = np.where(flagAnt > 0.1)[0].tolist()
     flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
     #--------

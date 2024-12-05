@@ -732,7 +732,7 @@ def GetLoadTemp(msfile, AntID, spw):
 	Condition = 'ANTENNA_ID == %d && SPECTRAL_WINDOW_ID == %d' % (AntID, spw)
 	temp = tb.query(Condition).getcol('TEMPERATURE_LOAD')
 	tb.close()
-	return np.median(temp[0]), np.median(temp[1])
+	return np.median(temp, axis=1) if np.ndim(temp) == 2 else temp
 #
 def GetLoadTempTime(msfile, AntID):
 	Out = msfile + '/' + 'CALDEVICE'
