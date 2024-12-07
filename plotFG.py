@@ -42,7 +42,7 @@ for spw_index, spw in enumerate(spwList):
     FGList = FGList + [FG]
     antNum, timeNum = FG.shape[0], FG.shape[1]
     #-------- antennas to flag
-    flagAntIndex = np.where( np.quantile(FG, 0.25, axis=1) < 1)[0].tolist()
+    flagAntIndex = np.where( np.quantile(FG, 0.05, axis=1) < 1)[0].tolist()
     flagAntList = antList[flagAntIndex]
     unFlaggedIndex = list(set(range(antNum)) - set(flagAntIndex))
     unFlaggedAntNum = len(unFlaggedIndex)

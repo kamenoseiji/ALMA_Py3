@@ -90,7 +90,7 @@ UseAntIndexInFG = indexList(UseAntList,FGantList)
 unFlaggedAntNum = len(UseAntIndexInFG)
 if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
 if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
-UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 3.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
+UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
 #-------- Check band and BandPA
 spwName = msmd.namesforspws(spw)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0

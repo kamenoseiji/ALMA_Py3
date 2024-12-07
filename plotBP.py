@@ -35,7 +35,7 @@ BPList, FreqList = [], []
 for spw_index, spw in enumerate(spwList):
     Freq   = np.load('%s-SPW%d-Freq.npy' % (prefix, spw))
     #-- First Target scan
-    for scan_index, scan in enumerate(scanList)
+    for scan_index, scan in enumerate(scanList):
         BPList = BPList + [np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refantName, scan, spw))]
     #
     BPList, FreqList = BPList + [BP_ant], FreqList + [Freq]
