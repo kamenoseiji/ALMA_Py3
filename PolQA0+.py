@@ -3,7 +3,7 @@ import os
 SCR_DIR = os.getenv('HOME') + '/ALMA_Py3/'
 wd = './'
 QUMODEL = True
-INTList = 'POL,BANDPASS'
+INTList = 'POL'
 flagAnt = ''
 sessionFile = open('SessionList', 'r')
 sessionList = sessionFile.readlines()
