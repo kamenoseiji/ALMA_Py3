@@ -25,9 +25,6 @@ bunchNum=  int(options.bunchNum)
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 PLOTPDF = options.PLOTPDF
-#exec(open(SCR_DIR + 'interferometry.py').read())
-#exec(open(SCR_DIR + 'Plotters.py').read())
-#
 XYSPW, BPSPW = [], []
 #-------- Procedures
 for spw_index, spw in enumerate(spwList):
