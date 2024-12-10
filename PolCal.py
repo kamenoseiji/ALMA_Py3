@@ -84,7 +84,6 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
         #
         PA = AzEl2PA(AzScan, ElScan) + BandPA
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
-        # QCpUS = np.zeros(len(mjdList[scan_index]))
         StokesI = 0.0
         if str.isdigit(sourceName[1]) and len(StokesDic[sourceName]) > 0:
             StokesI = StokesDic[sourceName][1]
