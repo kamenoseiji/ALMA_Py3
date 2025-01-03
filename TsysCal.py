@@ -94,7 +94,6 @@ for band_index in list(range(NumBands)):
 # atmSPWs[band] : SPWs used in atmCal scans
 # bpSPWs[band]  : SPWs used in bandpass scan (i.e. SPWs for OBS_TARGET)
 # atmscanLists[band] : atmCal scans
-# bpscanLists[band]  : scans on source
 #
 print('---Checking time for ambient and hot load')
 timeOFF, timeON, timeAMB, timeHOT, timeTEST, timeREF = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#ON_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#TEST"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#REFERENCE")

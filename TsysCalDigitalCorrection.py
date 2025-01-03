@@ -22,7 +22,6 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -43,11 +42,12 @@ PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
 '''
-prefix = 'uid___A002_X122dee6_X129a0'
+prefix = 'uid___A002_X11e3e46_Xb4c9'
 antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
 ONTAU = True
+'''
 SunAngleTsysLimit = 5.0 # [deg] 
 if 'PLOTTAU'  not in locals(): PLOTTAU  = False
 if 'PLOTTSYS' not in locals(): PLOTTSYS = False
@@ -95,17 +95,18 @@ for band_index, bandName in enumerate(UniqBands):
         atmspwList = atmspwList + [spw_index for spw_index, spwName in enumerate(spwNameList) if spw_index in msmd.spwsforscan(atmscanLists[band_index][0]) and 'FULL_RES' in spwName and 'BB_%d' % BB in spwName]
         SQLDspwList = SQLDspwList + [spw_index for spw_index, spwName in enumerate(spwNameList) if spw_index in msmd.spwsforscan(atmscanLists[band_index][0]) and 'SQLD' in spwName and 'BB_%d' % BB in spwName]
         CHAVspwList = CHAVspwList + [spw_index for spw_index, spwName in enumerate(spwNameList) if spw_index in msmd.spwsforscan(atmscanLists[band_index][0]) and 'CH_AVG' in spwName and 'BB_%d' % BB in spwName]
-    atmspwLists  = atmspwLists  + [atmspwList]
-    SQLDspwLists = SQLDspwLists + [SQLDspwList]
-    CHAVspwLists = CHAVspwLists + [CHAVspwList]
-    OnScanLists  = OnScanLists  + [list( (set(msmd.scansforintent('*ON_SOURCE')) - set(msmd.scansforintent('*ATMOSPHERE*'))) & set(msmd.scansforspw(SQLDspwLists[band_index][0])))]
+    atmspwLists  = atmspwLists  + [np.unique(np.array(atmspwList)).tolist()]
+    SQLDspwLists = SQLDspwLists + [np.unique(np.array(SQLDspwList)).tolist()]
+    CHAVspwLists = CHAVspwLists + [np.unique(np.array(CHAVspwList)).tolist()]
+    #OnScanList = list(set(msmd.scansforintent('*ON_SOURCE')) & set(msmd.scansforspw(CHAVspwList[0])))
+    OnScanLists  = OnScanLists  + [np.sort(np.array(list(set(msmd.scansforintent('*ON_SOURCE')) & set(msmd.scansforspw(CHAVspwList[0]))))).tolist()]
+    #OnScanLists  = OnScanLists  + [list( (set(msmd.scansforintent('*ON_SOURCE')) - set(msmd.scansforintent('*ATMOSPHERE*'))) & set(msmd.scansforspw(SQLDspwLists[band_index][0])))]
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
     TsysDigitalCorrection = True
 #
 # atmSPWs[band] : SPWs used in atmCal scans
 # bpSPWs[band]  : SPWs used in bandpass scan (i.e. SPWs for OBS_TARGET)
 # atmscanLists[band] : atmCal scans
-# bpscanLists[band]  : scans on source
 #
 print('---Checking time for ambient and hot load')
 timeOFF, timeON, timeAMB, timeHOT, timeTEST, timeREF = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#ON_SOURCE"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#TEST"), msmd.timesforintent("CALIBRATE_ATMOSPHERE#REFERENCE")
