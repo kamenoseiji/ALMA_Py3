@@ -42,7 +42,7 @@ PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
 '''
-prefix = 'uid___A002_X11e3e46_Xb4c9'
+prefix = 'uid___A002_Xe9ad26_X1e84'
 antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
@@ -82,11 +82,12 @@ for band_index, bandName in enumerate(UniqBands):
     SQLDspwList = msmd.almaspws(sqld=True)
     SQLDspwNameList = msmd.namesforspws(SQLDspwList)
     BBList = [int(re.split(r'BB_',spwName)[1].split('#')[0]) for spwName in SQLDspwNameList if bandName in spwName]
+    BBList = list(set(BBList))
     if 'BBFlag' in locals(): [BB for BB in BBList if BB not in BBFlag]
     BBList.sort()
     #-------- atm scan list
     atmscans = np.sort(msmd.scansforintent("CALIBRATE_ATMOSPHERE*"))
-    atmscanList = [scan for scan in atmscans if bandName in msmd.namesforspws(msmd.spwsforscan(scan))[0]]
+    atmscanList = [scan for scan in atmscans if bandName in msmd.namesforspws(msmd.spwsforscan(scan)[-1])[0]]
     if 'scanFlag' in locals(): atmscanList = [scan for scan in atmscanList if scan not in scanFlag]
     atmscanLists = atmscanLists + [atmscanList]
     #-------- SQLD List
