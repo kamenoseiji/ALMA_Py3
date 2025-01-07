@@ -225,6 +225,7 @@ for BandName in RXList:
     text_sd = '----- XY delay           :'
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
     print(text_sd)
+    maxXYsnr, bestXYscan = 0.0, 0
     for scan_index, scan in enumerate(BandScanList[BandName]):
         if scan not in QSOscanList : continue              # filter by QSO
         text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
@@ -252,10 +253,14 @@ for BandName in RXList:
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
         print(text_sd)
+        if np.median(np.array(XYsnrList)) > maxXYsnr:
+            maxXYsnr = np.median(np.array(XYsnrList))
+            bestXYscan = scan
         BPavgScanList = BPavgScanList + [scan]
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
+    checkScan = bestXYscan
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
