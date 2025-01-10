@@ -137,6 +137,7 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     for spw_index, spw in enumerate(BandbpSPW['spw']):
         Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
         Tau0CList= Tau0CList+ [np.load('%s-%s-SPW%d.Tau0C.npy'% (prefix, BandName, spw))]   # Tau0CList[spw] [intercept,slope]
+        Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))
         TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
         TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
         TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]

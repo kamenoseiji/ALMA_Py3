@@ -203,7 +203,7 @@ for BandName in RXList:
         scanFlag = list(set(range(bl_vis.shape[1])) - set(np.unique(outLierVis[1]))); scanFlag.sort()
         if len(scanFlag) > 1:
             scanGain[:,scanFlag] = np.apply_along_axis(gainComplex, 0, bl_vis[:,scanFlag])
-            scanFlag = np.unique(np.where(np.max(abs(scanGain), axis=0)  <  min([1.0, 5.0*np.median(abs(scanGain))]))).tolist()
+            scanFlag = np.unique(np.where(np.max(abs(scanGain), axis=0)  <  min([2.5, 5.0*np.median(abs(scanGain))]))).tolist()
         #-------- Store to scanDic
         scanDic[scan]['Flag'] = scanFlag
         scanDic[scan]['Gain'] = scanGain[:,scanFlag]
@@ -216,7 +216,6 @@ for BandName in RXList:
         coh = abs(np.mean(scanGain, axis=1)) / np.mean(abs(scanGain), axis=1)
         for ant_index, ant in enumerate(antList[antMap]): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
         print(text_sd)
-    #
     #-------- Scan-by-scan bandpass
     BPavgScanList, BPList, XYList, XYWList = [], [], [], []
     text_sd = '-----Scan-by-scan BP     :'

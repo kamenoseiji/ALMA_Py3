@@ -263,7 +263,7 @@ for band_index, bandName in enumerate(UniqBands):
             Tau0Off = TauOff * np.sin(el)
             Tau0Scale = np.median(Tau0Off) / np.median(Tau0[spw_index])
             TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-            TauOn  = -np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )/Tau0Scale 
+            TauOn  = np.abs(-np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )/Tau0Scale )
             az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
             TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
             np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]
