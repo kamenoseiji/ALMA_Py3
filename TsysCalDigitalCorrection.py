@@ -42,7 +42,7 @@ PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
 '''
-prefix = 'uid___A002_Xe9ad26_X1e84'
+prefix = 'uid___A002_X837c61_X1d8f'
 antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
@@ -80,8 +80,10 @@ for band_index, bandName in enumerate(UniqBands):
     spwBandNameList = [spwName for spwName in spwNameList if bandName in spwName]
     #-------- BB List
     SQLDspwList = msmd.almaspws(sqld=True)
+    if len(SQLDspwList) == 0: continue
     SQLDspwNameList = msmd.namesforspws(SQLDspwList)
-    BBList = [int(re.split(r'BB_',spwName)[1].split('#')[0]) for spwName in SQLDspwNameList if bandName in spwName]
+    #BBList = [int(re.split(r'BB_',spwName)[1].split('#')[0]) for spwName in SQLDspwNameList if bandName in spwName]
+    BBList = [int(re.split(r'BB_',spwName)[1].split('#')[0]) for spwName in SQLDspwNameList]
     BBList = list(set(BBList))
     if 'BBFlag' in locals(): [BB for BB in BBList if BB not in BBFlag]
     BBList.sort()
@@ -196,7 +198,7 @@ for band_index, bandName in enumerate(UniqBands):
     AtmEL = np.ones([useAntNum, atmscanNum])
     for ant_index, ant in enumerate(useAnt):
         azelTime_index = np.where( AntID == ant )[0].tolist()
-        if len(azelTime_index) == 0: azelTime_index = np.where( AntID == useAnt[ant_index + 1] )[0].tolist()
+        if len(azelTime_index) == 0: azelTime_index = np.where( AntID == np.unique(AntID)[0] )[0].tolist()
         for scan_index, scan in enumerate(atmscanLists[band_index]):
             AtmEL[ant_index, scan_index] = EL[azelTime_index[np.argmin(abs(azelTime[azelTime_index] - atmTimeRef[scan_index]))]]
     #
