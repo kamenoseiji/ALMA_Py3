@@ -2,6 +2,7 @@ import os
 import re
 import numpy as np
 from numpy import *
+import math
 import matplotlib.pyplot as plt
 import scipy
 from scipy import constants

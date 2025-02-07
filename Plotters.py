@@ -581,7 +581,7 @@ def plotFL(pp, scanDic, SPWDic):
         figFL.text(0.45, 0.05, 'Projected baseline [m]')
         UVW = scanDic[scan]['UVW']; uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         sourceName = scanDic[scan]['source']
-        text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
+        text_src  = 'Scan%02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
         #---- Display results
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['I'])
@@ -606,7 +606,7 @@ def plotFL(pp, scanDic, SPWDic):
             axes[0,spw_index].axis([0.0, uvMax, -180, 180])
             axes[1,spw_index].axis([0.0, uvMax, 0.0, 1.25*IMax])
             axes[2,spw_index].axis([0.0, uvMax, -0.25*IMax, 0.25*IMax])
-            axes[2,spw_index].text(0.0, 1.02*180, 'SPW%2d %5.1f GHz' % (spw, 1.0e-9* np.median(SPWDic['freq'][spw_index])))
+            axes[0,spw_index].text(0.0, 1.02*180, 'SPW%2d %5.1f GHz' % (spw, 1.0e-9* np.median(SPWDic['freq'][spw_index])))
         #
         axes[0,0].set_ylabel('Phase [deg]')
         axes[1,0].set_ylabel('Stokes I [Jy]')
@@ -696,10 +696,10 @@ def plotQUXY(pp, scanDic):
         #-------- Draw model
         CSrange, SNrange = np.cos(2.0*PArange), np.sin(2.0*PArange)
         UCmQS, QCpUS = Stokes[2]*CSrange - Stokes[1]* SNrange, Stokes[1]*CSrange + Stokes[2]* SNrange
-        ParaPolPL.plot( RADDEG* ThetaRange, QCpUS, '-', color=cmap(source_index), linestyle='dashed')
-        ParaPolPL.plot( RADDEG* ThetaRange,-QCpUS, '-', color=cmap(source_index), linestyle='dashdot')
-        CrosPolPL.plot( RADDEG* ThetaRange, UCmQS, '-', color=cmap(source_index), linestyle='solid')
-        CrosPolPL.plot( RADDEG* ThetaRange, np.zeros(len(ThetaRange)), '-', color=cmap(source_index), linestyle='dotted')
+        ParaPolPL.plot( RADDEG* ThetaRange, QCpUS, color=cmap(source_index), linestyle='dashed')
+        ParaPolPL.plot( RADDEG* ThetaRange,-QCpUS, color=cmap(source_index), linestyle='dashdot')
+        CrosPolPL.plot( RADDEG* ThetaRange, UCmQS, color=cmap(source_index), linestyle='solid')
+        CrosPolPL.plot( RADDEG* ThetaRange, np.zeros(len(ThetaRange)), color=cmap(source_index), linestyle='dotted')
         #-------- Plot data points
         for scan in scanList:
             visChav = scanDic[scan]['visChav']   # visChav[Stokes, time]
