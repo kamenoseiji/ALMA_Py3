@@ -96,15 +96,15 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
     for mjdSec in mjdSpl.tolist(): DTSpl.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
     figTauE.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
     figTauE.text(0.03, 0.45, 'Zenith Optical Depth', rotation=90)
-    for spw_index in range(spwNum):
+    TauEPL = figTauE.add_subplot(1, 1, 1)
+    for spw_index, spw in enumerate(spwList):
         Tau0E = np.median(Tau0[spw_index]) + Tau0Excess[spw_index]
         SP = tauSMTH( atmTime-atmTime[0], Tau0E )
         Tau0ESpl = scipy.interpolate.splev(mjdSpl-atmTime[0], SP)
-        TauEPL = figTauE.add_subplot(1, spwNum, spw_index + 1 )
-        TauEPL.plot( DTSpl, Tau0ESpl, '-', color='k')
-        TauEPL.scatter( DT, Tau0E, s=10.0* scanFlag[spw_index], color='c')
-        TauEPL.tick_params(axis='x', labelsize=6)
-        TauEPL.set_title('SPW %d' % (spwList[spw_index]))
+        TauEPL.plot( DTSpl, Tau0ESpl, '-', color='gray')
+        TauEPL.scatter( DT, Tau0E, s=10.0* scanFlag[spw_index], label='SPW %d' % (spw))
+    TauEPL.tick_params(axis='x', labelsize=6)
+    TauEPL.legend(loc='best', prop={'size' :10}, numpoints = 1)
     figTauE.savefig('TAUE_' + prefix + '.pdf')
     plt.close('all')
     return
