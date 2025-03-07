@@ -32,7 +32,6 @@ chBunch =  int(options.chBunch)
 if options.plotMax != ''  : plotMax = float(options.plotMax)
 if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
 if options.integTime != '': integTime = float(options.integTime)
-#
 msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
@@ -60,14 +59,15 @@ for spw_index in range(spwNum):
     #-------- Plot BP
     print(' Loading SPW = %d' % (spwList[spw_index]))
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index]); Freq = 1.0e-9* Freq  # GHz
-    chNum, chWid, Freq = int(chNum / chBunch), chWid* chBunch, bunchVec(Freq, chBunch)
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
-    for ch_index in list(range(chNum)):
-        sourceRange = list(range(ch_index*chBunch, (ch_index+1)*chBunch))
-        Pspec[:,ch_index] = np.mean(Pspec[:,sourceRange], axis=1)
-        Xspec[:,ch_index] = np.mean(Xspec[:,sourceRange], axis=1)
-    Pspec = Pspec[:,0::chNum]
-    Xspec = Xspec[:,0::chNum]
+    if chBunch > 1:
+        chNum, chWid, Freq = int(chNum / chBunch), chWid* chBunch, bunchVec(Freq, chBunch)
+        for ch_index in list(range(chNum)):
+            sourceRange = list(range(ch_index*chBunch, (ch_index+1)*chBunch))
+            Pspec[:,ch_index] = np.mean(Pspec[:,sourceRange], axis=1)
+            Xspec[:,ch_index] = np.mean(Xspec[:,sourceRange], axis=1)
+        Pspec = Pspec[:,0:chNum]
+        Xspec = Xspec[:,0:chNum]
     #---- integration timerange
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
     endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
