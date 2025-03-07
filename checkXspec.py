@@ -4,7 +4,7 @@ import analysisUtils as au
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetTimerecord, GetChNum, GetVisAllBL, Bl2Ant
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetTimerecord, GetChNum, GetVisAllBL, Bl2Ant, bunchVec
 from casatools import quanta as qatool
 qa = qatool()
 from optparse import OptionParser
@@ -57,12 +57,17 @@ for spw_index in range(spwNum):
     figSPW.text(0.475, 0.05, 'Frequency [GHz]', fontsize=fontSize)
     figSPW.text(0.05, 0.5, 'Phase [rad]', rotation=90, fontsize=fontSize)
     figSPW.text(0.95, 0.5, 'Amplitude', rotation=-90, fontsize=fontSize)
-    #
     #-------- Plot BP
     print(' Loading SPW = %d' % (spwList[spw_index]))
     chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index]); Freq = 1.0e-9* Freq  # GHz
-    chRange = list(range(int(round(chNum/chBunch * 0.05)), int(round(chNum/chBunch * 0.95))))
+    chNum, chWid, Freq = int(chNum / chBunch), chWid* chBunch, bunchVec(Freq, chBunch)
     timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
+    for ch_index in list(range(chNum)):
+        sourceRange = list(range(ch_index*chBunch, (ch_index+1)*chBunch))
+        Pspec[:,ch_index] = np.mean(Pspec[:,sourceRange], axis=1)
+        Xspec[:,ch_index] = np.mean(Xspec[:,sourceRange], axis=1)
+    Pspec = Pspec[:,0::chNum]
+    Xspec = Xspec[:,0::chNum]
     #---- integration timerange
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
     endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
