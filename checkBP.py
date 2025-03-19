@@ -43,6 +43,16 @@ plotMax = options.plotMax
 BPPLOT  = options.BPPLOT
 FG      = options.FG
 refant  = options.refant
+'''
+prefix = 'uid___A002_X1263402_X17bd'
+antFlag = []
+refant  = ''
+BPscan = 5
+spwList = [5,7,9,11]
+BPPLOT = True
+FG = False
+bunchNum = 1
+'''
 #-------- Procedures
 msfile = prefix + '.ms'
 Antenna1, Antenna2 = GetBaselineIndex(msfile, spwList[0], BPscan)

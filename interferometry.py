@@ -1372,10 +1372,10 @@ def delay_search( spec ):
     corrAbs = abs(spec2corr(spec))
     if( max(corrAbs) == 0.0 ): return 0.0, 1.0e-20	
     delay = np.argmax(corrAbs) - nspec # Coarse Delay
-    trial_delay = np.multiply(range(-2,3), 0.5)
-    trial_amp = np.array([abs(np.mean(delay_cal(spec, delay + trial_delay))) for trial_delay in np.multiply(range(-2,3), 0.5).tolist()])
+    trial_delay = (delay + np.multiply(range(-2,3), 0.5)).tolist()
+    trial_amp = np.array([abs(np.mean(delay_cal(spec, temporal_delay))) for temporal_delay in trial_delay])
     fit = np.polyfit(trial_delay, trial_amp, 2)
-    return -fit[1]/(2.0*fit[0]) - delay, (fit[2] - fit[1]**2/(4*fit[0])) / np.std(abs(spec))* sqrt(nspec)	# return residual delay [sample] and SNR
+    return -fit[1]/(2.0*fit[0]), (fit[2] - fit[1]**2/(4*fit[0])) / np.std(abs(spec))* np.sqrt(nspec)	# return residual delay [sample] and SNR
 #
 def blGain( blSpec ):				# Average in spectral channels
     return np.mean(blSpec, 0)
