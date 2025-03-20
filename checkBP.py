@@ -17,7 +17,7 @@ parser.add_option('-b', dest='bunchNum', metavar='bunchNum',
 parser.add_option('-c', dest='scanID', metavar='scanID',
     help='Scan ID  e.g. 2', default='2')
 parser.add_option('-f', dest='FG', metavar='FG',
-    help='Apply flagging', action="store_false")
+    help='Apply flagging', action="store_true")
 parser.add_option('-m', dest='plotMin', metavar='plotMin', type="float",
     help='Plot range minimum', default=0.0)
 parser.add_option('-M', dest='plotMax', metavar='plotMax', type="float",
@@ -78,12 +78,12 @@ SideBand = ['LSB', 'USB']
 FreqList, BPList, XYList, XYdelayList = [], [], [], []
 for spw_index, spw in enumerate(spwList):
     if FG:  # Flag table
-        try:
-            FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
-            TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum, FG, TS)
-        except:
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum )
+        #try:
+        FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+        TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
+        BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum, FG, TS)
+        #except:
+        #    BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, bunchNum )
         #
     else:
         if spw_index == 0:
