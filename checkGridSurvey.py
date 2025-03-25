@@ -1,3 +1,4 @@
+import os
 import glob
 import re
 import math
@@ -12,15 +13,33 @@ from Plotters import plotSP, plotXYP, plotBLAV, plotFL, plotQUXY
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
+from optparse import OptionParser
 def AV(vis): return AllanVarPhase(np.angle(vis), 1)
+SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
+TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
+#-------- Parse options
+parser = OptionParser()
+parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
+parser.add_option('-a',  dest='antFlag', metavar='antFlag', help='Antennas to flag out', default='')
+parser.add_option('-Q',  dest='QUMODEL', metavar='QUMODEL', help='Initial Q,U from AMAPOLA', action='store_true')
+parser.add_option('-U',  dest='uvLimit', metavar='uvLimit', help='(u, v) limet [m]', default='5000')
+parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to refer', default='0')
+parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply Tsys digital correction', action='store_true')
+(options, args) = parser.parse_args()
+#-------- Check options
+prefix  = options.uid.replace("/", "_").replace(":","_").replace(" ","")
+antFlag = [ant for ant in options.antFlag.split(',')]
+uvLimit = int(options.uvLimit)
+BPscan  = int(options.Scan)
+QUMODEL = options.QUMODEL
+TsysDigitalCorrection = options.TsysDigital
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
-if 'TsysDigitalCorrection' in locals():
-    if TsysDigitalCorrection: os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCalDigitalCorrection.py -u %s' % (prefix))
+if TsysDigitalCorrection:
+    os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCalDigitalCorrection.py -u %s' % (prefix))
 else:
-    TsysDigitalCorrection = False
     os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
 TrxFileList = glob.glob(prefix + '*Trx.npy')
 RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
@@ -57,7 +76,7 @@ for BandName in RXList:
     BandbpSPW = GetSPWFreq(msfile, BandbpSPW)   # BandbpSPW[BandName] : [[SPW List][freqArray][chNum][BW]]
     BandatmSPW = GetSPWFreq(msfile, BandatmSPW)
     #---- Bandpass scan to check Allan Variance
-    if 'BPscan' not in locals():
+    if BPscan == 0:     # BPscan was not specified
         checkScan = list(set(msmd.scansforintent('*BANDPASS*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*FLUX*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*PHASE*')) & set(BandScanList[BandName]))
@@ -116,7 +135,7 @@ for BandName in RXList:
     print('-----Estimation from AMAPOLA and Butler-JPL-Horizons')
     #-------- Load Visibilities into memory
     timeStampList, XspecList = loadScanSPW(msfile, BandbpSPW[BandName]['spw'], BandScanList[BandName])  # XspecList[spw][scan] [corr, ch, bl, time]
-    StokesDic = GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
+    StokesDic = GetAMAPOLAStokes(SCR_DIR, sourceList, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], BANDFQ[int(BandName[3:5])])
     StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, srcDic, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
@@ -126,10 +145,10 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    if 'BPscan' in locals():
-        checkScan = BPscan
-    else:
+    if BPscan == 0:
         checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
+    else:
+        checkScan = BPscan
     if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))

@@ -11,13 +11,13 @@ def AzEl2PA(az, el, lat=ALMA_lat): # Azimuth, Elevation, Latitude (default=ALMA)
     return np.arctan2( -cos_lat* np.sin(az), (sin_lat* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
 #
 #-------- Get Stokes Parameters from AMAPOLA
-def GetAMAPOLAStokes(R_DIR, SCR_DIR, sourceList, timeText, FreqGHz):    # 
+def GetAMAPOLAStokes(SCR_DIR, sourceList, timeText, FreqGHz):    # 
     # sourceList : e.g. ['J1256-0547', 'J1924-2914']
     # timeText   : e.g. '2017/04/12/11:26:17'
     # FreqGHz    : frequency in GHz
     StokesDic = dict(zip(sourceList, [[]]*len(sourceList)))   # Stokes parameters for each source
     os.system('rm -rf CalQU.data')
-    text_sd = R_DIR + 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, timeText, FreqGHz)
+    text_sd = 'Rscript %spolQuery.R -D%s -F%f' % (SCR_DIR, timeText, FreqGHz)
     for source in sourceList: text_sd = text_sd + ' ' + source
     print(text_sd)
     os.system(text_sd)
