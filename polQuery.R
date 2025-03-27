@@ -26,7 +26,8 @@ refFreq <- argList$refFreq
 srcList <- argList$srcList
 
 #-------- Load Flux.Rdata from web
-if( file.exists('Flux.Rdata') == FALSE ){ download.file("https://www.alma.cl/~skameno/Grid/Stokes/Flux.Rdata", "Flux.Rdata") }
+#if( file.exists('Flux.Rdata') == FALSE ){ download.file("https://www.alma.cl/~skameno/AMAPOLA/Flux.Rdata", "Flux.Rdata") }
+download.file("https://www.alma.cl/~skameno/AMAPOLA/Flux.Rdata", "Flux.Rdata")
 load('Flux.Rdata')
 #load(url("https://www.alma.cl/~skameno/Grid/Stokes/Flux.Rdata")) 
 FLDF$timeDiff <- as.numeric(difftime(FLDF$Date, refDate, units='days'))
