@@ -1,19 +1,21 @@
-# TsysCal.py 
-# inputs
-#    SCR_DIR    : (character) path to the script (e.g. '/home/skameno/ALMA_SV/' )
-#    PLOTTAU    : (boolean)   plot optical depths (True or False)
-#    PLOTTSYS   : (boolean)   plot Trx and Tsys spectra (True or False)
-#    prefix     : (character) UID name (e.g. 'uid___A002_Xc02418_X3f67' )
-#
-# outputs
-#  chAvgTsys[band* scan* ant* spw* pol] : List of channel-averaged system noise temperature
-#  TsysSpec[band* scan* ant* spw* pol][ch] : List of Tsys spectrum
-#  TsysFlag[ant, spw, pol, scan] : 0 = invalid, 1=valid
-#  Tau0med[spw] : median-value of the zenith optical depth
-#  onTau[spw, scan] : on-source optical depth
-#
-#  They include all of antennas (even if flagged) in MS order
-#
+from interferometry import GetAntName
+import numpy as np
+
+msfile = prefix + '.ms'
+antList = GetAntName(msfile).tolist()
+antNum = len(antList)
+msmd.open(msfile)
+atmScanList = msmd.scansforintent('*ATMOSPHERE*').tolist()
+scanNum = len(atmScanList)
+tb.open(msfile + '/SYSCAL')
+Trx = tb.getcol('TRX_SPECTRUM')
+
+
+reshape(2, 64, scanNum, antNum, spwNum) # Trx[pol, ch, spw*ant*scan]
+tb.close()
+
+
+'''
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 paraPol = [[0], [0,1], [0,1], [0,3]]
@@ -115,7 +117,6 @@ for band_index in list(range(NumBands)):
             #
         #
     #
-'''
                 
 
 
@@ -265,6 +266,6 @@ for band_index in list(range(NumBands)):
     if PLOTTSYS: plotTsys(prefix + '_' + UniqBands[band_index], antList[useAnt], atmspwLists[band_index], freqList, atmTimeRef, TrxList, TskyList)
 #
 #-------- Plot optical depth
-'''
 msmd.close()
 msmd.done()
+'''
