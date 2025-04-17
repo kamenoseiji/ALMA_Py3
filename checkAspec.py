@@ -16,12 +16,12 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 (options, args) = parser.parse_args()
 #-------- checkAspec : power spectrum (autocorrelation)
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-plotAntList = [ant for ant in options.antName.split(',')]
 scanList = [int(scan) for scan in options.scanList.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
 #-------- Procedures
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
+plotAntList = antList if options.antName == '' else [ant for ant in options.antName.split(',')]
 antNum = len(plotAntList)
 scanNum = len(scanList)
 spwNum = len(spwList)

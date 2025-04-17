@@ -210,7 +210,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 SDPL = figAnt.add_subplot(4, spwNum, spwNum* (2+pol_index) + spw_index + 1)
                 ACList = ACList + [ACPL]; SDList = SDList + [SDPL]
                 avgAC = np.mean(AC[spw_index][ant_index, :, pol_index], axis=0)
-                plotAC = 10.0* np.log10(avgAC )
+                plotAC = 10.0* np.log10(avgAC)
                 chNum = len(plotAC)
                 chRange = range( int(chNum*0.06), int(chNum* 0.96))
                 maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
