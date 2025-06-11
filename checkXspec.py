@@ -140,8 +140,9 @@ for spw_index in range(spwNum):
     figSPW.text(0.1, 0.05, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/checkXspec.py to generate this plot', fontsize=fontSize)
     plt.show()
     pngFile = 'PS_%s_Scan%d_SPW%d' % (prefix, BPscan, spwList[spw_index])
-    pdfFile = pngFile + '.pdf'
-    figSPW.savefig(pdfFile, format='pdf', dpi=144)
+    #pdfFile = pngFile + '.pdf'
+    figSPW.savefig(pngFile + '.png', format='png', dpi=72)
+    #figSPW.savefig(pdfFile, format='pdf', dpi=144)
     plt.close('all')
-    os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
+    #os.system('pdftoppm -png %s %s' % (pdfFile, pngFile))
 #
