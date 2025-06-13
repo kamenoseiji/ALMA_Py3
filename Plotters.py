@@ -213,18 +213,19 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 plotAC = 10.0* np.log10(avgAC)
                 chNum = len(plotAC)
                 chRange = range( int(chNum*0.06), int(chNum* 0.96))
-                maxAC, minAC, maxFreq = np.max(plotAC), np.min(plotAC), Freq[np.argmax(plotAC)]
+                #chRange = range( int(chNum*0.35), int(chNum* 0.55))
+                maxAC, minAC, maxFreq = np.max(plotAC[chRange]), np.min(plotAC[chRange]), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
-                plotMax, plotMin = maxAC + 1.0,  minAC - 1.0
+                plotMax, plotMin = maxAC + 0.1,  minAC - 0.1
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 118.0
                 if spw_index == 0 and pol_index == 0: ACPL.text(1.2* np.min(Freq) - 0.2* np.max(Freq), 1.3*plotMax - 0.3* plotMin, antList[ant_index], fontsize=10)
-                ACPL.axis([np.min(Freq), np.max(Freq), plotMin, 1.1* plotMax - 0.1* plotMin])
+                ACPL.axis([np.min(Freq[chRange]), np.max(Freq[chRange]), plotMin, 1.1* plotMax - 0.1* plotMin])
                 ACPL.tick_params(axis='both', labelsize=6)
                 ACPL.set_xticklabels([])
                 ACPL.text( np.min(Freq), 1.2*plotMax - 0.2*plotMin, 'AC SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
                 ACPL.text( np.min(Freq), 1.12*plotMax - 0.12*plotMin, text_sd, fontsize=7)
-                ACPL.step(Freq, plotAC, where='mid')
+                ACPL.step(Freq[chRange], plotAC[chRange], where='mid')
                 #
                 plotSD = 10.0* np.log10(np.std(AC[spw_index][ant_index, :, pol_index]/avgAC, axis=0))
                 maxSD, minSD, maxFreq = np.max(plotSD[chRange]), np.min(plotSD[chRange]), Freq[np.argmax(plotSD)]
@@ -233,15 +234,16 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 if maxSD > -30.0: bgcolor = 'orange'
                 if maxSD > -20.0: bgcolor = 'red'
                 #plotMax, plotMin = max(-20.0, maxSD), min(-40.0, minSD)
-                plotMax, plotMin = max(-20.0, maxSD), min(-20.0, minSD)
-                SDPL.axis([np.min(Freq), np.max(Freq), 1.05*plotMin - 0.05*plotMax, 1.05*plotMax - 0.05*plotMin])
+                #plotMax, plotMin = max(-20.0, maxSD), min(-20.0, minSD)
+                plotMax, plotMin = maxSD, minSD
+                SDPL.axis([np.min(Freq[chRange]), np.max(Freq[chRange]), 1.05*plotMin - 0.05*plotMax, 1.05*plotMax - 0.05*plotMin])
                 SDPL.axhspan(ymin=-30.0, ymax=plotMax, color=bgcolor, alpha=0.1) 
                 SDPL.tick_params(axis='both', labelsize=6)
                 SDPL.get_xaxis().get_major_formatter().set_useOffset(False)
                 if pol_index == 0: SDPL.set_xticklabels([])
                 SDPL.text( np.min(Freq), 1.16* plotMax - 0.16*plotMin, 'SD SPW=%d Pol-%s' % (spwList[spw_index], polName[pol_index]), fontsize=7)
                 SDPL.text( np.min(Freq), 1.08* plotMax - 0.08*plotMin, text_sd, fontsize=7)
-                SDPL.step(Freq, plotSD, where='mid')
+                SDPL.step(Freq[chRange], plotSD[chRange], where='mid')
             #
         #
         figAnt.savefig(pp, format='pdf')

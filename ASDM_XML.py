@@ -3,14 +3,6 @@
 import xml.etree.ElementTree as ET
 import numpy as np
 from interferometry import indexList
-
-'''
-def indexList( refArray, motherArray ):     # Compare two arrays and return matched index
-    IL = []
-    for currentItem in refArray: IL = IL + np.where( motherArray == currentItem )[0].tolist()
-    return IL
-#
-'''
 def CheckCorr( ASDM ):
     Corr_XML = ASDM + '/CorrelatorMode.xml'
     tree = ET.parse(Corr_XML)
@@ -35,12 +27,13 @@ def BandList( ASDM ):
     #
     return list(set(RXList))
 #
+'''
 def BBLOfreq( ASDM ):
     #-------- BB-SPWID connection
     SPW_XML = ASDM + '/' + 'SpectralWindow.xml'
     tree = ET.parse(SPW_XML)
     root = tree.getroot()
-    spwList, BBList, spwIDList = [], [], []
+    spwList, BBList, bandNameList, spwIDList = [], [], [], []
     for row in root.findall('row'):
         #---- Check by BB name
         for BBID in row.findall('basebandName'): BBname = BBID.text
@@ -53,12 +46,17 @@ def BBLOfreq( ASDM ):
         for spwID in row.findall('spectralWindowId'): spw = int(spwID.text.split('_')[1])
         BBList = BBList + [BBindex]
         spwList = spwList + [spw]
+        for name in row.findall('name'): bandName = 'RB_' + name.text.split('RB_')[1][0:2]
+        bandNameList = bandNameList + [bandName]
     #
     UniqBBList = sorted(set(BBList), key=BBList.index) 
-    for BB in UniqBBList: spwIDList = spwIDList + [spwList[max(indexList(np.array([UniqBBList[BB]]), np.array(BBList)))]]
+    #for BB in UniqBBList: spwIDList = spwIDList + [spwList[max(indexList(np.array([UniqBBList[BB]]), np.array(BBList)))]]
     #
     #-------- Check LO frequencies 
-    spwNum = len(spwIDList)
+    for bandName in set(bandNameList):
+
+
+    #spwNum = len(spwIDList)
     RB_XML = ASDM + '/' + 'Receiver.xml'
     tree = ET.parse(RB_XML)
     root = tree.getroot()
@@ -86,6 +84,7 @@ def BBLOfreq( ASDM ):
     #
     return LO1, LO2.tolist(), sideBandSign
 #
+'''
 def SourceList( ASDM ):
     SrcList, PosList,  = [], []
     SRC_XML = ASDM + '/' + 'Source.xml'
