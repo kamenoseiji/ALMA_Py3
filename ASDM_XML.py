@@ -27,49 +27,50 @@ def BandList( ASDM ):
     #
     return list(set(RXList))
 #
-'''
 def BBLOfreq( ASDM ):
     #-------- BB-SPWID connection
     SPW_XML = ASDM + '/' + 'SpectralWindow.xml'
     tree = ET.parse(SPW_XML)
     root = tree.getroot()
-    spwList, BBList, bandNameList, spwIDList = [], [], [], []
+    spwList = []
+    spwDic  = dict(zip(spwList, [[]]*len(spwList))) # Dictionary for spw info
+    #-------- SPWs with full resolution
     for row in root.findall('row'):
         #---- Check by BB name
         for BBID in row.findall('basebandName'): BBname = BBID.text
         if BBname == 'NOBB': continue
         BBindex = int(BBname.split('_')[1]) - 1
-        #---- Check by SPW name
+        #---- Check by SPW ID
         for spwName in row.findall('name'): SPWname = spwName.text
         if 'FULL_RES' not in SPWname: continue
-        #---- Check SPWID
         for spwID in row.findall('spectralWindowId'): spw = int(spwID.text.split('_')[1])
-        BBList = BBList + [BBindex]
-        spwList = spwList + [spw]
+        #---- Check by Band name
         for name in row.findall('name'): bandName = 'RB_' + name.text.split('RB_')[1][0:2]
-        bandNameList = bandNameList + [bandName]
+        for freq in row.findall('refFreq'): refFreq = float(freq.text)
+        spwDic[spw] = {
+            'Band'   : bandName,
+            'BB'     : BBindex,
+            'refFreq': refFreq
+        }
     #
-    UniqBBList = sorted(set(BBList), key=BBList.index) 
-    #for BB in UniqBBList: spwIDList = spwIDList + [spwList[max(indexList(np.array([UniqBBList[BB]]), np.array(BBList)))]]
-    #
-    #-------- Check LO frequencies 
-    for bandName in set(bandNameList):
-
-
-    #spwNum = len(spwIDList)
     RB_XML = ASDM + '/' + 'Receiver.xml'
     tree = ET.parse(RB_XML)
     root = tree.getroot()
-    LO2  = np.zeros(spwNum)
-    sideBandSign = [1]* len(UniqBBList)
+    #LO2  = np.zeros(spwNum)
+    #sideBandSign = [1]* len(UniqBBList)
     for row in root.findall('row'):
         #-------- Avoid WVR and SQLD
         for sideBand in row.findall('receiverSideband'): SBname = sideBand.text
         if 'NOSB' not in SBname: continue
         #-------- Identify BB from SPWID
-        for spwID in row.findall('spectralWindowId'):
-            spwIDnumber = int(spwID.text.split('_')[1])    
-            if spwIDnumber in spwIDList:
+        for spwID in row.findall('spectralWindowId'): spwIDnumber = int(spwID.text.split('_')[1])    
+        for freqBAND in row.findall('frequencyBand'): BandID = int(freqBAND.text.split('_')[-1])
+        for freqLO in row.findall('freqLO'): LO1, LO2, LO3 = float(freqLO[0].text.split()[-3]), float(freqLO[0].text.split()[-2]),float(freqLO[0].text.split()[-1])
+        for SB in row.findall('sidebandLO'): SB1, SB2, SB3 = float(SB.text.split())
+
+        if spwIDnumber in spwDic.keys():
+                    print('spwIDnumber=%d Band=%d' % (spwIDnumber, BandID))
+                '''
                 BB_index = spwIDList.index(spwIDnumber)
                 for freq in row.findall('freqLO'):
                     freqList = freq.text.split()
@@ -79,6 +80,7 @@ def BBLOfreq( ASDM ):
                         if sideBand.text.split()[2] == 'LSB': sideBandSign[BB_index] = -1
                     #
                 #
+                '''
             #
         #
     #
