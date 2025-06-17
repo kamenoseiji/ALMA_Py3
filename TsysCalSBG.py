@@ -21,7 +21,7 @@ import numpy as np
 from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
-from ASDM_XML import BandList, BBLOfreq
+from ASDM_XML import SPW_FULL_RES
 '''
 from optparse import OptionParser
 parser = OptionParser()
@@ -52,8 +52,7 @@ SunAngleTsysLimit = 5.0 # [deg]
 if 'PLOTTAU'  not in locals(): PLOTTAU  = False
 if 'PLOTTSYS' not in locals(): PLOTTSYS = False
 if 'ONTAU' not in locals(): ONTAU = False   # on-source real-time optical depth correction using channel-averaged autocorr power
-LO1, LO2, SBsign = BBLOfreq(prefix)
-a=1/0
+SPWdic = SPW_FULL_RES(prefix)
 #-------- Check MS file
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
@@ -73,8 +72,9 @@ if 'atmSPWs' not in locals():
     atmSPWs = list(set(bpSPWs) & set(atmSPWs)) if len(set(bpSPWs) & set(atmSPWs)) > 3 else atmSPWs
     atmSPWs.sort()
 atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames))
-if UniqBands == []: UniqBands = BandList(prefix)
+if UniqBands == []: UniqBands = [SPWdic[spw]['Band'] for spw in SPWdic.keys()]
 NumBands = len(UniqBands)
+a=1/0
 msmd.open(msfile)
 spwNameList = msmd.namesforspws()
 atmspwLists, atmscanLists, SQLDspwLists, CHAVspwLists, OnScanLists = [], [], [], [], []

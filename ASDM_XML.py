@@ -1,10 +1,10 @@
-# Module to read XML file in ASDM
+# Module to read XML file in prefix
 #
 import xml.etree.ElementTree as ET
 import numpy as np
 from interferometry import indexList
-def CheckCorr( ASDM ):
-    Corr_XML = ASDM + '/CorrelatorMode.xml'
+def CheckCorr( prefix ):
+    Corr_XML = prefix + '/CorrelatorMode.xml'
     tree = ET.parse(Corr_XML)
     root = tree.getroot()
     for row in root.findall('row'):
@@ -13,11 +13,11 @@ def CheckCorr( ASDM ):
     #
     return CorrName
 #
-def BandList( ASDM ):
+def BandList( prefix ):
     KEY_ALMA ='ALMA_RB'
     RXList = []
     #-------- Check Receiver bands
-    RB_XML = ASDM + '/' + 'Receiver.xml'
+    RB_XML = prefix + '/' + 'Receiver.xml'
     tree = ET.parse(RB_XML)
     root = tree.getroot()
     for row in root.findall('row'):
@@ -27,9 +27,10 @@ def BandList( ASDM ):
     #
     return list(set(RXList))
 #
-def BBLOfreq( ASDM ):
+def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
+    SBsign = {'LSB': -1, 'USB':+1, 'DSB':1}
     #-------- BB-SPWID connection
-    SPW_XML = ASDM + '/' + 'SpectralWindow.xml'
+    SPW_XML = prefix + '/' + 'SpectralWindow.xml'
     tree = ET.parse(SPW_XML)
     root = tree.getroot()
     spwList = []
@@ -37,59 +38,53 @@ def BBLOfreq( ASDM ):
     #-------- SPWs with full resolution
     for row in root.findall('row'):
         #---- Check by BB name
-        for BBID in row.findall('basebandName'): BBname = BBID.text
+        for entry in row.findall('basebandName'): BBname = entry.text
         if BBname == 'NOBB': continue
         BBindex = int(BBname.split('_')[1]) - 1
         #---- Check by SPW ID
-        for spwName in row.findall('name'): SPWname = spwName.text
+        for entry in row.findall('name'): SPWname = entry.text
         if 'FULL_RES' not in SPWname: continue
-        for spwID in row.findall('spectralWindowId'): spw = int(spwID.text.split('_')[1])
+        for entry in row.findall('spectralWindowId'): spw = int(entry.text.split('_')[1])
         #---- Check by Band name
-        for name in row.findall('name'): bandName = 'RB_' + name.text.split('RB_')[1][0:2]
-        for freq in row.findall('refFreq'): refFreq = float(freq.text)
+        for entry in row.findall('name'): bandName = 'RB_' + entry.text.split('RB_')[1][0:2]
+        for entry in row.findall('numChan'): chNum   = int(entry.text)
+        for entry in row.findall('refFreq'): refFreq = float(entry.text)
+        for entry in row.findall('totBandwidth'): BW = float(entry.text)
+        for entry in row.findall('chanFreqStart'): ch0 = float(entry.text)
+        for entry in row.findall('chanWidth'): chWidth = float(entry.text)
         spwDic[spw] = {
             'Band'   : bandName,
             'BB'     : BBindex,
-            'refFreq': refFreq
+            'chNum'  : chNum,
+            'refFreq': refFreq,
+            'BW'     : BW,
+            'ch0'    : ch0,
+            'chWidth': chWidth
         }
     #
-    RB_XML = ASDM + '/' + 'Receiver.xml'
+    RB_XML = prefix + '/' + 'Receiver.xml'
     tree = ET.parse(RB_XML)
     root = tree.getroot()
-    #LO2  = np.zeros(spwNum)
-    #sideBandSign = [1]* len(UniqBBList)
     for row in root.findall('row'):
         #-------- Avoid WVR and SQLD
-        for sideBand in row.findall('receiverSideband'): SBname = sideBand.text
+        for entry in row.findall('receiverSideband'): SBname = entry.text
         if 'NOSB' not in SBname: continue
         #-------- Identify BB from SPWID
-        for spwID in row.findall('spectralWindowId'): spwIDnumber = int(spwID.text.split('_')[1])    
-        for freqBAND in row.findall('frequencyBand'): BandID = int(freqBAND.text.split('_')[-1])
-        for freqLO in row.findall('freqLO'): LO1, LO2, LO3 = float(freqLO[0].text.split()[-3]), float(freqLO[0].text.split()[-2]),float(freqLO[0].text.split()[-1])
-        for SB in row.findall('sidebandLO'): SB1, SB2, SB3 = float(SB.text.split())
-
-        if spwIDnumber in spwDic.keys():
-                    print('spwIDnumber=%d Band=%d' % (spwIDnumber, BandID))
-                '''
-                BB_index = spwIDList.index(spwIDnumber)
-                for freq in row.findall('freqLO'):
-                    freqList = freq.text.split()
-                    LO1 = float(freqList[2])
-                    LO2[BB_index] = float(freqList[3])
-                    for sideBand in row.findall('sidebandLO'):
-                        if sideBand.text.split()[2] == 'LSB': sideBandSign[BB_index] = -1
-                    #
-                #
-                '''
-            #
-        #
+        for entry in row.findall('frequencyBand'): BandID = int(entry.text.split('_')[-1])
+        for entry in row.findall('freqLO'): LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
+        for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
+        refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
+        spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
+        if len(spwList) > 0:
+            spw = spwList[0]
+            spwDic[spw]['LO1'], spwDic[spw]['LO2'], spwDic[spw]['LO3'] = LO1, LO2, LO3
+            spwDic[spw]['SB1'], spwDic[spw]['SB2'], spwDic[spw]['SB3'] = SB1, SB2, SB3
     #
-    return LO1, LO2.tolist(), sideBandSign
+    return spwDic
 #
-'''
-def SourceList( ASDM ):
+def SourceList( prefix ):
     SrcList, PosList,  = [], []
-    SRC_XML = ASDM + '/' + 'Source.xml'
+    SRC_XML = prefix + '/' + 'Source.xml'
     tree = ET.parse(SRC_XML)
     root = tree.getroot()
     for row in root.findall('row'):
@@ -99,11 +94,11 @@ def SourceList( ASDM ):
     #
     return SrcList, PosList
 #
-def PolScan( ASDM ):
+def PolScan( prefix ):
     scanList, SrcList, STList, ETList = [], [], [], []
     KEY_ALMA ='CALIBRATE_POLARIZATION'
     #-------- Check Scan XML
-    SC_XML = ASDM + '/' + 'Scan.xml'
+    SC_XML = prefix + '/' + 'Scan.xml'
     tree = ET.parse(SC_XML)
     root = tree.getroot()
     for row in root.findall('row'):

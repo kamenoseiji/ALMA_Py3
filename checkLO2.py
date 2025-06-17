@@ -1,125 +1,26 @@
 import sys
 import subprocess
 from scipy import stats
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ptick
-from matplotlib.backends.backend_pdf import PdfPages
-wd = './'
-exec(open(SCR_DIR + 'interferometry.py').read())
-exec(open(SCR_DIR + 'ASDM_XML.py').read())
-BPPLOT   = True
-msfile = prefix + '.ms'
-polName = ['X', 'Y']
+from ASDM_XML import SPW_FULL_RES
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option('-u', dest='prefix', metavar='prefix',
+    help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+(options, args) = parser.parse_args()
+prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
-LO1, LO2List, SBsign = BBLOfreq(prefix)
-BBNum = len(LO2List)
-text_sd = 'LO1 %.6f GHz' % (LO1* 1.0e-9); spurLog.write(text_sd + '\n')
-for BB_index in list(range(BBNum)):
-    text_sd = 'BB %d %+d %.6f GHz' % (BB_index, SBsign[BB_index], LO2List[BB_index]* 1.0e-9); spurLog.write(text_sd + '\n')
+SPWdic = SPW_FULL_RES(prefix)
+text_sd = 'SPW Band  BB   LO1 [GHz]  LO2 [GHz]  RF_range [GHz] '; print(text_sd) ; spurLog.write(text_sd + '\n') 
+text_sd = '----------------------------------------------------'; print(text_sd) ; spurLog.write(text_sd + '\n') 
+for spw_index, spw in enumerate(SPWdic.keys()):
+    LO1, RF_S, RF_E = SPWdic[spw]['LO1'], SPWdic[spw]['ch0']*1.0e-9, (SPWdic[spw]['ch0'] + SPWdic[spw]['SB1']*SPWdic[spw]['SB2']*SPWdic[spw]['SB3']*SPWdic[spw]['chNum']* SPWdic[spw]['chWidth'])*1.0e-9
+    text_sd = '%02d  %s BB%d  %10.6f %9.6f [%7.3f - %7.3f] ' % (spw, SPWdic[spw]['Band'], SPWdic[spw]['BB']+1, SPWdic[spw]['LO1']* 1.0e-9, SPWdic[spw]['LO2']*1.0e-9, RF_S, RF_E)
+    #-------- Possible LO2 leakage
+    for anotherSPW in SPWdic.keys():
+        if LO1 != SPWdic[anotherSPW]['LO1']: continue
+        LO2inRF = SPWdic[anotherSPW]['SB2']* SPWdic[anotherSPW]['SB3']* SPWdic[anotherSPW]['LO1'] - SPWdic[anotherSPW]['SB1']* SPWdic[anotherSPW]['SB3']* SPWdic[anotherSPW]['LO2']
+        if (LO2inRF - RF_S)* (LO2inRF - RF_E) < 0: text_sd = text_sd + ' Spurious at RF=%10.6f GHz' % (LO2inRF)
 #
-SpuriousRFLists = []
-#-------- Predicted RF frequencies of spurious signals
-for BBIndex1 in list(range(BBNum)):
-    SpuriousRFList = []
-    for BBIndex2 in list(set(range(BBNum)) - set([BBIndex1])):
-        SpuriousRFList = SpuriousRFList + [ LO1 + LO2List[BBIndex1] - abs(LO2List[BBIndex2] - LO2List[BBIndex1]) ] # for USB
-        SpuriousRFList = SpuriousRFList + [ LO1 - LO2List[BBIndex1] + abs(LO2List[BBIndex2] - LO2List[BBIndex1]) ] # for LSB
-    #
-    SpuriousRFLists = SpuriousRFLists + [SpuriousRFList]
-#
-#-------- Check Bandpass SPWs and scans
-msmd.open(msfile)
-BPScanList = msmd.scansforintent("CALIBRATE_BANDPASS*").tolist()
-BPspwList  = list((set(msmd.fdmspws()) | set(msmd.tdmspws()) ) & set(msmd.spwsforintent("CALIBRATE_BANDPASS*")))
-if len(BPspwList) == 0: BPspwList  = list((set(msmd.fdmspws()) | set(msmd.tdmspws()) ) & set(msmd.spwsforintent("OBSERVE_TARGET*")))
-if 'spwFlag' in locals():
-    flagIndex = indexList(np.array(spwFlag), np.array(BPspwList))
-    for index in flagIndex: del BPspwList[index]
-#
-spwNum = len(BPspwList)
-#-------- Check BB for SPW
-BPspwNameList = msmd.namesforspws(BPspwList)
-BBspwList = list(range(spwNum))
-for spw_index in list(range(spwNum)):
-    BBspwList[spw_index] = int([BBname for BBname in BPspwNameList[spw_index].split('#') if 'BB_' in BBname][0].split('_')[1]) - 1
-#
-#-------- Check antenna List
-antList = GetAntName(msfile)
-antNum = len(antList)
-antDia = np.ones(antNum)
-for ant_index in list(range(antNum)): antDia[ant_index] = msmd.antennadiameter(antList[ant_index])['value']
-pPol = [0,1]
-polNum = msmd.ncorrforpol(msmd.polidfordatadesc(BPspwList[0]))
-if polNum == 4: pPol = [0, 3]
-msmd.close()
-#-------- Check frequency range of each SPW
-spurSPWList, spurRFLists = [], []
-for spwIndex in list(range(spwNum)):
-    BB_index = BBspwList[spwIndex]
-    chNum, chWid, freq = GetChNum(msfile, BPspwList[spwIndex])
-    np.save('%s-SPW%d-Freq.npy' % (prefix, BPspwList[spwIndex]), freq)
-    spurFlag = False
-    spurRFList = []
-    for SpurRF in SpuriousRFLists[BB_index]:
-        if SpurRF > min(freq) and SpurRF < max(freq):
-            spurFlag = True
-            spurRFList = spurRFList + [SpurRF]
-            text_sd = 'SPW %d : BB %d : BW=%.1f - %.1f : LO2@ %.3f GHz' % (BPspwList[spwIndex], BB_index, min(freq)*1.0e-9, max(freq)*1.0e-9, SpurRF*1.0e-9)
-            spurLog.write(text_sd + '\n'); print(text_sd)
-        #
-    #
-    if spurFlag:
-        spurSPWList = spurSPWList + [BPspwList[spwIndex]]
-        spurRFLists = spurRFLists + [list(set(spurRFList))]
-    #
-#-------- check usable antennas
-'''
-if 'antFlag' not in locals(): antFlag = []
-if len(spurSPWList) == 0:
-    print 'No LO2 leakages'
-else:
-    spwList = spurSPWList
-    BPscan  = BPScanList[0]
-    flagAnt = np.ones([antNum])
-    for spw_index in range(len(spwList)):
-        #-------- Checking usable baselines and antennas
-        timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spwList[spw_index], BPscan)
-        timeNum, chNum, blNum = Xspec.shape[3], Xspec.shape[1], Xspec.shape[2]; chRange, timeRange = range(int(0.05*chNum), int(0.95*chNum)), range(timeNum-4, timeNum-3)
-        for polID in pPol:
-            blD, blA = np.apply_along_axis(delay_search, 0, np.mean(Xspec[polID][chRange][:,:,timeRange], axis=2))
-            blA = blA / np.sqrt(antDia[ANT0[0:blNum]]* antDia[ANT1[0:blNum]])
-            errD = np.where(abs(blD - np.median(blD)) > 4.0)[0].tolist()
-            errA = np.where(blA / np.median(blA) > 2.5)[0].tolist() + np.where(blA / np.median(blA) < 0.4)[0].tolist()
-            errCount = np.zeros(antNum)
-            for bl in set(errD) or set(errA): errCount[ list(Bl2Ant(bl)) ] += 1
-            flagAnt[np.where(errCount > 2.5 )[0].tolist()] *= 0.0
-        #
-    #
-    UseAnt = np.where(flagAnt > 0.0)[0]; UseAntNum = len(UseAnt); UseBlNum  = UseAntNum* (UseAntNum - 1) / 2
-    print `UseAntNum` + ' / ' + `antNum` + ' usable antennas'
-    flagAntList = np.where(flagAnt < 0.1)[0].tolist()
-    antFlag = list(set(antFlag + antList[flagAntList].tolist()))
-    #-------- antenna-based Bandpass
-    execfile(SCR_DIR + 'checkBP.py')
-    #-------- check Spur SNR
-    for spw_index in range(len(spwList)):
-        chNum, chWid, Freq = GetChNum(msfile, spwList[spw_index])
-        for spurRF in spurRFLists[spw_index]:
-            spurCH = np.where( abs(Freq - spurRF) < abs(np.median(chWid)))[0].tolist()
-            spurBL = range(max(spurCH + [17]) - 17, max(spurCH + [3]) - 3) + range(min(spurCH + [chNum-3]) + 3, min(spurCH + [chNum-16]) + 16)
-            for ant_index in range(UseAntNum):
-                for pol_index in range(2):
-                    BPmean, BPsigma = np.mean(abs(BPList[spw_index][ant_index, pol_index][spurBL])), np.std(abs(BPList[spw_index][ant_index, pol_index][spurBL]))
-                    SNR =  abs(abs(BPList[spw_index][ant_index, pol_index][spurCH]) - BPmean) / (BPsigma + 1.0e-8)
-                    if max(SNR) > 3.0:
-                        text_sd = 'Spur %s SPW=%d POL-%s %.3f GHz (SNR = %.1f)' % (antList[UseAnt[ant_index]], spwList[spw_index], polName[pol_index], 1.0e-9* spurRF, max(SNR))
-                        spurLog.write(text_sd + '\n'); print text_sd
-                    #
-                #
-            #
-        #
-    #
-#
-'''
+    print(text_sd) ; spurLog.write(text_sd + '\n')
 spurLog.close()
