@@ -67,10 +67,14 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
     root = tree.getroot()
     for row in root.findall('row'):
         #-------- Avoid WVR and SQLD
+        for entry in row.findall('name'): spwName = entry.text
+        if 'WVR' in spwName : continue
         for entry in row.findall('receiverSideband'): SBname = entry.text
         if 'NOSB' not in SBname: continue
         #-------- Identify BB from SPWID
-        for entry in row.findall('frequencyBand'): BandID = int(entry.text.split('_')[-1])
+        for entry in row.findall('frequencyBand'):
+            if '_' not in entry.text: continue
+            BandID = int(entry.text.split('_')[-1]) 
         for entry in row.findall('freqLO'): LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
         for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
         refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
