@@ -1,5 +1,6 @@
 # Module to read XML file in prefix
 #
+import os
 import xml.etree.ElementTree as ET
 import numpy as np
 from interferometry import indexList
@@ -51,7 +52,8 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         for entry in row.findall('refFreq'): refFreq = float(entry.text)
         for entry in row.findall('totBandwidth'): BW = float(entry.text)
         for entry in row.findall('chanFreqStart'): ch0 = float(entry.text)
-        for entry in row.findall('chanWidth'): chWidth = float(entry.text)
+        for entry in row.findall('chanFreqStep'): chanFreqStep = float(entry.text)
+        for entry in row.findall('refChan'): refChan = float(entry.text)
         spwDic[spw] = {
             'Band'   : bandName,
             'BB'     : BBindex,
@@ -59,7 +61,8 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
             'refFreq': refFreq,
             'BW'     : BW,
             'ch0'    : ch0,
-            'chWidth': chWidth
+            'chStep' : chanFreqStep,
+            'refChan': refChan
         }
     #
     RB_XML = prefix + '/' + 'Receiver.xml'
@@ -70,7 +73,7 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         for entry in row.findall('name'): spwName = entry.text
         if 'WVR' in spwName : continue
         for entry in row.findall('receiverSideband'): SBname = entry.text
-        if 'NOSB' not in SBname: continue
+        if 'NOSB' not in SBname and 'TSB' not in SBname: continue
         #-------- Identify BB from SPWID
         for entry in row.findall('frequencyBand'):
             if '_' not in entry.text: continue
@@ -78,14 +81,28 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         for entry in row.findall('freqLO'): LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
         for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
         refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
+        for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
         spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
-        if len(spwList) > 0:
-            spw = spwList[0]
-            spwDic[spw]['LO1'], spwDic[spw]['LO2'], spwDic[spw]['LO3'] = LO1, LO2, LO3
-            spwDic[spw]['SB1'], spwDic[spw]['SB2'], spwDic[spw]['SB3'] = SB1, SB2, SB3
+        if spwID in spwList:
+            spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
+            spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
     #
     return spwDic
 #
+def spwIDMS(spwDic, msfile):
+    from casatools import msmetadata as msmdtool
+    msmd = msmdtool()
+    if not os.path.isdir(msfile): return spwDic
+    msmd.open(msfile)
+    spwsMS = list(set(msmd.tdmspws()) | set(msmd.fdmspws()))
+    spwsMS.sort()
+    for spw in spwsMS:
+        BBid = msmd.baseband(spw)
+        refFreqMS = msmd.reffreq(spw)['m0']['value']
+        asdmSPWs = [asdmSPW for asdmSPW in spwDic.keys() if spwDic[asdmSPW]['BB'] == BBid - 1 and spwDic[asdmSPW]['refFreq'] == refFreqMS]
+        if len(asdmSPWs) == 1: spwDic[spw] = spwDic.pop(asdmSPWs[0])
+    msmd.close()
+    return spwDic
 def SourceList( prefix ):
     SrcList, PosList,  = [], []
     SRC_XML = prefix + '/' + 'Source.xml'

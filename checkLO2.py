@@ -1,16 +1,23 @@
 import sys
 import subprocess
 from scipy import stats
-from ASDM_XML import SPW_FULL_RES
+from ASDM_XML import SPW_FULL_RES, spwIDMS
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+'''
+prefix = 'uid___A002_X12915b7_X80c4'
+'''
 spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
 SPWdic = SPW_FULL_RES(prefix)
+#-------- Reconfigure SPWs in MS
+msfile = prefix + '.ms'
+if os.path.isdir(msfile): SPWdic = spwIDMS(SPWdic, msfile)
+#
 text_sd = 'SPW Band  BB   LO1 [GHz]  LO2 [GHz]  RF_range [GHz] '; print(text_sd) ; spurLog.write(text_sd + '\n') 
 text_sd = '----------------------------------------------------'; print(text_sd) ; spurLog.write(text_sd + '\n') 
 for spw_index, spw in enumerate(SPWdic.keys()):
