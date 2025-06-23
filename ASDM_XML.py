@@ -101,6 +101,8 @@ def spwIDMS(spwDic, msfile):
         refFreqMS = msmd.reffreq(spw)['m0']['value']
         asdmSPWs = [asdmSPW for asdmSPW in spwDic.keys() if spwDic[asdmSPW]['BB'] == BBid - 1 and spwDic[asdmSPW]['refFreq'] == refFreqMS]
         if len(asdmSPWs) == 1: spwDic[spw] = spwDic.pop(asdmSPWs[0])
+    for spw in spwDic.keys():
+        spwDic[spw]['scanList'] = msmd.scansforspw(spw).tolist() 
     msmd.close()
     return spwDic
 def SourceList( prefix ):
