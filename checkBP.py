@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+from ASDM_XML import SPW_FULL_RES, spwIDMS
 from Plotters import plotXYP, plotBP, plotSP
 from optparse import OptionParser
 parser = OptionParser()
@@ -15,7 +16,7 @@ parser.add_option('-a', dest='antFlag', metavar='antFlag',
 parser.add_option('-b', dest='bunchNum', metavar='bunchNum',
     help='Channel binning', default='1')
 parser.add_option('-c', dest='scanList', metavar='scanList',
-    help='Scan List  e.g. 3,6', default='3')
+    help='Scan List  e.g. 3,6', default='')
 parser.add_option('-f', dest='FG', metavar='FG',
     help='Apply flagging', action="store_true")
 parser.add_option('-m', dest='plotMin', metavar='plotMin', type="float",
@@ -33,7 +34,7 @@ parser.add_option('-R', dest='refant', metavar='refant',
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 antFlag = [ant for ant in options.antFlag.split(',')]
-scanList  = [int(scan) for scan in options.scanList.split(',')]
+scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 bunchNum=  int(options.bunchNum)
 spwList = [] if options.spwList == '' else [int(spw) for spw in options.spwList.split(',')]
 plotMin = options.plotMin
@@ -41,19 +42,21 @@ plotMax = options.plotMax
 BPPLOT  = options.BPPLOT
 FG      = options.FG
 refant  = options.refant
-#-------- spwList
-def spwListForBandpass( msfile, scan ):
-    msmd.open(msfile)
-    scanSPWs    = msmd.spwsforscan(scan)
-    fullResSPWs = msmd.tdmspws().tolist() + msmd.fdmspws().tolist()
-    msmd.close()
-    spwList = list(set(scanSPWs) & set(fullResSPWs))
-    spwList.sort()
-    return spwList
 #-------- Procedures
 msfile = prefix + '.ms'
-refSPW = spwListForBandpass(msfile, scanList[0])[0] if spwList == [] else spwList[0]
-Antenna1, Antenna2 = GetBaselineIndex(msfile, refSPW, scanList[0])
+SPWdic = SPW_FULL_RES(prefix)
+if os.path.isdir(msfile): SPWdic = spwIDMS(SPWdic, msfile)
+if len(spwList) == 0:   # Use all available spws
+    spwList = [spw for spw in SPWdic.keys() if SPWdic[spw]['chNum'] > 4 and len(SPWdic[spw]['scanList']) > 0]
+#
+if len(scanList) == 0:  # Use all available scans
+    for spw in spwList: scanList = scanList + SPWdic[spw]['scanList']
+    scanList = list(set(scanList)); scanList.sort()
+#
+refSPW = spwList[0]
+Antenna1, Antenna2 = GetBaselineIndex(msfile, refSPW, SPWdic[refSPW]['scanList'][0])
+#refSPW = spwListForBandpass(msfile, scanList[0])[0] if spwList == [] else spwList[0]
+#Antenna1, Antenna2 = GetBaselineIndex(msfile, refSPW, scanList[0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
 antList = GetAntName(msfile)[UseAntList]
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
@@ -64,9 +67,7 @@ UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBl
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 if refant not in antList[UseAnt]: refant = ''
 if refant == '':
-    #ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
-    #for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-    timeStamp, UVW = GetUVW(msfile, refSPW, scanList[0])
+    timeStamp, UVW = GetUVW(msfile, refSPW, SPWdic[refSPW]['scanList'][0])
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist)
 else:
@@ -84,7 +85,8 @@ print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 print('---Generating antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
 for BPscan in scanList:
-    spws = spwListForBandpass(msfile, BPscan) if spwList == [] else spwList
+    #spws = spwListForBandpass(msfile, BPscan) if spwList == [] else spwList
+    spws = [spw for spw in spwList if BPscan in SPWdic[spw]['scanList']]
     FreqList, BPList, XYList, XYdelayList = [], [], [], []
     for spw_index, spw in enumerate(spws):
         if FG:  # Flag table
