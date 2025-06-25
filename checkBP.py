@@ -1,5 +1,6 @@
 #---- Script for Band-3 Astroholograpy Data
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
@@ -33,6 +34,12 @@ parser.add_option('-R', dest='refant', metavar='refant',
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+if not os.path.isdir(prefix): os.system('asdmExport %s' % (prefix))
+if not os.path.isdir(prefix + '.ms'):
+    if not os.path.isdir(prefix):
+        os.system('rm -rf %s.ms' % (prefix))
+        os.system('asdmExport %s' % (prefix))
+    importasdm(prefix)
 antFlag = [ant for ant in options.antFlag.split(',')]
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 bunchNum=  int(options.bunchNum)
@@ -101,13 +108,13 @@ for BPscan in scanList:
         #
         BPList = BPList + [BP_ant]
         XYList = XYList + [XY_BP]
-        XYdelayList = XYdelayList + [XYD]
         chNum, chWid, Freq = GetChNum(msfile, spw)
         chNum, chWid, Freq = int(chNum / bunchNum), chWid* bunchNum, bunchVec(Freq, bunchNum)
         np.save('%s-SPW%d-Freq.npy' % (prefix, spw), Freq) 
         FreqList = FreqList + [Freq]
         BW = chNum* np.median(chWid)    # Bandwidth
-        print('SPW%2d: [%s] XY delay = %+f [ns] : SNR = %f' % (spw, SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
+        XYdelayList = XYdelayList + [0.5e9* XYD / BW]
+        print('Scan%2d SPW%2d: [%s] XY delay = %+.3f [ns] : SNR = %.1f' % (BPscan, spw, SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr))
     #
     ppolNum = BPList[0].shape[1]
     PolList = ['X', 'Y']
@@ -123,7 +130,7 @@ for BPscan in scanList:
     if BPPLOT:
         if XYsnr > 0.0:
             pp = PdfPages('XYP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
-            plotXYP(pp, prefix, spws, XYList, bunchNum) 
+            plotXYP(pp, prefix, spws, XYList, XYdelayList, bunchNum) 
         #
         pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
         if 'spurRFLists' in locals():

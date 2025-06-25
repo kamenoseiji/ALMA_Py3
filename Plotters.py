@@ -293,13 +293,11 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
                 delayAnt, delaySNR = delay_search(plotBandpass[chRange])
-                # text_sd = '%s %s : %+f SNR=%.1f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW, delaySNR)
                 AmpPL.fill_between(plotFreq[chRange], plotMin, plotMax, color='yellow', alpha=0.1)
                 AmpPL.step(plotFreq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
-                text_delay = text_delay + '%+f ' % (0.5e9* delayAnt/ BW)
+                text_delay = text_delay + '%+.3f ' % (0.5e9* delayAnt/ BW)
                 PhsPL.fill_between(plotFreq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
-                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+f [ns]' % (polName[pol_index], 0.5e9* delayAnt/ BW))
-                #print('%s %s %+.4f' % (antName, polName[pol_index], 0.5e9* delayAnt/ BW))
+                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+.3f ns' % (polName[pol_index], 0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(plotFreq), np.max(plotFreq), plotMin, plotMax])
@@ -488,18 +486,17 @@ def plotBispec(antList, scanVis, DT, plotFile, labelList, pMax):
     return
 #
 #-------- Plot XY-phase spectra
-def plotXYP(pp, prefix, spwList, XYspec, bunchNum=1):
+def plotXYP(pp, prefix, spwList, XYspec, XYdelay, bunchNum=1):
     spwNum = len(spwList)
     figXYP = plt.figure(figsize = (11, 8))
     figXYP.suptitle(prefix + ' XY Phase')
     figXYP.text(0.45, 0.05, 'Frequency [GHz]')
     figXYP.text(0.03, 0.45, 'XY Phase [deg]', rotation=90)
-    for spw_index in list(range(spwNum)):
-        spw = spwList[spw_index]
+    for spw_index, spw in enumerate(spwList):
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
         XYP  = XYspec[spw_index]
-        PhsPL.plot( Freq, np.angle(XYP)*RADDEG, '.', label = 'SPW %d' % (spw))
+        PhsPL.plot( Freq, np.angle(XYP)*RADDEG, '.', label = 'SPW%2d: XYdelay=%+.3f ns' % (spw, XYdelay[spw_index]))
         PhsPL.axis([np.min(Freq), np.max(Freq), -180.0, 180.0])
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)

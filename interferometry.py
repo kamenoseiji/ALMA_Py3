@@ -1514,8 +1514,8 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
         flagIndex = np.where( np.median(FG, axis=0)[indexList(timeStamp,TS)] > 0.001 )[0].tolist()
     else:
         flagIndex = list(range(len(timeStamp)))
-    text_sd = 'Use %d / %d integration' % (len(flagIndex), len(timeStamp))
-    print(text_sd)
+    #text_sd = 'Use %d / %d integration' % (len(flagIndex), len(timeStamp))
+    #print(text_sd)
     #
     ant0, ant1, polNum, chNum, timeNum = ANT0[0:blNum], ANT1[0:blNum], Pspec.shape[0], Xspec.shape[1], Xspec.shape[3]
     chRange = list(range(int(0.1*chNum), int(0.95*chNum)))                   # Trim band edge
