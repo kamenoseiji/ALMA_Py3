@@ -7,7 +7,11 @@ from casatools import table as tbtool
 from casatools import msmetadata as msmdtool
 tb = tbtool()
 msmd = msmdtool()
+SBleak = [1.0, 0.01, 0.01, 0.01, 0.03, 0.03, 0.03, 0.1, 0.1, 0.5, 0.5]  # default sideband leakage
 #======== Amplitude calibrations
+def BlackBody(T, f):    # T in [K], f in [GHz]
+    hf_over_k = 4.799243e-2 * f
+    return hf_over_k / (np.exp(hf_over_k/T) - 1.0)
 #-------- Residuals for Tsky - secz regresion (optical depth + intercept)
 def residTskyTransfer( param, Tamb, secz, Tsky, weight ):
     exp_Tau = np.exp( -param[1]* secz )
