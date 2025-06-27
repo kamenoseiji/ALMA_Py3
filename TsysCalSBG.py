@@ -106,7 +106,6 @@ for band_index, bandName in enumerate(UniqBands):
     print(' %s: atmSPW=' % (UniqBands[band_index]), end=''); print(atmspwLists[band_index])
     TsysDigitalCorrection = True
 #
-a=1/0
 # atmSPWs[band] : SPWs used in atmCal scans
 # bpSPWs[band]  : SPWs used in bandpass scan (i.e. SPWs for OBS_TARGET)
 # atmscanLists[band] : atmCal scans
@@ -157,6 +156,7 @@ def powerBias(sqld, chav):
     bias = (sumXX* sumY - sumX* sumXY)/(len(chav)* sumXX - sumX*sumX)
     return 0.0 if np.isnan(bias) else bias
 #
+a=1/0
 for band_index, bandName in enumerate(UniqBands):
     tsysLog = open(prefix + '-' + bandName + '-Tsys.log', 'w')
     #-------- Trx
