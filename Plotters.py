@@ -297,7 +297,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
                 AmpPL.step(plotFreq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
                 text_delay = text_delay + '%+.3f ' % (0.5e9* delayAnt/ BW)
                 PhsPL.fill_between(plotFreq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
-                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+.3f ns' % (polName[pol_index], 0.5e9* delayAnt/ BW))
+                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+.3f ns' % (polName[pol_index], -0.5e9* delayAnt/ BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(plotFreq), np.max(plotFreq), plotMin, plotMax])
@@ -496,7 +496,7 @@ def plotXYP(pp, prefix, spwList, XYspec, XYdelay, bunchNum=1):
         chNum, chWid, Freq = GetChNum(prefix + '.ms', spw); Freq = 1.0e-9* bunchVec(Freq, bunchNum)  # GHz
         PhsPL = figXYP.add_subplot(1, spwNum, spw_index + 1)
         XYP  = XYspec[spw_index]
-        PhsPL.plot( Freq, np.angle(XYP)*RADDEG, '.', label = 'SPW%2d: XYdelay=%+.3f ns' % (spw, XYdelay[spw_index]))
+        PhsPL.plot( Freq, np.angle(XYP)*RADDEG, '.', label = 'SPW%2d: XYdelay=%+.3f ns' % (spw, -XYdelay[spw_index]))
         PhsPL.axis([np.min(Freq), np.max(Freq), -180.0, 180.0])
         PhsPL.tick_params(axis='both', labelsize=6)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)

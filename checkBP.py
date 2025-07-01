@@ -118,7 +118,7 @@ for BPscan in scanList:
         FreqList = FreqList + [Freq]
         BW = chNum* np.median(chWid)    # Bandwidth
         XYdelayList = XYdelayList + [0.5e9* XYD / BW]
-        text_sd = 'Scan%2d SPW%2d BB%d: [%s] XY delay = %+.3f [ns] : SNR = %.1f' % (BPscan, spw, SPWdic[spw]['BB']+1, SideBand[int((np.sign(np.median(chWid))+1)/2)], 0.5* XYD / (BW * 1.0e-9), XYsnr)
+        text_sd = 'Scan%2d SPW%2d BB%d: [%s] XY delay = %+.3f [ns] : SNR = %.1f' % (BPscan, spw, SPWdic[spw]['BB']+1, SideBand[int((np.sign(np.median(chWid))+1)/2)], -0.5* XYD / (BW * 1.0e-9), XYsnr)
         print(text_sd)
         if XYLog: xyLog.write(text_sd + '\n')
     #
