@@ -1377,7 +1377,7 @@ def delay_search( spec ):
     fit = np.polyfit(trial_delay, trial_amp, 2)
     bestDelay = -fit[1]/(2.0*fit[0])
     residualPhase = np.angle( delay_cal(spec, bestDelay) )
-    snr = 16.0 / (AllanVarPhase(residualPhase, int(nspec/4))* nspec* nspec + 1.0e-6)
+    snr = 32.0 / (AllanVar(residualPhase, int(nspec/4))* nspec* nspec + 1.0e-6)
     return bestDelay, snr
 #
 def blGain( blSpec ):				# Average in spectral channels
