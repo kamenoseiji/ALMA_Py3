@@ -1363,7 +1363,7 @@ def delay_cal( spec, delay ):
 	# delay_cal() returns delay-calibrated spectrum
 	#
 	nspec = len( spec )
-	twiddle = np.exp( pi* delay* np.multiply(list(range(-nspec, nspec, 2)), 0.5j) / nspec )
+	twiddle = np.exp( np.pi* delay* np.multiply(list(range(-nspec, nspec, 2)), 0.5j) / nspec )
 	return np.multiply(spec, twiddle)
 #
 def delay_search( spec ):
@@ -1375,7 +1375,9 @@ def delay_search( spec ):
     trial_delay = (delay + np.multiply(range(-2,3), 0.5)).tolist()
     trial_amp = np.array([abs(np.mean(delay_cal(spec, temporal_delay))) for temporal_delay in trial_delay])
     fit = np.polyfit(trial_delay, trial_amp, 2)
-    return -fit[1]/(2.0*fit[0]), (fit[2] - fit[1]**2/(4*fit[0])) / np.std(abs(spec))* np.sqrt(nspec)	# return residual delay [sample] and SNR
+    bestDelay = -fit[1]/(2.0*fit[0])
+    coh = min( 1.0 - 1.0e-6, abs(np.mean(delay_cal(spec, bestDelay))) / np.mean(abs(spec)))
+    return bestDelay, 1.0/np.sqrt(-2.0*np.log(coh))	# return residual delay [sample] and SNR
 #
 def blGain( blSpec ):				# Average in spectral channels
     return np.mean(blSpec, 0)
