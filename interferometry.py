@@ -14,7 +14,7 @@ from scipy.interpolate import griddata
 from scipy.sparse import lil_matrix
 import urllib.request, urllib.error
 import ssl
-import certifi
+#import certifi
 import scipy.optimize
 import time
 import datetime
@@ -1376,8 +1376,9 @@ def delay_search( spec ):
     trial_amp = np.array([abs(np.mean(delay_cal(spec, temporal_delay))) for temporal_delay in trial_delay])
     fit = np.polyfit(trial_delay, trial_amp, 2)
     bestDelay = -fit[1]/(2.0*fit[0])
-    coh = min( 1.0 - 1.0e-6, abs(np.mean(delay_cal(spec, bestDelay))) / np.mean(abs(spec)))
-    return bestDelay, 1.0/np.sqrt(-2.0*np.log(coh))	# return residual delay [sample] and SNR
+    residualPhase = np.angle( delay_cal(spec, bestDelay) )
+    snr = 16.0 / (AllanVarPhase(residualPhase, int(nspec/4))* nspec* nspec + 1.0e-6)
+    return bestDelay, snr
 #
 def blGain( blSpec ):				# Average in spectral channels
     return np.mean(blSpec, 0)
