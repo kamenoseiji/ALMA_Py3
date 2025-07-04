@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
-from ASDM_XML import SPW_FULL_RES, spwIDMS
+from ASDM_XML import SPW_FULL_RES, spwMS, spwIDMS
 from Plotters import plotXYP, plotBP, plotSP
 from optparse import OptionParser
 parser = OptionParser()
@@ -38,7 +38,6 @@ parser.add_option('-X', dest='XYLog', metavar='XYLog',
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-if not os.path.isdir(prefix): os.system('asdmExport %s' % (prefix))
 if not os.path.isdir(prefix + '.ms'):
     if not os.path.isdir(prefix):
         os.system('rm -rf %s.ms' % (prefix))
@@ -58,8 +57,8 @@ refant  = options.refant
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
 msfile = prefix + '.ms'
-SPWdic = SPW_FULL_RES(prefix)
-if os.path.isdir(msfile): SPWdic = spwIDMS(SPWdic, msfile)
+SPWdic = SPW_FULL_RES(prefix) if os.path.isdir(prefix) else spwMS(msfile)
+SPWdic = spwIDMS(SPWdic, msfile)
 if len(spwList) == 0:   # Use all available spws
     spwList = [spw for spw in SPWdic.keys() if SPWdic[spw]['chNum'] > 4 and len(SPWdic[spw]['scanList']) > 0]
 #

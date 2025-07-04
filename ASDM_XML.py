@@ -89,10 +89,31 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
     #
     return spwDic
 #
-def spwIDMS(spwDic, msfile):
+def spwMS(msfile):
     from casatools import msmetadata as msmdtool
     msmd = msmdtool()
+    msmd.open(msfile)
+    spwList = list(set(msmd.tdmspws()) | set(msmd.fdmspws()))
+    spwList.sort()
+    spwDic  = dict(zip(spwList, [[]]*len(spwList))) # Dictionary for spw info
+    for spw in spwDic.keys():
+        chFreq = msmd.chanfreqs(spw)
+        spwDic[spw] = {
+            'Band'   : [spwName.split('ALMA_')[1] for spwName in msmd.namesforspws(spw)[0].split('#') if 'ALMA_' in spwName][0],
+            'BB'     : msmd.baseband(spw),
+            'chNum'  : len(chFreq),
+            'refFreq': msmd.reffreq(spw)['m0']['value'],
+            'BW'     : msmd.bandwidths(spw),
+            'ch0'    : chFreq[0],
+            'chStep' : np.median(msmd.chanres(spw)),
+            'refChan': -0.5
+        }
+    msmd.close()
+    return spwDic
+def spwIDMS(spwDic, msfile):
     if not os.path.isdir(msfile): return spwDic
+    from casatools import msmetadata as msmdtool
+    msmd = msmdtool()
     msmd.open(msfile)
     spwsMS = list(set(msmd.tdmspws()) | set(msmd.fdmspws()))
     spwsMS.sort()
