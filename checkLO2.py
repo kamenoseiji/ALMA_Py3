@@ -2,15 +2,13 @@ import sys
 import subprocess
 from scipy import stats
 from ASDM_XML import SPW_FULL_RES, spwIDMS
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
-'''
-prefix = 'uid___A002_X1190de8_Xb777'
+#prefix = 'uid___A002_X1190de8_Xb777'
 spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
 SPWdic = SPW_FULL_RES(prefix)

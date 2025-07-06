@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from interferometry import delay_search
 from Plotters import plotSP, plotXYP
 from optparse import OptionParser
 parser = OptionParser()
@@ -25,17 +26,13 @@ bunchNum=  int(options.bunchNum)
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 PLOTPDF = options.PLOTPDF
-XYSPW, BPSPW = [], []
 #-------- Procedures
+XYSPW, BPSPW, XYdelayList = [], [], []
+FreqList = [np.load('%s-SPW%d-Freq.npy' % (prefix, spw)) for spw in spwList]
 for spw_index, spw in enumerate(spwList):
     print('SPW %2d:---------------------------------------------------------------' % (spw))
-    BPList, XYList = [], []
-    for scan in scanList:
-        BPList = BPList + [np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, scan, spw))]
-        XYList = XYList + [np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, scan, spw))]
-    #
-    BPant  = np.array(BPList)
-    XYspec = np.array(XYList)
+    BPant   = np.array([np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, scan, spw)) for scan in scanList])
+    XYspec  = np.array([np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, scan, spw)) for scan in scanList])
     scanNum, antNum, parapolNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
     #-------- Channel binning
     if 'bunchNum' not in locals(): bunchNum = 1
@@ -43,7 +40,8 @@ for spw_index, spw in enumerate(spwList):
         def bunchVecCH(spec): return bunchVec(spec, bunchNum)
         BPant  = np.apply_along_axis(bunchVecCH, 3, BPant)
         XYspec = np.apply_along_axis(bunchVecCH, 1, XYspec)
-    #
+        FreqList[spw_index] = bunchVecCH(FreqList[spw_index])
+    BW = max(FreqList[spw_index]) - min(FreqList[spw_index])
     #-------- Weight and phase using the reference SPW
     if spw_index == 0:
         BPmean = np.mean(BPant, axis=0)
@@ -74,6 +72,7 @@ for spw_index, spw in enumerate(spwList):
     #
     BPmean = (BPmean.transpose(2,0,1) /  np.mean(abs(BPmean[:,:,chRange]), axis=2)).transpose(1,2,0)
     XYmean   = (XYspec.T).dot(XYweight); XYmean = XYmean / abs(XYmean)
+    XYdelay, snr = delay_search(XYmean); XYdelayList = XYdelayList + [0.5e9*XYdelay/BW] 
     text_BPwgt, text_XYwgt, text_scan = 'BP phs:', 'XY wgt:', 'Scan  :'
     for scan_index, scan in enumerate(scanList):
         text_scan   = text_scan   + '    %3d ' % (scan)
@@ -93,16 +92,11 @@ for spw_index, spw in enumerate(spwList):
 if 'PLOTPDF' not in locals(): PLOTPDF = False
 if PLOTPDF:
     pp = PdfPages('XYP_%s_REF%s_Scan0.pdf' % (prefix, refant))
-    plotXYP(pp, prefix, spwList, XYSPW, bunchNum) 
+    plotXYP(pp, prefix, spwList, XYSPW, XYdelayList, bunchNum) 
     pp = PdfPages('BP_%s_REF%s_Scan0.pdf'  % (prefix, refant))
     if 'plotMin' not in locals(): plotMin = 0.0
     if 'plotMax' not in locals(): plotMax = 1.2
     antList = np.load('%s-REF%s.Ant.npy' % (prefix, refant))
-    FreqList = []
-    if bunchNum > 1:
-        for spw in spwList: FreqList = FreqList + [bunchVecCH(np.load('%s-SPW%d-Freq.npy' % (prefix, spw)))]
-    else:
-        for spw in spwList: FreqList = FreqList + [np.load('%s-SPW%d-Freq.npy' % (prefix, spw))]
     plotSP(pp, prefix, antList, spwList, FreqList, BPSPW, plotMin, plotMax) 
 #
 del chRange

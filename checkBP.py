@@ -57,8 +57,11 @@ refant  = options.refant
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
 msfile = prefix + '.ms'
-SPWdic = SPW_FULL_RES(prefix) if os.path.isdir(prefix) else spwMS(msfile)
-SPWdic = spwIDMS(SPWdic, msfile)
+if os.path.isdir(prefix + '/SpectralWindow.xml'):
+    SPWdic = SPW_FULL_RES(prefix)
+    SPWdic = spwIDMS(SPWdic, msfile)
+else:
+    SPWdic = spwMS(msfile)
 if len(spwList) == 0:   # Use all available spws
     spwList = [spw for spw in SPWdic.keys() if SPWdic[spw]['chNum'] > 4 and len(SPWdic[spw]['scanList']) > 0]
 #
