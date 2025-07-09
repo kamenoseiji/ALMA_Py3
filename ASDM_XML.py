@@ -82,11 +82,36 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
         refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
         for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
-        spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
+        spwList = [spw for spw in spwDic.keys() if abs(spwDic[spw]['refFreq'] - refFreq) < spwDic[spw]['BW']/64]
         if spwID in spwList:
             spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
             spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
     #
+    return spwDic
+#
+def SPW_LO(spwDic, prefix):
+    SBsign = {'LSB': -1, 'USB':+1, 'DSB':1}
+    RB_XML = prefix + '/' + 'Receiver.xml'
+    tree = ET.parse(RB_XML)
+    root = tree.getroot()
+    for row in root.findall('row'):
+        for entry in row.findall('name'): spwName = entry.text
+        if 'WVR' in spwName : continue
+        for entry in row.findall('receiverSideband'): SBname = entry.text
+        if 'NOSB' not in SBname and 'TSB' not in SBname: continue
+        #-------- Identify BB from SPWID
+        for entry in row.findall('frequencyBand'):
+            if '_' not in entry.text: continue
+            BandID = int(entry.text.split('_')[-1]) 
+        for entry in row.findall('freqLO'): LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
+        for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
+        refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
+        for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
+        #spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
+        spwList = [spw for spw in spwDic.keys() if abs(spwDic[spw]['refFreq'] - refFreq) <= spwDic[spw]['BW']/30]
+        if spwID in spwList:
+            spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
+            spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
     return spwDic
 #
 def spwMS(msfile):
@@ -94,6 +119,7 @@ def spwMS(msfile):
     msmd = msmdtool()
     msmd.open(msfile)
     spwList = list(set(msmd.tdmspws()) | set(msmd.fdmspws()))
+    spwList = [spw for spw in spwList if len(msmd.scansforspw(spw)) > 0]
     spwList.sort()
     spwDic  = dict(zip(spwList, [[]]*len(spwList))) # Dictionary for spw info
     for spw in spwDic.keys():

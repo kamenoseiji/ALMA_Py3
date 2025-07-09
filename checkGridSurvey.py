@@ -266,7 +266,7 @@ for BandName in RXList:
             XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
             XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
             text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW[BandName]['BW'][spw_index]*1.0e-9), XYsnr)
-            XYsnrList = XYsnrList + [XYsnr if XYsnr > 16.0 else 0.001*XYsnr]
+            XYsnrList = XYsnrList + [XYsnr if XYsnr > 5.0 else 0.001*XYsnr]
             BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
             XYSPWList = XYSPWList + [BPCaledXYSpec]
         #
