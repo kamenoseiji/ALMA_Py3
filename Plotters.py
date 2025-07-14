@@ -213,7 +213,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
                 plotAC = 10.0* np.log10(avgAC)
                 chNum = len(plotAC)
                 chRange = range( int(chNum*0.06), int(chNum* 0.96))
-                #chRange = range( int(chNum*0.35), int(chNum* 0.55))
+                #chRange = range(3050,3090)
                 maxAC, minAC, maxFreq = np.max(plotAC[chRange]), np.min(plotAC[chRange]), Freq[np.argmax(plotAC)]
                 text_sd = 'Peak = %.1f dB at %.2f GHz' % (maxAC, maxFreq)
                 #plotMax, plotMin = 10.0* np.log10(ACMAX), 10.0* np.log10(ACMAX) - 20.0
