@@ -32,6 +32,8 @@ parser.add_option('-P', dest='BPPLOT', metavar='BPPLOT',
     help='Plot PDF', action="store_true")
 parser.add_option('-R', dest='refant', metavar='refant',
     help='reference antenna', default='')
+parser.add_option('-D', dest='delayMessage', metavar='delayMessage',
+    help='Print residual delay)', action="store_true")
 parser.add_option('-X', dest='XYLog', metavar='XYLog',
     help='Record XY delay in a logfile (*.XYdelay.log)', action="store_true")
 #
@@ -50,6 +52,7 @@ spwList = [] if options.spwList == '' else [int(spw) for spw in options.spwList.
 plotMin = options.plotMin
 plotMax = options.plotMax
 BPPLOT  = options.BPPLOT
+delayMessage  = options.delayMessage
 FG      = options.FG
 NPY     = options.NPY
 XYLog   = options.XYLog
@@ -145,6 +148,6 @@ for BPscan in scanList:
         if 'spurRFLists' in locals():
             plotBP(pp, prefix, antList[antMap], spws, BPscan, BPList, chBin, 1.2, spurRFLists) 
         else:
-            plotSP(pp, prefix, antList[antMap], spws, FreqList, BPList, plotMin, plotMax)
+            plotSP(pp, prefix, antList[antMap], spws, FreqList, BPList, plotMin, plotMax, delayMessage)
     #
 if XYLog: xyLog.close()
