@@ -23,7 +23,7 @@ BPscans = [scan for scan in options.BPscans]
 EQscans = [scan for scan in options.EQscans]
 prefix = options.prefix
 '''
-prefix = '2023.1.00675.S_X10ed869_X5fa3'
+prefix = '2024.1.00651.S_X12c4b14_Xf57b'
 QUMODEL = True
 '''
 msfile = prefix + '.ms'
@@ -92,7 +92,10 @@ for band_index, BandName in enumerate(UniqBands):
     for scan_index, scan in enumerate(onsourceScans):
         fieldID = msmd.fieldsforscan(scan)[0]
         interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], scan)
-        AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, 0, AZ, EL)
+        AzScan, ElScan, ant_index = np.zeros(len(timeStamp)), np.zeros(len(timeStamp)), 0
+        while len(np.unique(AzScan)) < len(timeStamp):
+            AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, ant_index, AZ, EL)
+            ant_index += 1
         PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; dPA = np.std(np.sin(PA)) #dPA = abs(np.sin(max(PA) - min(PA)))
         OnAZ = OnAZ + [np.median(AzScan)]
         OnEL = OnEL + [np.median(ElScan)]
