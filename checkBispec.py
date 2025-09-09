@@ -33,24 +33,45 @@ scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 timeBunch = int(options.timeBunch)
 if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
-if options.refant != '': refant = options.refant
+#if options.refant != '': refant = options.refant
+refant = options.refant
 #-------- Definitions
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
-blMap = list(range(blNum))
+#blMap = list(range(blNum))
 #if 'startTime' in locals(): startMJD = qa.convert(startTime, 's')['value']
 #if 'BPscan' not in locals(): BPscan = 3 # default bandpass scan
 #-------- Array Configuration
+print('---Checking array configulation in scan %d' % (scanList[0]))
+flagAnt = indexList(antFlag, antList)
+UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
+blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
+if refant not in antList[UseAnt]: refant = ''
+if refant == '':
+    timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
+    uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+    refantID = bestRefant(uvDist)
+else:
+    refantID = np.where(antList[UseAnt] == refant)[0][0]
+print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
+#-------- Baseline Mapping
+print('---Baseline Mapping')
+antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
+ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
+blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
+'''
 print('---Checking array configuration')
 flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
 UseAnt = np.where(flagAnt > 0.0)[0].tolist(); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 text_sd = '  Usable antennas (%d) : ' % (len(UseAnt))
 for ants in antList[UseAnt].tolist(): text_sd = text_sd + ants + ' '
 print(text_sd)
-blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
-for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
+blMap = Ant2Bl(np.array(antMap)[ant0], np.array(antMap)[ant1])
+#blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
+#for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
 timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
 uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
 if 'refant' in locals():    refantID = indexList(np.array([refant]), antList[UseAnt])[0]
@@ -59,6 +80,7 @@ print('  Use ' + antList[UseAnt[refantID]] + ' as the refant.')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print('  %d baselines are inverted.' % (len(np.where( blInv )[0])))
+'''
 figInch  = max(16,UseAntNum)
 fontSize = min(32, figInch)
 #-------- Bandpass Table

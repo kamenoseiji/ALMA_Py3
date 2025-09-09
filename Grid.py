@@ -125,7 +125,8 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     antDia = GetAntD(TrxAntList)
     useAnt = indexList(TrxAntList,antList); useAntNum = len(useAnt); useBlNum = int(useAntNum* (useAntNum - 1)/2)
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
-    useBlMap = [Ant2Bl(useAnt[ant0[bl_index]], useAnt[ant1[bl_index]])  for bl_index in list(range(useBlNum))]
+    useBlMap = Ant2Bl(np.array(ant0), np.array(ant1))
+    #useBlMap = [Ant2Bl(useAnt[ant0[bl_index]], useAnt[ant1[bl_index]])  for bl_index in list(range(useBlNum))]
     nominalAe = 0.72
     #---- Load Tsys data
     tempAtm = GetTemp(prefix + '.ms')

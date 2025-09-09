@@ -172,9 +172,10 @@ for BandName in RXList:
     print('Use %s as refant' % (antList[refantID]))
     antMap = [refantID] + list(set(useAntMap) - set([refantID]))
     useAntNum = len(antMap); useBlNum  = int(useAntNum* (useAntNum - 1) / 2)
-    blMap, blInv = list(range(useBlNum)), np.ones(useBlNum)
-    for bl_index, bl in enumerate(useBlMap): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]])
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
+    blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+    #blMap, blInv = list(range(useBlNum)), np.ones(useBlNum)
+    #for bl_index, bl in enumerate(useBlMap): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]])
     #-------- Remap baseline ordering
     for scan_index, scan in enumerate(BandScanList[BandName]):
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], scan)

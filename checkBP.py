@@ -57,6 +57,19 @@ FG      = options.FG
 NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
+'''
+prefix = 'uid___A002_X12d007b_X3583'
+antFlag = []
+scanList = [3]
+spwList = [25]
+chBin = 1
+plotMin = 0.0
+plotMax = 1.5
+XYLog = False
+BPPLOT = True
+FG     = False
+refant = ''
+'''
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
 msfile = prefix + '.ms'
@@ -94,9 +107,7 @@ print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
 print('---Baseline Mapping')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
 ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
-for bl_index in range(UseBlNum):
-    blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
-#
+blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
 print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 #-------- Bandpass Table
 print('---Generating antenna-based bandpass table')

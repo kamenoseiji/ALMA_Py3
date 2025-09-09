@@ -34,6 +34,16 @@ ALMA_long= -67.755/180.0* np.pi     # ALMA AOS Longitude
 ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #-------- Baseline and Antenna Indexing
 KERNEL_BL = (arange(64)*arange(1,65)/2).astype(int)
+def Bl2Ant(bl_index):     # Baseline -> antenna indexing (canonical ordering)
+    ant1 = max(np.where(KERNEL_BL<= bl_index)[0]) + 1
+    return ant1, int(bl_index - KERNEL_BL[ant1 - 1])
+#
+ANT0 = []; ANT1 = []     # List the BL -> antenna indexing
+for bl_index in list(range(2016)):    # Maximum number of baseline
+    ants = Bl2Ant(bl_index)
+    ANT0.append(ants[0])        # bl -> ant0 (baseline-end antenna) mapping
+    ANT1.append(ants[1])        # bl -> ant1 (baseline-begin antenna) mapping
+#
 def indexList( refArray, motherArray ):     # Compare two arrays and return matched index
     IL = []
     for currentItem in refArray: IL = IL + np.where( motherArray == currentItem )[0].tolist()
@@ -47,17 +57,23 @@ def timeMatch( refTime, scanTime, thresh): # Time-based matching
     match = np.where( abs(scanTime - refTime) < thresh)[0].tolist()
     return len(match)
 #
-def Ant2Bl(ant1, ant2):	    # Antenna -> baseline index (without autocorr)
-    antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
-    return int(antenna1* (antenna1 - 1)/2 + antenna2)
+def Ant2Bl(a1, a2):	    # Antenna -> baseline index (without autocorr)
+    blI = (a1* (a1 - 1)/2 + a2).astype('int64')
+    reverse_index = np.where(a1 < a2)[0].tolist()
+    blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
+    return blI.tolist()
+    #antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
+    #return int(antenna1* (antenna1 - 1)/2 + antenna2)
 #
-def Ant2BlD(ant1, ant2):    # Antenna -> baseline index and direction (True if inverted)
-    antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
-    return int(antenna1* (antenna1 - 1)/2 + antenna2), (ant1 < ant2)
-#
-def Bl2Ant(bl_index):     # Baseline -> antenna indexing (canonical ordering)
-    ant1 = max(np.where(KERNEL_BL<= bl_index)[0]) + 1
-    return ant1, int(bl_index - KERNEL_BL[ant1 - 1])
+def Ant2BlD(a1, a2):    # Antenna -> baseline index and direction (True if inverted)
+    blI, blD = (a1* (a1 - 1)/2 + a2).astype('int64'), np.array([False]* len(a1))
+    reverse_index = np.where(a1 < a2)[0].tolist()
+    blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
+    blD[reverse_index] = True
+    return blI.tolist(), blD.tolist()
+    #return int(ant1* (ant1 - 1)/2 + ant2), (ant1 > ant2) if ant1 > ant2 else int(ant2* (ant2 - 1)/2 + ant1), (ant1 > ant2)
+    #antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
+    #return int(antenna1* (antenna1 - 1)/2 + antenna2), (ant1 < ant2)
 #
 def revList(inList):
     listLen = len(inList)
@@ -66,12 +82,6 @@ def revList(inList):
         outList.append( inList.index(index) )
     #
     return outList
-#
-ANT0 = []; ANT1 = []     # List the BL -> antenna indexing
-for bl_index in list(range(2016)):    # Maximum number of baseline
-    ants = Bl2Ant(bl_index)
-    ANT0.append(ants[0])        # bl -> ant0 (baseline-end antenna) mapping
-    ANT1.append(ants[1])        # bl -> ant1 (baseline-begin antenna) mapping
 #
 def Ant2Bla_RevLex(ant0, ant1, antNum):    # Reverse Lexical, with autcorr
     antenna0 = min(ant0, ant1); antenna1 = max(ant0, ant1)
@@ -91,8 +101,9 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     SAantennas = list(set(np.append(ant0[useKernelBL], ant1[useKernelBL])))
     SAantMap = [refant] + sort(np.array(list(set(SAantennas) - set([refant])))).tolist()
     SAantNum = len(SAantennas); SAblNum = int(SAantNum* (SAantNum - 1)/2)
-    SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
-    for bl_index in list(range(SAblNum)): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
+    SAblMap, SAblInv = Ant2BlD(SAantMap[np.array(ant0)[0:SAblNum]], SAantMap[np.array(ant1)[0:SAblNum]])
+    #SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
+    #for bl_index in list(range(SAblNum)): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
     return SAantMap, SAblMap, SAblInv
 #
 def antFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant antennas out
