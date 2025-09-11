@@ -18,9 +18,12 @@ parser.add_option('-p', dest='plotAnt', metavar='plotAnt',
     help='Antennas to plot', default='')
 parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPWs to plot e.g. 17,19,21', default='')
+parser.add_option('-M', dest='plotRange', metavar='plotRange',
+    help='Max y-axis range e.g. 60', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 spwList = [int(spw) for spw in options.spwList.split(',')]
+plotMax =  180 if options.plotRange == '' else int(options.plotRange)
 plotAntList = [] if options.plotAnt == '' else [ant for ant in options.plotAnt.split(',')]
 antList = np.load(prefix + '.Ant.npy')
 if plotAntList == []: plotAntList = antList
@@ -43,17 +46,19 @@ for row_index, ant in enumerate(plotAntList):
         PhsPL = figPhs.add_subplot( plotAntNum, 2, 2*row_index + pol_index + 1 )
         PhsPL.yaxis.offsetText.set_fontsize(3)
         PhsPL.tick_params(labelsize=4); PhsPL.tick_params(axis='x', rotation=45)
-        PhsPL.axis([np.min(DT), np.max(DT), -60.0, 60.0])
-        PhsPL.set_ylabel(ant, fontsize=6)
-        PhsPL.set_xticks([])
+        PhsPL.axis([np.min(DT), np.max(DT), -plotMax, plotMax])
+        PhsPL.set_ylabel('Phase [deg] w.r.t. SPW%d' % (spwList[0]), fontsize=6)
         for spw_index, spw in enumerate(spwList):
             Gain, FG = np.load('%s-SPW%d.GA.npy' % (prefix, spw)), np.load('%s-SPW%d.FG.npy' % (prefix, spw))
             flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
             if spw_index == 0: GA0 = Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate()
-            PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate() / GA0)*RADDEG, polchar, markersize=2, color=cmap(spw_index), label='SPW%d Pol%s' % (spw, polLabel[pol_index]))
-            #PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate())*RADDEG, polchar, markersize=2, color=cmap(spw_index), label='SPW%d Pol%s' % (spw, polLabel[pol_index]))
+            plotPhase = np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate() / GA0)*RADDEG
+            PhsPL.plot( np.array(DT)[flag_index], plotPhase, '-', color=cmap(spw_index))
+            PhsPL.plot( np.array(DT)[flag_index], plotPhase, polchar, markersize=2, color=cmap(spw_index), label='SPW%d Pol%s' % (spw, polLabel[pol_index]))
         if row_index == 0: PhsPL.legend(loc = 'best', prop={'size' :4}, numpoints = 1)
     #
+    PhsPL.text(np.min(DT), 0.9*plotMax, ant, fontsize=6)
+figPhs.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')))
 figPhs.text(0.1, 0.03, 'See https://github.com/kamenoseiji/ALMA_Py3/wiki/plotSPWphase.py to generate this plot', fontsize=4)
 figPhs.savefig(pp, format='pdf')
 plt.close('all')
