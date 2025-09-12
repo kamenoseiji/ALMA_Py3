@@ -23,7 +23,7 @@ parser.add_option('-M', dest='plotRange', metavar='plotRange',
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 spwList = [int(spw) for spw in options.spwList.split(',')]
-plotMax =  180 if options.plotRange == '' else int(options.plotRange)
+plotMax =  180 if options.plotRange == '' else float(options.plotRange)
 plotAntList = [] if options.plotAnt == '' else [ant for ant in options.plotAnt.split(',')]
 antList = np.load(prefix + '.Ant.npy')
 if plotAntList == []: plotAntList = antList
@@ -34,7 +34,7 @@ plotAntNum, columnNum = len(plotAntList), len(spwList)
 polLabel = ['X', 'Y']
 polSymbol = ['x', '1']
 cmap = plt.get_cmap("tab10")
-pp = PdfPages('GA_%s.pdf' %  (prefix))
+pp = PdfPages('PH_%s.pdf' %  (prefix))
 figPhs = plt.figure(figsize = (8, 11))
 figPhs.suptitle(prefix + ' Gain Phase')
 for row_index, ant in enumerate(plotAntList):
@@ -53,7 +53,7 @@ for row_index, ant in enumerate(plotAntList):
             flag_index = np.where(FG[ant_index] > 0.01)[0].tolist()
             if spw_index == 0: GA0 = Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate()
             plotPhase = np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate() / GA0)*RADDEG
-            PhsPL.plot( np.array(DT)[flag_index], plotPhase, '-', color=cmap(spw_index))
+            PhsPL.plot( np.array(DT)[flag_index], plotPhase, '-', linewidth=0.5, color=cmap(spw_index))
             PhsPL.plot( np.array(DT)[flag_index], plotPhase, polchar, markersize=2, color=cmap(spw_index), label='SPW%d Pol%s' % (spw, polLabel[pol_index]))
         if row_index == 0: PhsPL.legend(loc = 'best', prop={'size' :4}, numpoints = 1)
     #

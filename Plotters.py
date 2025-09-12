@@ -259,6 +259,7 @@ def plotAC(prefix, antList, spwList, freqList, AC):
 #-------- Plot Cross power spectrum
 def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.5, delayMessage=False):
     antNum, spwNum = len(antList), len(spwList)
+    delayAnt = np.zeros([antNum, spwNum, 2])
     figAnt = plt.figure(figsize = (11, 8))
     figAnt.suptitle(prefix + ' Bandpass')
     figAnt.text(0.45, 0.05, 'Frequency [GHz]')
@@ -292,12 +293,13 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
             ppolNum = BPList[spw_index].shape[1]
             for pol_index in list(range(ppolNum)):
                 plotBandpass = BPList[spw_index][ant_index,pol_index]
-                delayAnt, delaySNR = delay_search(plotBandpass[chRange])
+                delay_ant, delaySNR = delay_search(plotBandpass[chRange])
+                delayAnt[ant_index, spw_index, pol_index] = 0.5e9* delay_ant / BW   # delay in [ns]
                 AmpPL.fill_between(plotFreq[chRange], plotMin, plotMax, color='yellow', alpha=0.1)
                 AmpPL.step(plotFreq, abs(plotBandpass), color=polColor[pol_index], where='mid', label = 'Pol-%s' % (polName[pol_index]))
-                text_delay = text_delay + '  %+.4f ' % (0.5e9* delayAnt/ BW)
+                text_delay = text_delay + '  %+.4f ' % (0.5e9* delay_ant/ BW)
                 PhsPL.fill_between(plotFreq[chRange], -np.pi, np.pi, color='yellow', alpha=0.1)
-                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+.3f ns' % (polName[pol_index], -0.5e9* delayAnt/ BW))
+                PhsPL.plot(plotFreq, np.angle(plotBandpass), '.', color=polColor[pol_index], label = 'Pol-%s %+.3f ns' % (polName[pol_index], -0.5e9* delay_ant / BW))
             #
             if spw_index == 0: AmpPL.set_title(antList[ant_index])
             AmpPL.axis([np.min(plotFreq), np.max(plotFreq), plotMin, plotMax])
@@ -313,7 +315,7 @@ def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=
         figAnt.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
-    return
+    return delayAnt
 #
 #-------- Plot Bandpass
 def plotBP(pp, prefix, antList, spwList, BPscan, BPList, bunchNum=1, plotMax=1.2, plotMarker=[[]]):

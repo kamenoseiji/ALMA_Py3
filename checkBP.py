@@ -157,8 +157,10 @@ for BPscan in scanList:
         #
         pp = PdfPages('BP_%s_REF%s_Scan%d.pdf' % (prefix, antList[UseAnt[refantID]], BPscan))
         if 'spurRFLists' in locals():
-            plotBP(pp, prefix, antList[antMap], spws, BPscan, BPList, chBin, 1.2, spurRFLists) 
+            delay_ant = plotBP(pp, prefix, antList[antMap], spws, BPscan, BPList, chBin, 1.2, spurRFLists) 
         else:
-            plotSP(pp, prefix, antList[antMap], spws, FreqList, BPList, plotMin, plotMax, delayMessage)
+            delay_ant = plotSP(pp, prefix, antList[antMap], spws, FreqList, BPList, plotMin, plotMax, delayMessage)
+        if NPY:
+            for spw_index, spw in enumerate(spws): np.save('%s-REF%s-SC%d-SPW%d-DL.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spw), delay_ant[:,spw_index])
     #
 if XYLog: xyLog.close()
