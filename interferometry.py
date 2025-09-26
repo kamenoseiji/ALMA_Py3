@@ -57,23 +57,23 @@ def timeMatch( refTime, scanTime, thresh): # Time-based matching
     match = np.where( abs(scanTime - refTime) < thresh)[0].tolist()
     return len(match)
 #
-def Ant2Bl(a1, a2):	    # Antenna -> baseline index (without autocorr)
-    blI = (a1* (a1 - 1)/2 + a2).astype('int64')
-    reverse_index = np.where(a1 < a2)[0].tolist()
-    blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
-    return blI.tolist()
-    #antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
-    #return int(antenna1* (antenna1 - 1)/2 + antenna2)
+def Ant2Bl(ant1, ant2):	    # Antenna -> baseline index (without autocorr)
+    #blI = (a1* (a1 - 1)/2 + a2).astype('int64')
+    #reverse_index = np.where(a1 < a2)[0].tolist()
+    #blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
+    #return blI.tolist()
+    antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
+    return int(antenna1* (antenna1 - 1)/2 + antenna2)
 #
-def Ant2BlD(a1, a2):    # Antenna -> baseline index and direction (True if inverted)
-    blI, blD = (a1* (a1 - 1)/2 + a2).astype('int64'), np.array([False]* len(a1))
-    reverse_index = np.where(a1 < a2)[0].tolist()
-    blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
-    blD[reverse_index] = True
-    return blI.tolist(), blD.tolist()
+def Ant2BlD(ant1, ant2):    # Antenna -> baseline index and direction (True if inverted)
+    #blI, blD = (a1* (a1 - 1)/2 + a2).astype('int64'), np.array([False]* len(a1))
+    #reverse_index = np.where(a1 < a2)[0].tolist()
+    #blI[reverse_index] = (a2[reverse_index]* (a2[reverse_index] - 1)/2 + a1[reverse_index]).astype('int64')
+    #blD[reverse_index] = True
+    #return blI.tolist(), blD.tolist()
     #return int(ant1* (ant1 - 1)/2 + ant2), (ant1 > ant2) if ant1 > ant2 else int(ant2* (ant2 - 1)/2 + ant1), (ant1 > ant2)
-    #antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
-    #return int(antenna1* (antenna1 - 1)/2 + antenna2), (ant1 < ant2)
+    antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
+    return int(antenna1* (antenna1 - 1)/2 + antenna2), (ant1 < ant2)
 #
 def revList(inList):
     listLen = len(inList)

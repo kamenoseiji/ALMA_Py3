@@ -684,7 +684,8 @@ def plotQUXY(pp, scanDic):
     plotMax = 0.0
     for source_index, sourceName in enumerate(sourceList):
         if sourceName in SSOCatalog: continue
-        scanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'] == sourceName]
+        scanList = [scan for scan in scanDic.keys() if 'StokesVis' in scanDic[scan].keys() and scanDic[scan]['source'] == sourceName]
+        if len(scanList) < 1: continue
         ThetaPlot, VisXX, VisYY, VisXY = [], [], [], []
         #-------- PA range to draw model
         for scan in scanList:

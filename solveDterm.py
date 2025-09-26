@@ -31,13 +31,13 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2023.1.00318.S_X11cd86f_Xd13c'
-refant = 'DA55'
+prefix = 'uid___A002_X12e95ca_Xac83'
+refant = 'DA45'
 QUmodel = True
 antFlag = []
-spw = 0
+spw = 5
 BPscan = 0
-scanList = [3,5,7,8,12,14,17,19,23,25,28,30,34,36,37,40,43,46,48,50]
+scanList = [3,18,33,48,63,78,93,108,123]
 '''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):

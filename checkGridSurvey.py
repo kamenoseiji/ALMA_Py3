@@ -33,6 +33,14 @@ uvLimit = int(options.uvLimit)
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
 TsysDigitalCorrection = options.TsysDigital
+'''
+prefix = 'uid___A002_X8bd3e8_X92b'
+antFlag = []
+uvLimit = 5000
+BPscan = 6
+QUMODEL = True
+TsysDigitalCorrection = False
+'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
@@ -173,9 +181,11 @@ for BandName in RXList:
     antMap = [refantID] + list(set(useAntMap) - set([refantID]))
     useAntNum = len(antMap); useBlNum  = int(useAntNum* (useAntNum - 1) / 2)
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
-    blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+    blMap, blInv= list(range(useBlNum)), [False]* useBlNum
+    #for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+    #blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
     #blMap, blInv = list(range(useBlNum)), np.ones(useBlNum)
-    #for bl_index, bl in enumerate(useBlMap): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]])
+    for bl_index, bl in enumerate(useBlMap): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]])
     #-------- Remap baseline ordering
     for scan_index, scan in enumerate(BandScanList[BandName]):
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], scan)
@@ -485,9 +495,10 @@ for BandName in RXList:
     ingestFile.close()
     #-------- Plot QUXY
     pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName))
-    for scan_index, scan in enumerate(QSOscanList):
-        scanDic[scan]['scanVis'] = np.mean(np.array(scanDic[scan]['StokesVis']), axis=2).real.T
-        scanDic[scan]['visChav'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2))
+    for scan_index, scan in enumerate(scanDic.keys()):
+        if 'StokesVis' in scanDic[scan].keys():
+            scanDic[scan]['scanVis'] = np.mean(np.array(scanDic[scan]['StokesVis']), axis=2).real.T
+            scanDic[scan]['visChav'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2))
     plotQUXY(pp, scanDic)
     #del text_fd,text_sd,text_ingest,UCmQSList,QCpUSList,IList,DtermDic,Dterm,sol,solerr,pflux,pfluxerr,refFreq,relFreq,uvMin,uvMax,IMax,CS,SN,StokesVis,visChav,XspecList,scanDic,SSODic,visChavList,ScanFlux,timeStamp,Xspec,BPCaledXspec,BPCaledXY,XPspec,BP_eq_gain,BPW,XYspec,Weight,pp,scanPhase,XYphase,XYsign,Aeff,newAeff,ScanSlope,ErrFlux,BPSPWList,scanGain,QSONonShadowScanList,BPcaledSpec,chAvgList,FscaleDic
 del RXList, antList, BandbpSPW, bpSPWs, OnScanList

@@ -58,7 +58,7 @@ for ants in antList[UseAnt].tolist(): text_sd = text_sd + ants + ' '
 print(text_sd)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
-blMap = Ant2Bl(np.array(UseAnt)[ant0], np.array(UseAnt)[ant1])
+for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
 if options.refant not in antList[UseAnt]: options.refant = ''
 if options.refant == '':
     timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
@@ -68,8 +68,8 @@ else:
     refantID = indexList(np.array([options.refant]), antList[UseAnt])[0]
 print('  Use ' + antList[UseAnt[refantID]] + ' as the refant.')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
-blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
-#for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+#blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print('  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 #-------- Bandpass Table
 if options.BPprefix != '':

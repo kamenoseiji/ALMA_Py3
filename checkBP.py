@@ -107,7 +107,8 @@ print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
 print('---Baseline Mapping')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
 ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
-blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+#blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
+for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 #-------- Bandpass Table
 print('---Generating antenna-based bandpass table')
