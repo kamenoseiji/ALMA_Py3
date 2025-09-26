@@ -70,7 +70,6 @@ BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
 BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 OnScanList = GetOnSource(msfile)
 if len(OnScanList) == 0: RXList = []
-if 'antFlag' not in locals(): antFlag = []
 #-------- 
 msmd.open(msfile)
 spwNames = msmd.namesforspws(bpSPWs)
@@ -112,7 +111,7 @@ for BandName in RXList:
         if 0 < len(errBL) < 3 : # Single baseline error
             flagSet = {}
             for bl in errBL: flagSet = flagSet or set(Bl2Ant(bl))
-            antFlag = antList[list(flagSet)].tolist()
+            antFlag = list(set(antFlag) | set(antList[list(flagSet)]))
         else:                   # antenna-based flagging
             errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
             for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
