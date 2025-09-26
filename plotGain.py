@@ -25,7 +25,7 @@ antList = np.load(prefix + '.Ant.npy')
 if plotAntList == []: plotAntList = antList
 antMap = indexList(plotAntList, antList)
 plotAntList = antList[antMap].tolist()
-plotAntNum, columnNum = len(plotAntList), len(spwList)
+columnNum, plotAntNum = len(plotAntList), len(spwList)
 #-------- Load tables
 pp = PdfPages('GA_%s.pdf' %  (prefix))
 figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
@@ -50,6 +50,7 @@ for col_index, spw in enumerate(spwList):
         print(amp_text)
         AmpPL = figAmp.add_subplot( plotAntNum, columnNum, plot_index + 1 )
         PhsPL = figPhs.add_subplot( plotAntNum, columnNum, plot_index + 1 )
+        PhsPL.grid()
         for pol_index, pol in enumerate(polList): AmpPL.plot( np.array(DT)[flag_index], abs(Gain[ant_index, pol_index, flag_index]), '.', markersize=3, color=polColor[pol_index], label=pol)
         for pol_index, pol in enumerate(polList): PhsPL.plot( np.array(DT)[flag_index], np.angle(Gain[ant_index, pol_index, flag_index]*Gain[ant_index, pol_index, 0].conjugate())*RADDEG, '.', markersize=3, color=polColor[pol_index], label=pol)
         AmpPL.yaxis.set_major_formatter(ptick.ScalarFormatter(useMathText=True))

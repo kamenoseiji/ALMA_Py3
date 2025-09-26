@@ -22,7 +22,6 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -54,6 +53,7 @@ antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
 ONTAU = True
+'''
 #-------- Check MS file and SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
