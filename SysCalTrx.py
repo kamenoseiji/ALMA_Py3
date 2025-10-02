@@ -7,47 +7,59 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+'''
+prefix = 'uid___A002_Xa018c4_X25f3'
+'''
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
 colnameList = tb.colnames()
-antID = tb.getcol('ANTENNA_ID')
 timeStamp = tb.getcol('TIME')
+antID = tb.getcol('ANTENNA_ID')
 spwID = tb.getcol('SPECTRAL_WINDOW_ID')
 TRX = tb.getcol('TRX_SPECTRUM')
+TSY = tb.getcol('TSYS_SPECTRUM')
 tb.close()
-timeList, antList, spwList = np.unique(timeStamp), GetAntName(prefix + '.ms'), np.unique(spwID)
-scanNum, antNum, spwNum = len(timeList), len(antList), len(spwList)
+antList, spwList = GetAntName(prefix + '.ms'), np.unique(spwID)
+spwDic = dict(zip(spwList, [[]]*len(spwList)))  # SPW
+antNum, spwNum = len(antList), len(spwList)
 logFile  = open(prefix + '-TelCal.log', 'w')
 msmd.open(msfile)
 scanList = msmd.scansforintent("CALIBRATE_ATMOSPHERE*")
 timeAMB  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
 msmd.close()
 timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
+timeSyscalList = np.unique(timeStamp).tolist()
 #-------- Read SPW frequency
-freqList = []
 for spw in spwList:
     chNum, chWid, freq = GetChNum(msfile, spw)
-    freqList = freqList + [np.median(freq)* 1.0e-9]
-#
+    spwDic[spw] = {'chNum': chNum, 'chWid': chWid, 'freq' : freq}
 for scan_index, scan in enumerate(scanList):
+    data_index = np.where(timeStamp == timeSyscalList[scan_index])[0].tolist()
+    spwsInScan = np.unique(spwID[data_index]).tolist()
+    antsInScan = np.unique(antID[data_index]).tolist()
     timeLabel = 'Scan %d : %s' % (scan, au.call_qa_time('%fs' % (timeList[scan_index]), form='fits'))
     logFile.write(timeLabel + '\n'); print(timeLabel)
     text_sd = 'Trx  : '
-    for spw_index, spw in enumerate(spwList): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spw, freqList[spw_index])
+    for spw_index, spw in enumerate(spwsInScan): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spw, np.median(spwDic[spw]['freq'])* 1.0e-9)
     logFile.write(text_sd + '\n'); print(text_sd)
     text_sd = ' Pol : '
-    for spw_index, spw in enumerate(spwList): text_sd = text_sd + '     X         Y    |'
+    for spw_index, spw in enumerate(spwsInScan): text_sd = text_sd + '     X         Y    |'
     logFile.write(text_sd + '\n'); print(text_sd)
     text_sd =  ' ----:-'
-    for spw_index, spw in enumerate(spwList): text_sd = text_sd + '--------------------+'
+    for spw_index, spw in enumerate(spwsInScan): text_sd = text_sd + '--------------------+'
     logFile.write(text_sd + '\n'); print(text_sd)
-    for ant_index, ant in enumerate(antList):
-        text_sd = '%s : ' % (ant)
-        for spw_index, spw in enumerate(spwList):
-            for pol_index in [0,1]:
-                index = spw_index + spwNum* (ant_index + antNum* scan_index)
-                text_sd = text_sd + '%7.1f K ' % (np.median(TRX[pol_index], axis=0)[index])
-            text_sd = text_sd + '|'
-        logFile.write(text_sd + '\n'); print(text_sd)
+    prevAnt, prevSPW = '', -1
+    text_sd = ''
+    for index in data_index:
+        ant = antList[antID[index]]
+        spw = spwID[index]
+        for pol_index in [0,1]:
+            text_sd = text_sd + '%7.1f K ' % (np.median(TRX[pol_index][:,index], axis=0))
+        text_sd = text_sd + '|'
+        if spw == spwsInScan[-1]:
+            text_sd = '%s : ' % (ant) + text_sd
+            logFile.write(text_sd + '\n'); print(text_sd)
+            text_sd = ''
+    #
 logFile.close()
