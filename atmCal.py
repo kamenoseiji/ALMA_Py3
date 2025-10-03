@@ -7,7 +7,9 @@ from casatools import table as tbtool
 from casatools import msmetadata as msmdtool
 tb = tbtool()
 msmd = msmdtool()
-SBleak = [1.0, 0.01, 0.01, 0.01, 0.03, 0.03, 0.03, 0.1, 0.1, 0.5, 0.5]  # default sideband leakage
+#Band      0    1     2     3     4     5     6     7    8    9   10
+SBleak = [1.0, 0.01, 0.01, 0.01, 0.03, 0.03, 0.03, 0.1, 0.1, 0.5, 0.5]  # default sideband leakage obtained by au.defaultSBGainsForBand()
+SBgain = [0.0, 0.99, 0.99, 0.99, 0.97, 0.97, 0.97, 0.9, 0.9, 0.5, 0.5]  # default sideband gain obtained by au.defaultSBGainsForBand()
 #======== Amplitude calibrations
 def BlackBody(T, f):    # T in [K], f in [GHz]
     hf_over_k = 4.799243e-2 * f
@@ -138,7 +140,6 @@ def TrxTskySpec(useAnt, tempAmb, tempHot, spwList, scanList, ambSpec, hotSpec, o
         TskyList = TskyList + [TskySpec]
     #
     return  TrxList, TskyList, scanFlag
-#
 #-------- Tsys from ACD
 def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
     Tau0List, TantNList, Tau0Coef = [], [], []

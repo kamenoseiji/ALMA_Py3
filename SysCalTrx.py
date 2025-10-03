@@ -1,6 +1,7 @@
 import numpy as np
 import analysisUtils as au
-from interferometry import GetAntName, GetChNum
+from interferometry import GetAntName, GetChNum, GetBandNames
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -9,7 +10,6 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 '''
 prefix = 'uid___A002_Xa018c4_X25f3'
-'''
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
@@ -30,10 +30,12 @@ timeAMB  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
 msmd.close()
 timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
 timeSyscalList = np.unique(timeStamp).tolist()
+BandNames = GetBandNames(msfile, spwList); UniqBands = list(set(BandNames))
+NumBands = len(UniqBands)
 #-------- Read SPW frequency
-for spw in spwList:
+for spw_index, spw in enumerate(spwList):
     chNum, chWid, freq = GetChNum(msfile, spw)
-    spwDic[spw] = {'chNum': chNum, 'chWid': chWid, 'freq' : freq}
+    spwDic[spw] = {'band': BandNames[spw_index], 'chNum': chNum, 'chWid': chWid, 'freq' : freq}
 for scan_index, scan in enumerate(scanList):
     data_index = np.where(timeStamp == timeSyscalList[scan_index])[0].tolist()
     spwsInScan = np.unique(spwID[data_index]).tolist()
