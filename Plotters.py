@@ -579,14 +579,15 @@ def plotFL(pp, scanDic, SPWDic):
     polLabel = ['I', 'Q', 'U', 'V']
     Pcolor   = ['black', 'blue', 'red', 'green']
     for scan_index, scan in enumerate(scanDic.keys()):
-        if len(scanDic[scan]['Flag']) == 0: continue
+        scanFlag = scanDic[scan]['scanFlag']
+        if len(scanFlag) == 0: continue
         figFL, axes = plt.subplots(3, 4, figsize = (11, 8))
         figFL.suptitle(scanDic[scan]['msfile'][:-3])
         figFL.text(0.45, 0.05, 'Projected baseline [m]')
-        UVW = scanDic[scan]['UVW']; uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+        UVW = scanDic[scan]['UVW'][:,:,scanFlag]; uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         sourceName = scanDic[scan]['source']
-        text_src  = 'Scan%02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
-        timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
+        text_src  = 'Scan%02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'][scanFlag])/np.pi)
+        timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec'][scanFlag]), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
         #---- Display results
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['I'])
         axes[0,0].text(0.0, 1.15*180, text_src)
@@ -689,7 +690,8 @@ def plotQUXY(pp, scanDic):
         ThetaPlot, VisXX, VisYY, VisXY = [], [], [], []
         #-------- PA range to draw model
         for scan in scanList:
-            PA = scanDic[scan]['PA']
+            scanFlag = scanDic[scan]['scanFlag']
+            PA = scanDic[scan]['PA'][scanFlag]
             Stokes = np.mean(scanDic[scan]['scanVis'], axis=1)
             EVPA = 0.5* np.arctan2(Stokes[2], Stokes[1])
             Theta = PA - EVPA
@@ -708,7 +710,6 @@ def plotQUXY(pp, scanDic):
         #-------- Plot data points
         for scan in scanList:
             visChav = scanDic[scan]['visChav']   # visChav[Stokes, time]
-            #if visChav.ndim > 2: visChav = np.mean(visChav, axis=1)
             VisXX = VisXX + (abs(scanDic[scan]['visChav'][0]) - abs(np.mean(scanDic[scan]['visChav'][[0,3]], axis=0))).tolist()
             VisYY = VisYY + (abs(scanDic[scan]['visChav'][3]) - abs(np.mean(scanDic[scan]['visChav'][[0,3]], axis=0))).tolist()
             VisXY = VisXY + np.mean(scanDic[scan]['visChav'][[1,2]], axis=0).tolist()

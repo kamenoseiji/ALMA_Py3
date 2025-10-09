@@ -37,7 +37,8 @@ QUmodel = True
 antFlag = []
 spw = 1
 BPscan = 0
-scanList = [3,9,67,125,133,134,192,251]
+#scanList = [3,9,67,125,133,134,192,251]
+scanList = [3,9,125,134,251]
 '''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
@@ -129,7 +130,7 @@ timeNum, mjdSec = len(mjdSec), np.array(mjdSec)
 np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
 Az, El, PA = np.zeros(timeNum), np.zeros(timeNum), np.zeros(timeNum)
 for scan_index, scan in enumerate(scanVisDic.keys()):
-    scanVisDic[scan]['flag'] = indexList(TS[UseTimeList], scanVisDic[scan]['mjdSec'])
+    scanVisDic[scan]['scanFlag'] = indexList(TS[UseTimeList], scanVisDic[scan]['mjdSec'])
     Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
     scanVisDic[scan]['EL'] = El[scanVisDic[scan]['index']]
     scanVisDic[scan]['PA'] = AzEl2PA(Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']], ALMA_lat) + BandPA
