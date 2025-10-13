@@ -22,6 +22,7 @@ from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -43,6 +44,8 @@ antFlag = [ant for ant in antFlag]
 PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
+'''
+prefix = 'uid___A002_X12f38f9_X877b'
 SunAngleTsysLimit = 5.0 # [deg] 
 #if 'PLOTTAU'  not in locals(): PLOTTAU  = False
 #if 'PLOTTSYS' not in locals(): PLOTTSYS = False

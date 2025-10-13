@@ -106,10 +106,11 @@ def SPW_LO(spwDic, prefix):
         for entry in row.findall('freqLO'): LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
         for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
         refFreq = SB1*SB2*SB3*( SB1*LO1 - SB2*LO2 + SB3*LO3 )
-        for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
+        #for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
         #spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
         spwList = [spw for spw in spwDic.keys() if abs(spwDic[spw]['refFreq'] - refFreq) <= spwDic[spw]['BW']/30]
-        if spwID in spwList:
+        #if spwID in spwList:
+        for spwID in spwList:
             spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
             spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
     return spwDic
@@ -131,7 +132,7 @@ def spwMS(msfile):
             'refFreq': msmd.reffreq(spw)['m0']['value'],
             'BW'     : msmd.bandwidths(spw),
             'ch0'    : chFreq[0],
-            'chStep' : np.median(msmd.chanres(spw)),
+            'chStep' : np.median(msmd.chanwidths(spw)),
             'refChan': -0.5,
             'scanList': msmd.scansforspw(spw).tolist() 
         }

@@ -18,9 +18,11 @@ def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
 #-------- Parse options
+'''
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
 parser.add_option('-a',  dest='antFlag', metavar='antFlag', help='Antennas to flag out', default='')
+parser.add_option('-A',  dest='Apriori', metavar='Apriori',  help='Apriori amplitude calibration', action='store_true')
 parser.add_option('-Q',  dest='QUMODEL', metavar='QUMODEL', help='Initial Q,U from AMAPOLA', action='store_true')
 parser.add_option('-U',  dest='uvLimit', metavar='uvLimit', help='(u, v) limet [m]', default='5000')
 parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to refer', default='0')
@@ -32,15 +34,15 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 uvLimit = int(options.uvLimit)
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
+Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X12b5566_Xdb6'
+prefix = 'uid___A002_X12f38f9_X877b'
 antFlag = []
 uvLimit = 5000
-BPscan = 16
+BPscan = 4
 QUMODEL = True
 TsysDigitalCorrection = False
-'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')

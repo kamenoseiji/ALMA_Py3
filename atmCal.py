@@ -112,7 +112,7 @@ def TrxTskySpec(useAnt, tempAmb, tempHot, spwList, scanList, ambSpec, hotSpec, o
     TrxList, TskyList = [], []
     useAntNum, spwNum, scanNum, polNum =  len(useAnt), len(spwList), len(scanList), ambSpec[0].shape[0]
     scanFlag = np.ones([spwNum, polNum, useAntNum, scanNum])
-    for spw_index in list(range(len(spwList))):
+    for spw_index, spw in enumerate(spwList):
         chNum = ambSpec[spw_index* scanNum].shape[1]
         chRange = list(range(int(0.05*chNum), int(0.95*chNum))); chOut = np.sort(list(set(range(chNum)) - set(chRange))).tolist()
         TrxSpec = -np.ones([polNum, chNum, useAntNum, scanNum])
@@ -147,7 +147,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
     Tau0Excess = np.zeros([spwNum, scanNum])
     #-------- Case1: Single atmCal scan
     if scanNum < 2:
-        for spw_index in list(range(spwNum)):
+        for spw_index, spw in enumerate(spwList):
             chNum = TskyList[spw_index].shape[0]
             TantNList = TantNList + [np.zeros([useAntNum, chNum])]
             Tau0List  = Tau0List  + [ -np.log( (np.median(TskyList[spw_index], axis=(1,2)) - tempAtm) / (au.Tcmb - tempAtm) ) / secZ ]
@@ -157,7 +157,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
     #-------- Case2: Multiple atmCal scans, but insuffcient SecZ coverage
     print('SD(secZ) = %f' % (np.std(secZ)))
     if np.std(secZ) < 0.25:
-        for spw_index in list(range(spwNum)):
+        for spw_index, spw in enumerate(spwList):
             scanWeight = np.sum(scanFlag[spw_index], axis=(0,1))
             chNum = TskyList[spw_index].shape[0]
             TantNList = TantNList + [np.zeros([useAntNum, chNum])]
@@ -172,7 +172,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
             Tau0Excess[spw_index] = residTskyTransfer0([np.median(Tau0Med)], tempAtm, secZ, np.median(TskyList[spw_index], axis=(0,1)), scanWeight ) / (tempAtm - au.Tcmb)* np.exp(-np.median(Tau0Med)* secZ) / secZ / (scanWeight + 1e-3)
         #
         #-------- Tau0Excess dependent on secZ 
-        for spw_index in list(range(spwNum)):
+        for spw_index, spw in enumerate(spwList):
             seczSum, seczVar, tauRes = np.sum(secZ),  secZ.dot(secZ), secZ.dot(Tau0Excess[spw_index])
             detTau = scanNum* seczVar - seczSum**2
             coef = np.array([[seczVar, -seczSum],[-seczSum, scanNum]]).dot( np.array([np.sum(Tau0Excess[spw_index]), secZ.dot(Tau0Excess[spw_index])])) / detTau
@@ -182,7 +182,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
         return Tau0List, Tau0Excess, Tau0Coef, TantNList
     #
     #-------- Case3: Suffcient SecZ coverage
-    for spw_index in list(range(spwNum)):
+    for spw_index, spw in enumerate(spwList):
         param = [0.0, 0.05] # Initial parameter [TantN, Tau0]
         chNum = TskyList[spw_index].shape[0]
         Tau0, TantN = param[1]* np.ones([useAntNum, chNum]), np.zeros([useAntNum, chNum])
@@ -229,6 +229,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
         coef = np.array([[seczVar, -seczSum],[-seczSum, scanNum]]).dot( np.array([np.sum(Tau0Excess[spw_index]), secZ.dot(Tau0Excess[spw_index])])) / detTau
         Tau0Excess[spw_index] = Tau0Excess[spw_index] - coef[0] - coef[1]* secZ
         Tau0Coef = Tau0Coef + [coef]
+        print('SPW%d : coef0=%f coef1=%f' % (spw, coef[0], coef[1]))
     #
     return Tau0List, Tau0Excess, Tau0Coef, TantNList
 #
