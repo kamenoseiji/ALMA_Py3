@@ -651,21 +651,20 @@ def GetDterm(URI, antMap, band, refMJD):
 def GetSourceDic(msfile):              # source Dictionary
     from Grid import sourceRename
     msmd.open(msfile)
-    sunAngleList = []
-    tb.open( msfile + '/FIELD')
-    fieldList = np.unique(tb.getcol('NAME')).tolist()
-    fieldID = [msmd.fieldsforname(field)[0] for field in fieldList]
-    fieldPos  = tb.getcol('PHASE_DIR')[:,0].T[fieldID]
-    tb.close()
-    msmd.close()
-    fieldList = sourceRename(fieldList)
+    tb.open(msfile + '/FIELD')
+    fieldList = msmd.fieldnames(); fieldID = set()
+    for field in fieldList: fieldID = fieldID | set(msmd.fieldsforname(field))
+    fieldID = list(fieldID); fieldID.sort()
     fieldDic = dict(zip(fieldID, [[]]* len(fieldID)))
-    for field_index, ID in enumerate(fieldID):
+    fieldPos  = tb.getcol('PHASE_DIR')[:,0].T
+    for ID in fieldDic.keys():
         fieldDic[ID] = {
-            'Name': fieldList[field_index],
-            'RA'  : fieldPos[field_index,0],
-            'DEC' : fieldPos[field_index,1],
-            'SA'  : au.angleToSun(vis=msfile, field=field_index, verbose=False)}
+            'Name': fieldList[ID],
+            'RA'  : fieldPos[ID,0],
+            'DEC' : fieldPos[ID,1],
+            'SA'  : au.angleToSun(vis=msfile, field=ID, verbose=False)}
+    msmd.close()
+    tb.close()
     return fieldDic
 #
 def GetAzEl(msfile):
