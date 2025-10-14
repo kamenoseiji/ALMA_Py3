@@ -2,7 +2,7 @@ import numpy as np
 import sys
 import subprocess
 from scipy import stats
-from ASDM_XML import spwMS, SPW_LO
+from ASDM_XML import spwMS, SPW_FULL_RES, SPW_LO
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -21,6 +21,7 @@ spurLog = open(prefix + '-LO2Spur.log', 'w')
 msfile = prefix + '.ms'
 if not os.path.isdir(msfile): importasdm(prefix)
 SPWdic = spwMS(msfile)
+SPWFull = SPW_FULL_RES( prefix )
 SPWLO = SPW_LO(SPWdic, prefix)
 BBList = np.sort(np.unique(np.array([SPWdic[spw]['BB'] for spw in SPWdic.keys()]))).tolist()
 #-------- Reconfigure SPWs in MS
