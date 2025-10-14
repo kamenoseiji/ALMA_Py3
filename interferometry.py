@@ -657,6 +657,7 @@ def GetSourceDic(msfile):              # source Dictionary
     fieldID = list(fieldID); fieldID.sort()
     fieldDic = dict(zip(fieldID, [[]]* len(fieldID)))
     fieldPos  = tb.getcol('PHASE_DIR')[:,0].T
+    fieldList = sourceRename(fieldList)
     for ID in fieldDic.keys():
         fieldDic[ID] = {
             'Name': fieldList[ID],
