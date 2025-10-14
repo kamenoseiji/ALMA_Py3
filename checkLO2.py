@@ -13,8 +13,8 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'uid___A002_X12dca4b_X1b2'
-scanList = [3]
+prefix = 'uid___A002_X12f38f9_Xfef1'
+scanList = [6]
 '''
 spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
@@ -22,6 +22,8 @@ msfile = prefix + '.ms'
 if not os.path.isdir(msfile): importasdm(prefix)
 SPWdic = spwMS(msfile)
 SPWFull = SPW_FULL_RES( prefix )
+for spw in SPWdic.keys():
+    SPWdic[spw]['ID'] = [SPWFull[spw2]['ID'] for spw2 in SPWFull.keys() if (SPWFull[spw2]['BB'] == SPWdic[spw]['BB']) and (SPWFull[spw2]['BW'] == SPWdic[spw]['BW']) and (SPWFull[spw2]['refFreq'] == SPWdic[spw]['refFreq'])][0]
 SPWLO = SPW_LO(SPWdic, prefix)
 BBList = np.sort(np.unique(np.array([SPWdic[spw]['BB'] for spw in SPWdic.keys()]))).tolist()
 #-------- Reconfigure SPWs in MS

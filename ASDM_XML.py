@@ -45,7 +45,7 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         #---- Check by SPW ID
         for entry in row.findall('name'): SPWname = entry.text
         if 'FULL_RES' not in SPWname: continue
-        for entry in row.findall('spectralWindowId'): spw = int(entry.text.split('_')[1])
+        for entry in row.findall('spectralWindowId'): spwID = entry.text; spw = int(entry.text.split('_')[1])
         #---- Check by Band name
         for entry in row.findall('name'): bandName = 'RB_' + entry.text.split('RB_')[1][0:2]
         for entry in row.findall('numChan'): chNum   = int(entry.text)
@@ -55,6 +55,7 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         for entry in row.findall('chanFreqStep'): chanFreqStep = float(entry.text)
         for entry in row.findall('refChan'): refChan = float(entry.text)
         spwDic[spw] = {
+            'ID'     : spwID,
             'Band'   : bandName,
             'BB'     : BBindex,
             'chNum'  : chNum,
@@ -95,29 +96,17 @@ def SPW_LO(spwDic, prefix):
     tree = ET.parse(RB_XML)
     root = tree.getroot()
     for row in root.findall('row'):
+        for entry in row.findall('spectralWindowId'): spwID = entry.text
         for entry in row.findall('name'): spwName = entry.text
         if 'WVR' in spwName : continue
-        #for entry in row.findall('receiverSideband'): SBname = entry.text
-        #if 'NOSB' not in SBname and 'TSB' not in SBname: continue
-        #-------- Identify BB from SPWID
-        #for entry in row.findall('frequencyBand'):
-        #    if '_' not in entry.text: continue
-        #    BandID = int(entry.text.split('_')[-1]) 
         for entry in row.findall('freqLO'): LOList = entry.text.split()
         if int(LOList[1]) < 3: continue
         LO1, LO2, LO3 = float(entry.text.split()[-3]), float(entry.text.split()[-2]),float(entry.text.split()[-1])
         for entry in row.findall('sidebandLO'): SB1, SB2, SB3 = SBsign[entry.text.split()[-3]], SBsign[entry.text.split()[-2]], SBsign[entry.text.split()[-1]]
         for spw in spwDic.keys():
-            IF3 = SB3*(SB2*(SB1*(spwDic[spw]['refFreq'] - LO1) - LO2) - LO3)
-            print('SPW%d : REF=%.1f LO1=%.1f LO2=%.1f LO3=%.1f SB1=%d SB2=%d SB3=%d IF3=%.1f' % (spw, spwDic[spw]['refFreq']*1.0e-9, LO1*1.0e-9, LO2*1.0e-9, LO3*1.0e-9, SB1, SB2, SB3, IF3*1.0e-9))
-
-        #for entry in row.findall('spectralWindowId'): spwID = int(entry.text.split('_')[1])
-        #spwList = [spw for spw in spwDic.keys() if spwDic[spw]['refFreq'] == refFreq]
-        spwList = [spw for spw in spwDic.keys() if abs(spwDic[spw]['refFreq'] - refFreq) <= spwDic[spw]['BW']/30]
-        #if spwID in spwList:
-        for spwID in spwList:
-            spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
-            spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
+            if spwDic[spw]['ID'] == spwID:
+                spwDic[spw]['LO1'], spwDic[spw]['LO2'], spwDic[spw]['LO3'] = LO1, LO2, LO3
+                spwDic[spw]['SB1'], spwDic[spw]['SB2'], spwDic[spw]['SB3'] = SB1, SB2, SB3
     return spwDic
 #
 def spwMS(msfile):
