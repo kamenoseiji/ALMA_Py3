@@ -72,8 +72,8 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
     print('        Source     :    I     p%     EVPA  QCpUS  UCmQS   EL  ')
     print('-------+-----------+-------+------+------+------+------+------')
     for scan_index, scan in enumerate(scanList):
-        sourceID = msmd.sourceidforfield(msmd.fieldsforscan(scan)[0])
-        sourceName = srcDic[sourceID]['Name']
+        fieldID = msmd.fieldsforscan(scan)[0]
+        sourceName = srcDic[fieldID]['Name']
         probeAntID = 0
         while True:
             AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, probeAntID, AZ, EL)
@@ -84,7 +84,7 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
         #
         PA = AzEl2PA(AzScan, ElScan) + BandPA
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
-        StokesI = 0.0
+        StokesI, QCpUS, UCmQS = 0.0, 0.0, 0.0
         if str.isdigit(sourceName[1]) and len(StokesDic[sourceName]) > 0:
             StokesI = StokesDic[sourceName][1]
             QCpUS = StokesDic[sourceName][2]*CS + StokesDic[sourceName][3]*SN   # Qcos + Usin
@@ -99,7 +99,7 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
             'mjdSec': mjdList[scan_index],
             'EL'    : ElScan,
             'PA'    : PA,
-            'SA'    : srcDic[sourceID]['SA'],
+            'SA'    : srcDic[fieldID]['SA'],
             'I'     : StokesI,
             'QCpUS' : QCpUS,
             'UCmQS' : UCmQS}
