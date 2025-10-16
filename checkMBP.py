@@ -62,12 +62,13 @@ NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
 '''
-BPprefix = 'uid___A002_X12e7c09_X430e'
-prefix = 'uid___A002_X12e7c09_X430e'
+BPprefix = 'uid___A002_X12e95ca_X7383.WVR'
+GAprefix = 'uid___A002_X12e95ca_X7383.WVR'
+prefix = 'uid___A002_X12e95ca_X7383.WVR'
 antFlag = []
 refScan = 3
-scanList = [3]
-spwList = [17,19,21,23]
+scanList = [28]
+spwList = [0,2,4,6]
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
@@ -75,6 +76,12 @@ XYLog = False
 BPPLOT = True
 FG     = False
 refant = 'DA45'
+#-------- bandpass and gain tables to apply
+for spw in spwList:
+    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, refScan, spw)
+    print('---Loading bandpass table : ' + BPfileName)
+#BP_ant = np.load(BPfileName)
+
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
 msfile = prefix + '.ms'
@@ -90,6 +97,7 @@ if len(scanList) == 0:  # Use all available scans
     for spw in spwList: scanList = scanList + SPWdic[spw]['scanList']
     scanList = list(set(scanList)); scanList.sort()
 #
+'''
 refSPW = spwList[0]
 Antenna1, Antenna2 = GetBaselineIndex(msfile, refSPW, SPWdic[refSPW]['scanList'][0])
 UseAntList = CrossCorrAntList(Antenna1, Antenna2)
@@ -170,3 +178,4 @@ for BPscan in scanList:
             for spw_index, spw in enumerate(spws): np.save('%s-REF%s-SC%d-SPW%d-DL.npy' % (prefix, antList[UseAnt[refantID]], BPscan, spw), delay_ant[:,spw_index])
     #
 if XYLog: xyLog.close()
+'''

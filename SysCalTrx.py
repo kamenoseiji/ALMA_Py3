@@ -1,15 +1,15 @@
 import numpy as np
 import analysisUtils as au
 from interferometry import GetAntName, GetChNum, GetBandNames
-'''
 from optparse import OptionParser
+'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 '''
-prefix = 'uid___A002_Xa018c4_X25f3'
+prefix = 'uid___A002_X1303e77_X584d'
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
