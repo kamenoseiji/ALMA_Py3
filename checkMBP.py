@@ -65,10 +65,11 @@ refant  = options.refant
 BPprefix = 'uid___A002_X12e95ca_X7383.WVR'
 GAprefix = 'uid___A002_X12e95ca_X7383.WVR'
 prefix = 'uid___A002_X12e95ca_X7383.WVR'
-antFlag = []
+antFlag = ['DA50','DV24']
 refScan = 3
 scanList = [28]
 spwList = [0,2,4,6]
+GAspw   = 0
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
@@ -77,14 +78,12 @@ BPPLOT = True
 FG     = False
 refant = 'DA45'
 #-------- bandpass and gain tables to apply
-for spw in spwList:
-    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, refScan, spw)
-    print('---Loading bandpass table : ' + BPfileName)
-#BP_ant = np.load(BPfileName)
-
+BPantList = np.load('%s-REF%s.Ant.npy' % (BPprefix, refant))
+BPfileList = []
+for spw in spwList: BPfileList = BPfileList + ['%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, refScan, spw)]
+GAfileName = '%s-SPW%d.GA.npy' % (GAprefix, GAspw)
+TSfileName = '%s-SPW%d.TS.npy' % (GAprefix, GAspw)
 #-------- Procedures
-if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
-msfile = prefix + '.ms'
 if os.path.isdir(prefix + '/SpectralWindow.xml'):
     SPWdic = SPW_FULL_RES(prefix)
     SPWdic = spwIDMS(SPWdic, msfile)
@@ -97,16 +96,16 @@ if len(scanList) == 0:  # Use all available scans
     for spw in spwList: scanList = scanList + SPWdic[spw]['scanList']
     scanList = list(set(scanList)); scanList.sort()
 #
-'''
-refSPW = spwList[0]
-Antenna1, Antenna2 = GetBaselineIndex(msfile, refSPW, SPWdic[refSPW]['scanList'][0])
-UseAntList = CrossCorrAntList(Antenna1, Antenna2)
-antList = GetAntName(msfile)[UseAntList]
+antList = GetAntName(msfile)
 antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 #-------- Configure Array
-print('---Checking array configulation in scan %d' % (scanList[0]))
+print('---Checking array configulation in scan %d' % (refScan))
+BPantMap = indexList(np.delete(BPantList, indexList(antFlag, BPantList)), BPantList)
+antMap = indexList( BPantList[BPantMap], antList)
+
 flagAnt = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
+'''
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 if refant not in antList[UseAnt]: refant = ''
 if refant == '':
