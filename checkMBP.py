@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable, GetVisAllBL, gainComplexVec, ParaPolBL
 from ASDM_XML import SPW_FULL_RES, spwMS, spwIDMS
 from Plotters import plotXYP, plotBP, plotSP
 from optparse import OptionParser
@@ -62,14 +62,14 @@ NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
 '''
-BPprefix = 'uid___A002_X12e95ca_X7383.WVR'
-GAprefix = 'uid___A002_X12e95ca_X7383.WVR'
-prefix = 'uid___A002_X12e95ca_X7383.WVR'
+BPprefix = 'uid___A002_X12e95ca_X7383'
+GAprefix = 'uid___A002_X12e95ca_X7383'
+prefix = 'uid___A002_X12e95ca_X7383'
 antFlag = ['DA50','DV24']
 refScan = 3
 scanList = [28]
-spwList = [0,2,4,6]
-GAspw   = 0
+spwList = [15,17,19,21]
+GAspw   = 15
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
@@ -78,9 +78,12 @@ BPPLOT = True
 FG     = False
 refant = 'DA45'
 #-------- bandpass and gain tables to apply
+msfile = prefix + '.ms'
 BPantList = np.load('%s-REF%s.Ant.npy' % (BPprefix, refant))
-BPfileList = []
-for spw in spwList: BPfileList = BPfileList + ['%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, refScan, spw)]
+BPfileList, BPfreqList = [], []
+for spw in spwList:
+    BPfileList = BPfileList + ['%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, refScan, spw)]
+    BPfreqList = BPfreqList + ['%s-SPW%d-Freq.npy' % (BPprefix, spw)]
 GAfileName = '%s-SPW%d.GA.npy' % (GAprefix, GAspw)
 TSfileName = '%s-SPW%d.TS.npy' % (GAprefix, GAspw)
 #-------- Procedures
@@ -102,54 +105,39 @@ antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
 print('---Checking array configulation in scan %d' % (refScan))
 BPantMap = indexList(np.delete(BPantList, indexList(antFlag, BPantList)), BPantList)
 antMap = indexList( BPantList[BPantMap], antList)
-
 flagAnt = indexList(antFlag, antList)
 UseAnt = list(set(range(antNum)) - set(flagAnt)); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
-'''
-blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
-if refant not in antList[UseAnt]: refant = ''
-if refant == '':
-    timeStamp, UVW = GetUVW(msfile, refSPW, SPWdic[refSPW]['scanList'][0])
-    uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    refantID = bestRefant(uvDist)
-else:
-    refantID = np.where(antList[UseAnt] == refant)[0][0]
-print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
 #-------- Baseline Mapping
 print('---Baseline Mapping')
-antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
+blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
-#blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
+#-------- Gain Table
+GA = np.load(GAfileName)[antMap]
+TS = np.load(TSfileName)
 #-------- Bandpass Table
-print('---Generating antenna-based bandpass table')
+print('---Loading antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
-for BPscan in scanList:
-    spws = [spw for spw in spwList if BPscan in SPWdic[spw]['scanList']]
-    FreqList, BPList, XYList, XYdelayList = [], [], [], []
-    for spw_index, spw in enumerate(spws):
-        if FG:  # Flag table
-            FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
-            TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS)
-        else:
-            if spw_index == 0:
-                BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin)
-            else :
-                BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, np.array([]), np.array([]), Gain)
-        #
-        BPList = BPList + [BP_ant]
-        XYList = XYList + [XY_BP]
-        chNum, chWid, Freq = GetChNum(msfile, spw)
-        chNum, chWid, Freq = int(chNum / chBin), chWid* chBin, bunchVec(Freq, chBin)
-        if NPY: np.save('%s-SPW%d-Freq.npy' % (prefix, spw), Freq) 
-        FreqList = FreqList + [Freq]
-        BW = chNum* np.median(chWid)    # Bandwidth
-        XYdelayList = XYdelayList + [0.5e9* XYD / BW]
-        text_sd = 'Scan%2d SPW%2d BB%d: [%s] XY delay = %+.3f [ns] : SNR = %.1f' % (BPscan, spw, SPWdic[spw]['BB']+1, SideBand[int((np.sign(np.median(chWid))+1)/2)], -0.5* XYD / (BW * 1.0e-9), XYsnr)
-        print(text_sd)
-        if XYLog: xyLog.write(text_sd + '\n')
+FreqList, BPList = [], []
+for spw_index, spw in enumerate(spwList):
+    BPList   = BPList + [np.load(BPfileList[spw_index])]
+    FreqList = FreqList + [np.load(BPfreqList[spw_index])]
+#-------- Load Visiblities
+print('---Loading visibilities')
+for scan_index, scan in scanList:
+    for spw_index, spw in enumerate(spwList):
+        timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)    # Xspec[pol, ch, bl, time]
+        Xspec  = ParaPolBL(Xspec[:,:,blMap], blInv)
+        GAscan = GA[:,:,indexList(timeStamp, TS)]                   # GAscan[ant, pol, time]
+        BPant  = BPList[spw_index][BPantMap]                        # BPant[ant, pol, ch]
+        CaledXspec = np.mean(GAscan[ant0].conjugate()* GAscan[ant1]* Xspec.transpose(1,2,0,3), axis=3).transpose(1,2,0) # CaledXspec[bl, pol, ch]
+        CaledXspec = CaledXspec / (BPant[ant0]* BPant[ant1].conjugate())
+'''
+
+
+
+        BP_ant[:,0], BP_ant[:,1] = (gainComplexVec(CaledXspec[:,:,0].T), gainComplexVec(CaledXspec[:,:,1].T))
     #
     ppolNum = BPList[0].shape[1]
     PolList = ['X', 'Y']
