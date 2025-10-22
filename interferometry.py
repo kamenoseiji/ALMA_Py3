@@ -771,6 +771,12 @@ def GetAntName(msfile):
 	tb.close()
 	return namelist
 
+def GetAntPos(msfile):
+	tb.open(msfile+'/'+'ANTENNA')
+	antPos = tb.getcol("POSITION")
+	tb.close()
+	return antPos
+
 def GetBasePair(AntNum):
 	BaseNum=int((float(AntNum))*(float(AntNum)-1)/2)
 	BasePair=[]
