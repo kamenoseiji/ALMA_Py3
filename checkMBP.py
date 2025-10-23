@@ -24,10 +24,8 @@ parser.add_option('-f', dest='FG', metavar='FG',
     help='Apply flagging', action="store_true")
 parser.add_option('-g', dest='GAspw', metavar='GAspw',
     help='SPW for gain table to apply', default='')
-parser.add_option('-m', dest='plotMin', metavar='plotMin', type="float",
-    help='Plot range minimum', default=0.0)
 parser.add_option('-M', dest='plotMax', metavar='plotMax', type="float",
-    help='Plot range minimum', default=1.2)
+    help='Plot range (deg), default=30 deg', default=30.0)
 parser.add_option('-r', dest='refscan', metavar='refscan',
     help='Reference (bandpass) scan', default='3')
 parser.add_option('-s', dest='spwList', metavar='spwList',
@@ -54,7 +52,6 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 chBin=  int(options.chBin)
 spwList = [] if options.spwList == '' else [int(spw) for spw in options.spwList.split(',')]
-plotMin = options.plotMin
 plotMax = options.plotMax
 BPPLOT  = options.BPPLOT
 delayMessage  = options.delayMessage
@@ -181,7 +178,7 @@ for scan_index, scan in enumerate(scanList):
         PhsPL.plot(Freq1D, RADDEG* np.angle(BPY), '.', color=polColor[1], label = 'Pol-%s DL=%+.3f [ps] phs=%.1f [deg]' % ('Y', 1e3*paramY[1], RADDEG*paramY[0]))
         text_sd = 'Scan%d %s : multi-delay = %6.3f %6.3f [ps]  %6.1f %6.1f [deg]' % (scan, ant, 1e3*paramX[1], 1e3*paramY[1], RADDEG*paramX[0], RADDEG*paramY[0])
         print(text_sd)
-        PhsPL.axis([np.min(Freq1D), np.max(Freq1D), -30.0, 30.0])
+        PhsPL.axis([np.min(Freq1D), np.max(Freq1D), -plotMax, plotMax])
         PhsPL.tick_params(axis='both', labelsize=9)
         PhsPL.legend(loc = 'lower left', prop={'size' :7}, numpoints = 1)
         figAnt.savefig(pp, format='pdf')
