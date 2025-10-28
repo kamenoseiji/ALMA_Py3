@@ -36,7 +36,7 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X8204db_X3b8'
+prefix = 'uid___A002_Xdf8d1a_Xb88'
 antFlag = []
 uvLimit = 5000
 BPscan = 6

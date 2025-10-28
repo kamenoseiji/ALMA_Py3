@@ -48,15 +48,16 @@ plotAntNum = len(plotAntList) - 1
 rowNum = int(min(4, np.floor(np.sqrt(plotAntNum))))
 #-------- Reference Power
 ant_index = np.where(antList == plotAntList[0])[0][0]
-TS, BB = [], []
+TS, BBX, BBY = [], [], []
 for scan_index, scanID in enumerate(scanList):
     timeStamp, RefPower = GetPSpecScan(msfile, ant_index, spwID, scanID)
-    #TS = TS + timeStamp.tolist()
+    TS = TS + timeStamp.tolist()
     #BB = BB + np.mean(RefPower, axis=(0,1)).tolist()
-    TS = TS + [np.mean(timeStamp)]
-    BB = BB + [np.mean(RefPower)]
+    #TS = TS + [np.mean(timeStamp)]
+    BBX = BBX + RefPower[0,0].tolist()
+    BBY = BBY + RefPower[1,0].tolist()
 DT = [datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f') for mjdSec in TS]
-BBref = np.array(BB)
+BBXref, BBYref = np.array(BBX), np.array(BBY)
 antMap = indexList(plotAntList, antList)[1:]
 #-------- Loop for each antenna
 for row_index, ant_index in enumerate(antMap):
@@ -65,17 +66,21 @@ for row_index, ant_index in enumerate(antMap):
     BBPL.tick_params(labelsize=4); BBPL.tick_params(axis='x')
     BBPL.axis([np.min(DT), np.max(DT), -plotMax, plotMax])
     BBPL.grid(axis='y', linestyle='--', color='gray')
-    BB = []
+    BBX, BBY = [], []
     for scan_index, scanID in enumerate(scanList):
         timeStamp, BBPower = GetPSpecScan(msfile, ant_index, spwID, scanID)
         #BB = BB + np.mean(BBPower, axis=(0,1)).tolist()
-        BB = BB + [np.mean(BBPower)]
-    BBpower = np.array(BB) / BBref
-    BBpower = BBpower - BBpower[0]
+        BBX = BBX + BBPower[0,0].tolist()
+        BBY = BBY + BBPower[1,0].tolist()
+    BBpowerX = np.array(BBX) / BBXref
+    BBpowerX = BBpowerX - BBpowerX[0]
+    BBpowerY = np.array(BBY) / BBYref
+    BBpowerY = BBpowerY - BBpowerY[0]
     text_sd = antList[ant_index]
-    BBPL.plot( DT, BBpower, '-', linewidth=0.25)
-    BBPL.plot( DT, BBpower, '.' )
+    BBPL.plot( DT, BBpowerX, '-', linewidth=0.25, label='pol-X'); BBPL.plot( DT, BBpowerX, '.' )
+    BBPL.plot( DT, BBpowerY, '-', linewidth=0.25, label='pol-Y'); BBPL.plot( DT, BBpowerY, '.' )
     BBPL.text(DT[0], 0.8*plotMax, text_sd, fontsize=5)
+    if row_index == 0: BBPL.legend()
 #
 figBB.savefig(pp, format='pdf')
 plt.close('all')
