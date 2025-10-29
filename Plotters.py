@@ -109,6 +109,55 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
     plt.close('all')
     return
 #-------- Plot Tsys and Trx Spectrum
+def plotTsysDic(prefix, TsysDic):
+    pp = PdfPages('TSYS_' + prefix + '.pdf')
+    #-------- Plots for Tsys spectra
+    scanList = list(TsysDic.keys()); scanNum = len(scanList)
+    antList  = TsysDic[scanList[0]]['antList']; antNum = len(antList)
+    #-------- Prepare Plots
+    figAnt = plt.figure(figsize = (8, 11))
+    figAnt.suptitle(prefix)
+    figAnt.text(0.45, 0.05, 'Frequency [GHz]')
+    figAnt.text(0.03, 0.42, 'Tsys (X:blue, Y:green) and Trec (X:magenta, Y:yellow) [K]', rotation=90)
+    #-------- Page for each antenna
+    for ant_index, ant in enumerate(antList):
+        if ant_index > 0:
+            for PL in TsysPL: figAnt.delaxes(PL)
+        TsysPL, TsysMax = [], []
+        #-------- To determine scaling max
+        for scan_index, scan in enumerate(scanList):
+            spwNum = len(TsysDic[scan]['spwList'])
+            for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+                index = spwNum* ant_index + spw_index
+                TsysMax = TsysMax + [np.percentile(TsysDic[scan]['Tsys'][:,:,index], 75)]
+        plotMax = 1.5* np.max(np.array(TsysMax))
+        for scan_index, scan in enumerate(scanList):
+            spwNum = len(TsysDic[scan]['spwList'])
+            for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+                index = spwNum* ant_index + spw_index
+                TRX, TSYS, FREQ = TsysDic[scan]['Trx'][:,:,index], TsysDic[scan]['Tsys'][:,:,index], 1.0e-9*TsysDic[scan]['freq'][spw_index]
+                polNum = TRX.shape[0]
+                currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
+                TsysPL = TsysPL + [currentPL]
+                timeLabel = au.call_qa_time('%fs' % (TsysDic[scan]['Time']), form='fits')
+                for pol_index in range(polNum):
+                    currentPL.step(FREQ, TSYS[pol_index], where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
+                    currentPL.step(FREQ, TRX[pol_index],  color=polColor[pol_index+2], where='mid', label = 'Trec Pol ' + polName[pol_index])
+                currentPL.axis([np.min(FREQ), np.max(FREQ), 0.0, plotMax])
+                currentPL.tick_params(axis='both', labelsize=3, direction='in')
+                currentPL.text(0.25*np.min(FREQ) + 0.75*np.max(FREQ), 0.8* plotMax, 'SPW %d' % (spw), fontsize='6')
+                if scan_index == 0 and spw_index == 0: currentPL.text(1.2* np.min(FREQ) - 0.2* np.max(FREQ), (0.9 + 0.075*scanNum)*plotMax, ant, fontsize='16')
+                if spw_index == 0: currentPL.text(np.min(FREQ), 0.8* plotMax, timeLabel, fontsize='6')
+                else: currentPL.set_yticklabels([])
+        figAnt.savefig(pp, format='pdf')
+    for PL in TsysPL: figAnt.delaxes(PL)
+    plt.close('all')
+    pp.close()
+    del(TsysPL)
+    del(figAnt)
+    return
+#
+#-------- Plot Tsys and Trx Spectrum
 def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
     pp = PdfPages('TSYS_' + prefix + '.pdf')
     #-------- Plots for Tsys spectra

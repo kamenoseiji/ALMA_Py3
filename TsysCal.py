@@ -48,7 +48,7 @@ antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
 ONTAU = False
-prefix = 'uid___A002_X8204db_X3b8'
+prefix = 'uid___A002_X12fb842_X40a0'
 '''
 SunAngleTsysLimit = 5.0 # [deg] 
 #if 'PLOTTAU'  not in locals(): PLOTTAU  = False

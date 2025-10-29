@@ -1,20 +1,26 @@
 import numpy as np
+from Plotters import plotTsysDic
 import analysisUtils as au
 from interferometry import GetAntName, GetChNum, GetBandNames
 from optparse import OptionParser
-'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
+parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
+    help='Plot Tsys and Trx spectra', action="store_true")
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+PLOTTSYS= options.PLOTTSYS
 '''
-prefix = 'uid___A002_X1303e77_X584d'
+prefix = 'uid___A002_X12fb842_X40a0'
+PLOTTSYS = True
+'''
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
 colnameList = tb.colnames()
 timeStamp = tb.getcol('TIME')
+timeSyscalList = timeStamp[ np.where(np.diff(timeStamp) != 0.0)[0].tolist() + [-1] ]
 antID = tb.getcol('ANTENNA_ID')
 spwID = tb.getcol('SPECTRAL_WINDOW_ID')
 TRX = tb.getcol('TRX_SPECTRUM')
@@ -27,11 +33,11 @@ logFile  = open(prefix + '-TelCal.log', 'w')
 msmd.open(msfile)
 scanList = msmd.scansforintent("CALIBRATE_ATMOSPHERE*")
 timeAMB  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
+timeList = [np.median(msmd.timesforscan(scan)) for scan in scanList]
 msmd.close()
-timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
-timeSyscalList = np.unique(timeStamp).tolist()
 BandNames = GetBandNames(msfile, spwList); UniqBands = list(set(BandNames))
 NumBands = len(UniqBands)
+TsysDic = dict(zip(scanList, [[]]*len(scanList)))  # Scan-based Tsys and Trx
 #-------- Read SPW frequency
 for spw_index, spw in enumerate(spwList):
     chNum, chWid, freq = GetChNum(msfile, spw)
@@ -42,6 +48,14 @@ for scan_index, scan in enumerate(scanList):
     antsInScan = np.unique(antID[data_index]).tolist()
     timeLabel = 'Scan %d : %s' % (scan, au.call_qa_time('%fs' % (timeList[scan_index]), form='fits'))
     logFile.write(timeLabel + '\n'); print(timeLabel)
+    TsysDic[scan] = {
+        'antList': antList[antsInScan],
+        'Time'   : timeList[scan_index],
+        'spwList': spwsInScan,
+        'chNum'  : [spwDic[spw]['chNum'] for spw in spwsInScan],
+        'freq'   : [spwDic[spw]['freq'] for spw in spwsInScan],
+        'Trx'    : TRX[:,:,data_index],
+        'Tsys'   : TSY[:,:,data_index]}
     text_sd = 'Trx  : '
     for spw_index, spw in enumerate(spwsInScan): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spw, np.median(spwDic[spw]['freq'])* 1.0e-9)
     logFile.write(text_sd + '\n'); print(text_sd)
@@ -63,5 +77,5 @@ for scan_index, scan in enumerate(scanList):
             text_sd = '%s : ' % (ant) + text_sd
             logFile.write(text_sd + '\n'); print(text_sd)
             text_sd = ''
-    #
 logFile.close()
+if PLOTTSYS: plotTsysDic(prefix, TsysDic)

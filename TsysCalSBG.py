@@ -43,7 +43,7 @@ PLOTTAU = options.PLOTTAU
 PLOTTSYS= options.PLOTTSYS
 ONTAU   = options.ONTAU
 '''
-prefix = 'uid___A002_Xa018c4_X25f3'
+prefix = 'uid___A002_X12fb842_X40a0'
 antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
@@ -59,7 +59,46 @@ if os.path.isdir(msfile): SPWdic = spwIDMS(SPWdic, msfile)
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 antList = GetAntName(msfile)
+msmd.open(msfile)
+scanList = msmd.scansforintent("CALIBRATE_ATMOSPHERE*")
+timeAMB  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
+SQLDspwList = msmd.almaspws(sqld=True)
+SQLDDic = dict(zip(SQLDspwList, [[]]*len(SQLDspwList)))
+for spw_index, spw in enumerate(SQLDspwList):
+    sqldScans = msmd.scansforspw(spw)
+    if len(sqldScans) < 1:
+        SQLDspwList.pop(spw)
+    else:
+        SQLDDic[spw] = {
+            'name'    : msmd.namesforspws(spw)[0],
+            'scanList': msmd.scansforspw(spw).tolist(),
+    }
+
 antNum = len(antList)
+timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
+#-------- Prepare TsysDic to store Trx, Tsky, Tsys
+TsysDic = dict(zip(scanList, [[]]*len(scanList)))  # Scan-based Tsys and Trx
+for scan_index, scan in enumerate(scanList):
+    spwsInScan = list( set(msmd.spwsforscan(scan)) & set(SPWdic.keys())); spwsInScan.sort()
+    SQLDinScan = list( set(msmd.spwsforscan(scan)) & set(SQLDspwList))
+    #timeLabel = 'Scan %d : %s' % (scan, au.call_qa_time('%fs' % (timeList[scan_index]), form='fits'))
+    if len(spwsInScan) < 1: continue
+    TsysDic[scan] = {
+        'antList': antList,
+        'Time'   : timeList[scan_index],
+        'Band'   : SPWdic[spwsInScan[0]]['Band'],
+        'BBList' : [SPWdic[spw]['BB'] for spw in spwsInScan],
+        'spwList': spwsInScan,
+        'chNum'  : [SPWdic[spw]['chNum'] for spw in spwsInScan],
+        'freq'   : [np.linspace(SPWdic[spw]['ch0'], SPWdic[spw]['ch0']+(SPWdic[8]['chNum'] - 1)*SPWdic[spw]['chStep'], SPWdic[spw]['chNum']) for spw in spwsInScan]}
+#-------- Number of spectral setups (Bands, spectral scans, etc)
+spwSets = np.unique([','.join(map(str, TsysDic[scan]['spwList'])) for scan in TsysDic.keys()]).tolist()
+scanListForSPW = []
+for spwSet in spwSets: scanListForSPW = scanListForSPW + [[scan for scan in scanList if ','.join(map(str, TsysDic[scan]['spwList'])) == spwSet]]
+for spwSet_index, spwSet in enumerate(scanListForSPW):
+    
+
+'''
 if 'flagAnt' not in locals(): flagAnt = np.ones(antNum)
 if 'antFlag' in locals():
     index =  indexList(np.array(antFlag), antList)
@@ -75,7 +114,6 @@ if 'atmSPWs' not in locals():
 atmBandNames = GetBandNames(msfile, atmSPWs); UniqBands = list(set(atmBandNames))
 if UniqBands == []: UniqBands = [SPWdic[spw]['Band'] for spw in SPWdic.keys()]
 NumBands = len(UniqBands)
-msmd.open(msfile)
 spwNameList = msmd.namesforspws()
 atmspwLists, atmscanLists, SQLDspwLists, CHAVspwLists, OnScanLists = [], [], [], [], []
 for band_index, bandName in enumerate(UniqBands):
@@ -282,3 +320,4 @@ del ONTAU, PLOTTAU, PLOTTSYS
 #-------- Plot optical depth
 msmd.close()
 msmd.done()
+'''
