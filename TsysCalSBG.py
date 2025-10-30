@@ -59,23 +59,56 @@ if os.path.isdir(msfile): SPWdic = spwIDMS(SPWdic, msfile)
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 antList = GetAntName(msfile)
+antNum = len(antList)
+azelTime, AntID, AZ, EL = GetAzEl(msfile)
+#-------- Linear regression between SQLD and BB
+def powerBias(sqld, chav):
+    sumX = np.sum(sqld)
+    sumY = np.sum(chav)
+    sumXX= sqld.dot(sqld)
+    sumXY= chav.dot(sqld)
+    bias = (sumXX* sumY - sumX* sumXY)/(len(chav)* sumXX - sumX*sumX)
+    return 0.0 if np.isnan(bias) else bias
+#-------- Linear regression between SQLD and BB
 msmd.open(msfile)
 scanList = msmd.scansforintent("CALIBRATE_ATMOSPHERE*")
 timeAMB  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#AMBIENT")
+timeHOT  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#HOT")
+timeOFF  = msmd.timesforintent("CALIBRATE_ATMOSPHERE#OFF_SOURCE")
+timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
 SQLDspwList = msmd.almaspws(sqld=True)
+CHAVspwList = msmd.almaspws(chavg=True)
+FULLspwList = msmd.almaspws(tdm=True)
+CHAVspwList = [spw for spw in CHAVspwList if 'CH_AVG' in msmd.namesforspws(spw)[0]]
+FULLspwList = [spw for spw in FULLspwList if 'FULL_RES' in msmd.namesforspws(spw)[0]]
 SQLDDic = dict(zip(SQLDspwList, [[]]*len(SQLDspwList)))
 for spw_index, spw in enumerate(SQLDspwList):
     sqldScans = msmd.scansforspw(spw)
     if len(sqldScans) < 1:
-        SQLDspwList.pop(spw)
+        SQLDDic.pop(spw)
     else:
         SQLDDic[spw] = {
             'name'    : msmd.namesforspws(spw)[0],
-            'scanList': msmd.scansforspw(spw).tolist(),
-    }
-
-antNum = len(antList)
-timeList = timeAMB[(np.where(np.diff(timeAMB) > 10*np.median(np.diff(timeAMB)))[0] - 1).tolist() + [-1]].tolist()
+            'scanList': msmd.scansforspw(spw).tolist() }
+#-------- Get Load Temperature
+tempLoad = np.array([GetLoadTemp(msfile, ant_index, 0).tolist() for ant_index, ant in enumerate(antList)])
+tempAmb, tempHot  = tempLoad[:,0], tempLoad[:,1]
+tempAmb[np.where(tempAmb < 240)[0].tolist()] += 273.15       # Old MS describes the load temperature in Celsius
+tempHot[np.where(tempHot < 240)[0].tolist()] += 273.15       # Old MS describes the load temperature in Celsius
+#-------- SQLD data in the 1st atmCal scan for SQLD/CHAV comparison
+for spw in SQLDDic.keys():
+    SQLDDic[spw]['BB'] = int(SQLDDic[spw]['name'].split('BB_')[1][0])
+    SQLDDic[spw]['SPW']  = [cspw for cspw in FULLspwList if SQLDDic[spw]['scanList'][0] in msmd.scansforspw(cspw) and 'BB_%d' % (SQLDDic[spw]['BB']) in msmd.namesforspws(cspw)[0]][0]
+    SQLDDic[spw]['CHAV'] = [cspw for cspw in CHAVspwList if SQLDDic[spw]['scanList'][0] in msmd.scansforspw(cspw) and 'BB_%d' % (SQLDDic[spw]['BB']) in msmd.namesforspws(cspw)[0]][0]
+    CorrBias = []
+    for ant_index, ant in enumerate(antList):
+        #for scan_index, scan in enumerate(SQLDDic[spw]['scanList']):
+        timeScan, SQLD = GetPSpecScan(msfile, ant_index, spw, SQLDDic[spw]['scanList'][0])
+        powerSQLD = np.array([np.median(SQLD[:,0,indexList(timeOFF, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeAMB, timeScan)], axis=1), np.median(SQLD[:,0,indexList(timeHOT, timeScan)], axis=1)])
+        timeScan, CHAV = GetPSpecScan(msfile, ant_index, SQLDDic[spw]['CHAV'], SQLDDic[spw]['scanList'][0])
+        powerCHAV = np.array([np.median(CHAV[:,0,indexList(timeOFF, timeScan)], axis=1), np.median(CHAV[:,0,indexList(timeAMB, timeScan)], axis=1), np.median(CHAV[:,0,indexList(timeHOT, timeScan)], axis=1)])[:,(0,-1)]
+        CorrBias = CorrBias + [[powerBias(powerSQLD[:,0], powerCHAV[:,0]), powerBias(powerSQLD[:,1], powerCHAV[:,1])]]
+    SQLDDic[spw]['CorrBias'] = np.array(CorrBias)
 #-------- Prepare TsysDic to store Trx, Tsky, Tsys
 TsysDic = dict(zip(scanList, [[]]*len(scanList)))  # Scan-based Tsys and Trx
 for scan_index, scan in enumerate(scanList):
@@ -83,9 +116,12 @@ for scan_index, scan in enumerate(scanList):
     SQLDinScan = list( set(msmd.spwsforscan(scan)) & set(SQLDspwList))
     #timeLabel = 'Scan %d : %s' % (scan, au.call_qa_time('%fs' % (timeList[scan_index]), form='fits'))
     if len(spwsInScan) < 1: continue
+    azel_index = np.where(abs(azelTime - timeList[scan_index]) < np.median(np.diff(azelTime)))[0]
     TsysDic[scan] = {
         'antList': antList,
         'Time'   : timeList[scan_index],
+        'AZ'     : np.median(AZ[azel_index]),
+        'EL'     : np.median(EL[azel_index]),
         'Band'   : SPWdic[spwsInScan[0]]['Band'],
         'BBList' : [SPWdic[spw]['BB'] for spw in spwsInScan],
         'spwList': spwsInScan,
@@ -95,10 +131,27 @@ for scan_index, scan in enumerate(scanList):
 spwSets = np.unique([','.join(map(str, TsysDic[scan]['spwList'])) for scan in TsysDic.keys()]).tolist()
 scanListForSPW = []
 for spwSet in spwSets: scanListForSPW = scanListForSPW + [[scan for scan in scanList if ','.join(map(str, TsysDic[scan]['spwList'])) == spwSet]]
-for spwSet_index, spwSet in enumerate(scanListForSPW):
-    
+#for spwSet_index, spwSet in enumerate(scanListForSPW):
+#-------- Load power spectra
+for scan_index, scan in enumerate(TsysDic.keys()):
+    Poff, Pamb, Phot = [], [], []
+    for ant_index, ant in enumerate(antList):
+        for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+            timeScan, Pspec = GetPSpecScan(msfile, ant_index, spw, scan)    # Pspec[pol, ch, time]
+            Poff = Poff + [np.median(Pspec[:,:, indexList(timeOFF, timeScan)], axis=2)]
+            Pamb = Pamb + [np.median(Pspec[:,:, indexList(timeAMB, timeScan)], axis=2)]
+            Phot = Phot + [np.median(Pspec[:,:, indexList(timeHOT, timeScan)], axis=2)]
+    TsysDic[scan]['Poff'] = np.array(Poff)  # Poff[ant_index* spwNum + spw_index, pol, ch]
+    TsysDic[scan]['Pamb'] = np.array(Pamb)  # Pamb[ant_index* spwNum + spw_index, pol, ch]
+    TsysDic[scan]['Phot'] = np.array(Phot)  # Phot[ant_index* spwNum + spw_index, pol, ch]
+#-------- Digital correction
+for scan_index, scan in enumerate(TsysDic.keys()):
+    for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+        [cspw for cspw in SQLDDic.keys() if SQLDDic[cspw]['SPW'] == spw][0]
 
+    
 '''
+
 if 'flagAnt' not in locals(): flagAnt = np.ones(antNum)
 if 'antFlag' in locals():
     index =  indexList(np.array(antFlag), antList)
