@@ -41,7 +41,7 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         #---- Check by BB name
         for entry in row.findall('basebandName'): BBname = entry.text
         if BBname == 'NOBB': continue
-        BBindex = int(BBname.split('_')[1]) - 1
+        BBID = int(BBname.split('_')[1])
         #---- Check by SPW ID
         for entry in row.findall('name'): SPWname = entry.text
         if 'FULL_RES' not in SPWname: continue
@@ -57,7 +57,7 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
         spwDic[spw] = {
             'ID'     : spwID,
             'Band'   : bandName,
-            'BB'     : BBindex,
+            'BB'     : BBID,
             'chNum'  : chNum,
             'refFreq': refFreq,
             'BW'     : BW,
@@ -88,6 +88,12 @@ def SPW_FULL_RES( prefix ):   # Dictionary for FULL_RES SPWs
             spwDic[spwID]['LO1'], spwDic[spwID]['LO2'], spwDic[spwID]['LO3'] = LO1, LO2, LO3
             spwDic[spwID]['SB1'], spwDic[spwID]['SB2'], spwDic[spwID]['SB3'] = SB1, SB2, SB3
     #
+    RB_XML = prefix + '/' + 'Polarization.xml'
+    tree = ET.parse(RB_XML)
+    root = tree.getroot()
+    for row in root.findall('row'):
+        for entry in row.findall('numCorr'): polNum = int(entry.text)
+        for spwID in spwDic.keys(): spwDic[spwID]['polNum'] = polNum
     return spwDic
 #
 def SPW_LO(spwDic, prefix):
@@ -142,7 +148,7 @@ def spwIDMS(spwDic, msfile):
     for spw in spwsMS:
         BBid = msmd.baseband(spw)
         refFreqMS = msmd.reffreq(spw)['m0']['value']
-        asdmSPWs = [asdmSPW for asdmSPW in spwDic.keys() if spwDic[asdmSPW]['BB'] == BBid - 1 and spwDic[asdmSPW]['refFreq'] == refFreqMS]
+        asdmSPWs = [asdmSPW for asdmSPW in spwDic.keys() if spwDic[asdmSPW]['BB'] == BBid and spwDic[asdmSPW]['refFreq'] == refFreqMS]
         if len(asdmSPWs) == 1: spwDic[spw] = spwDic.pop(asdmSPWs[0])
     for spw in spwDic.keys():
         spwDic[spw]['scanList'] = msmd.scansforspw(spw).tolist() 

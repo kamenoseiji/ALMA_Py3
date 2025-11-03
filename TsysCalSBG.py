@@ -19,7 +19,7 @@ import sys
 import scipy
 import numpy as np
 from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str
-from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
+from atmCal import BlackBody, scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import SPW_FULL_RES, spwIDMS
 '''
@@ -119,14 +119,14 @@ for scan_index, scan in enumerate(scanList):
     azel_index = np.where(abs(azelTime - timeList[scan_index]) < np.median(np.diff(azelTime)))[0]
     TsysDic[scan] = {
         'antList': antList,
-        'Time'   : timeList[scan_index],
+        'mjdSec' : timeList[scan_index],
         'AZ'     : np.median(AZ[azel_index]),
         'EL'     : np.median(EL[azel_index]),
         'Band'   : SPWdic[spwsInScan[0]]['Band'],
         'BBList' : [SPWdic[spw]['BB'] for spw in spwsInScan],
         'spwList': spwsInScan,
         'chNum'  : [SPWdic[spw]['chNum'] for spw in spwsInScan],
-        'freq'   : [np.linspace(SPWdic[spw]['ch0'], SPWdic[spw]['ch0']+(SPWdic[8]['chNum'] - 1)*SPWdic[spw]['chStep'], SPWdic[spw]['chNum']) for spw in spwsInScan]}
+        'freq'   : [np.linspace(SPWdic[spw]['ch0'], SPWdic[spw]['ch0']+(SPWdic[spw]['chNum'] - 1)*SPWdic[spw]['chStep'], SPWdic[spw]['chNum']) for spw in spwsInScan]}
 #-------- Number of spectral setups (Bands, spectral scans, etc)
 spwSets = np.unique([','.join(map(str, TsysDic[scan]['spwList'])) for scan in TsysDic.keys()]).tolist()
 scanListForSPW = []
@@ -134,20 +134,46 @@ for spwSet in spwSets: scanListForSPW = scanListForSPW + [[scan for scan in scan
 #for spwSet_index, spwSet in enumerate(scanListForSPW):
 #-------- Load power spectra
 for scan_index, scan in enumerate(TsysDic.keys()):
-    Poff, Pamb, Phot = [], [], []
-    for ant_index, ant in enumerate(antList):
-        for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
-            timeScan, Pspec = GetPSpecScan(msfile, ant_index, spw, scan)    # Pspec[pol, ch, time]
-            Poff = Poff + [np.median(Pspec[:,:, indexList(timeOFF, timeScan)], axis=2)]
-            Pamb = Pamb + [np.median(Pspec[:,:, indexList(timeAMB, timeScan)], axis=2)]
-            Phot = Phot + [np.median(Pspec[:,:, indexList(timeHOT, timeScan)], axis=2)]
-    TsysDic[scan]['Poff'] = np.array(Poff)  # Poff[ant_index* spwNum + spw_index, pol, ch]
-    TsysDic[scan]['Pamb'] = np.array(Pamb)  # Pamb[ant_index* spwNum + spw_index, pol, ch]
-    TsysDic[scan]['Phot'] = np.array(Phot)  # Phot[ant_index* spwNum + spw_index, pol, ch]
-#-------- Digital correction
-for scan_index, scan in enumerate(TsysDic.keys()):
+    Pscan = dict(zip(TsysDic[scan]['spwList'], [[]]*len(TsysDic[scan]['spwList'])))
     for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
-        [cspw for cspw in SQLDDic.keys() if SQLDDic[cspw]['SPW'] == spw][0]
+        chRange = list(range(int(SPWdic[spw]['chNum']*0.1), int(SPWdic[spw]['chNum']*0.9)))
+        Pscan[spw] = dict(zip(antList, [[]]*len(antList)))
+        CorrBias = SQLDDic[[cspw for cspw in SQLDDic.keys() if SQLDDic[cspw]['SPW'] == spw][0]]['CorrBias'] # CorrBias[ant, pol]
+        sigFreq = 1.0e-9* np.linspace(SPWdic[spw]['ch0'], SPWdic[spw]['ch0']+(SPWdic[spw]['chNum'] - 1)*SPWdic[spw]['chStep'], SPWdic[spw]['chNum'])
+        imgFreq = 2.0e-9* SPWdic[spw]['LO1'] - sigFreq
+        gs, gi = au.defaultSBGainsForBand(int(SPWdic[spw]['Band'].split('_')[1]))
+        for ant_index, ant in enumerate(antList):
+            Tn_hot = gs * BlackBody(tempHot[ant_index], sigFreq) + gi * BlackBody(tempHot[ant_index], imgFreq)
+            Tn_amb = gs * BlackBody(tempAmb[ant_index], sigFreq) + gi * BlackBody(tempAmb[ant_index], imgFreq)
+            Tn_off = Tn_amb
+            timeScan, Pspec = GetPSpecScan(msfile, ant_index, spw, scan)    # Pspec[pol, ch, time]
+            Pscan[spw][ant] = {
+                'OFF'   : np.median(Pspec[:,:, indexList(timeOFF, timeScan)], axis=2).T -  CorrBias[ant_index],
+                'AMB'   : np.median(Pspec[:,:, indexList(timeAMB, timeScan)], axis=2).T -  CorrBias[ant_index],
+                'HOT'   : np.median(Pspec[:,:, indexList(timeHOT, timeScan)], axis=2).T -  CorrBias[ant_index]}
+            #if Pscan[spw][ant]['HOT']
+            #if np.max(Pshot[chRange]/Psamb[chRange]) > tempHot[ant_index] / tempAmb[ant_index] : continue       # negative Trx
+    #TsysDic[scan]['Poff'] = np.array(Poff).reshape(antNum, len(TsysDic[scan]['spwList']), SPWdic[spw]['polNum'], SPWdic[spw]['chNum'])   # Poff[ant_index* spwNum + spw_index, pol, ch]
+    #TsysDic[scan]['Pamb'] = np.array(Pamb)  # Pamb[ant_index* spwNum + spw_index, pol, ch]
+    #TsysDic[scan]['Phot'] = np.array(Phot)  # Phot[ant_index* spwNum + spw_index, pol, ch]
+#-------- Digital correction
+#for scan_index, scan in enumerate(TsysDic.keys()):
+#    for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+#        CorrBias = SQLDDic[[cspw for cspw in SQLDDic.keys() if SQLDDic[cspw]['SPW'] == spw][0]]['CorrBias'] # CorrBias[ant, pol]
+
+'''
+                for scan_index in list(range(scanNum)):
+                    index = (ant_index* spwNum + spw_index)* scanNum + scan_index
+                    Psamb, Pshot, Psoff = ambSpec[index][pol_index], hotSpec[index][pol_index], offSpec[index][pol_index]
+                    if np.max(Pshot[chRange]/Psamb[chRange]) > tempHot[ant_index] / tempAmb[ant_index] : continue       # negative Trx
+                    if np.min(Pshot[chRange]/Psamb[chRange]) < 1.01 : continue                                          # infinite Trx
+                    TrxSpec[pol_index, chRange, ant_index, scan_index] = (tempHot[ant_index]* Psamb[chRange] - Pshot[chRange]* tempAmb[ant_index]) / (Pshot - Psamb)[chRange]
+                    TskySpec[pol_index, chRange, ant_index, scan_index]= (Psoff[chRange]* (tempHot[ant_index] - tempAmb[ant_index]) + tempAmb[ant_index]* Pshot[chRange] - tempHot[ant_index]* Psamb[chRange]) / (Pshot - Psamb)[chRange]
+                    TrxSpec[pol_index, chOut, ant_index, scan_index] = np.median(TrxSpec[pol_index, chRange, ant_index, scan_index])       # extraporate band-edge
+                    TskySpec[pol_index, chOut, ant_index, scan_index] = np.median(TskySpec[pol_index, chRange, ant_index, scan_index])     # extraporate band-edge
+                #
+'''
+
 
     
 '''
