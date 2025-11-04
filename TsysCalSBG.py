@@ -20,7 +20,7 @@ import scipy
 import numpy as np
 from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str
 from atmCal import BlackBody, scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
-from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
+from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn, plotTsysDic
 from ASDM_XML import SPW_FULL_RES, spwIDMS
 '''
 from optparse import OptionParser
@@ -133,6 +133,9 @@ scanListForSPW = []
 for spwSet in spwSets: scanListForSPW = scanListForSPW + [[scan for scan in scanList if ','.join(map(str, TsysDic[scan]['spwList'])) == spwSet]]
 #for spwSet_index, spwSet in enumerate(scanListForSPW):
 #-------- Load power spectra
+spw = TsysDic[scanList[0]]['spwList'][0]
+polNum, chNum, spwNum, scanNum = SPWdic[spw]['polNum'], SPWdic[spw]['chNum'], len(TsysDic[scanList[0]]['spwList']), len(TsysDic.keys())
+TRX, TSYS = -np.ones([polNum, chNum, antNum*spwNum*scanNum]), -np.ones([polNum, chNum, antNum*spwNum*scanNum])
 for scan_index, scan in enumerate(TsysDic.keys()):
     Pscan = dict(zip(TsysDic[scan]['spwList'], [[]]*len(TsysDic[scan]['spwList'])))
     for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
@@ -143,23 +146,40 @@ for scan_index, scan in enumerate(TsysDic.keys()):
         imgFreq = 2.0e-9* SPWdic[spw]['LO1'] - sigFreq
         gs, gi = au.defaultSBGainsForBand(int(SPWdic[spw]['Band'].split('_')[1]))
         for ant_index, ant in enumerate(antList):
+            data_index = spw_index + spwNum* (ant_index + antNum* scan_index)
             Tn_hot = gs * BlackBody(tempHot[ant_index], sigFreq) + gi * BlackBody(tempHot[ant_index], imgFreq)
             Tn_amb = gs * BlackBody(tempAmb[ant_index], sigFreq) + gi * BlackBody(tempAmb[ant_index], imgFreq)
-            Tn_off = Tn_amb
             timeScan, Pspec = GetPSpecScan(msfile, ant_index, spw, scan)    # Pspec[pol, ch, time]
             Pscan[spw][ant] = {
                 'OFF'   : np.median(Pspec[:,:, indexList(timeOFF, timeScan)], axis=2).T -  CorrBias[ant_index],
                 'AMB'   : np.median(Pspec[:,:, indexList(timeAMB, timeScan)], axis=2).T -  CorrBias[ant_index],
                 'HOT'   : np.median(Pspec[:,:, indexList(timeHOT, timeScan)], axis=2).T -  CorrBias[ant_index]}
-            #if Pscan[spw][ant]['HOT']
-            #if np.max(Pshot[chRange]/Psamb[chRange]) > tempHot[ant_index] / tempAmb[ant_index] : continue       # negative Trx
-    #TsysDic[scan]['Poff'] = np.array(Poff).reshape(antNum, len(TsysDic[scan]['spwList']), SPWdic[spw]['polNum'], SPWdic[spw]['chNum'])   # Poff[ant_index* spwNum + spw_index, pol, ch]
-    #TsysDic[scan]['Pamb'] = np.array(Pamb)  # Pamb[ant_index* spwNum + spw_index, pol, ch]
-    #TsysDic[scan]['Phot'] = np.array(Phot)  # Phot[ant_index* spwNum + spw_index, pol, ch]
-#-------- Digital correction
-#for scan_index, scan in enumerate(TsysDic.keys()):
-#    for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
-#        CorrBias = SQLDDic[[cspw for cspw in SQLDDic.keys() if SQLDDic[cspw]['SPW'] == spw][0]]['CorrBias'] # CorrBias[ant, pol]
+            TRX[:,:,data_index] = (Tn_hot* Pscan[spw][ant]['AMB'].T - Tn_amb* Pscan[spw][ant]['HOT'].T) / (Pscan[spw][ant]['HOT'].T - Pscan[spw][ant]['AMB'].T)
+            TSYS[:,:,data_index]= Pscan[spw][ant]['OFF'].T*(Tn_hot - Tn_amb) / (Pscan[spw][ant]['HOT'].T - Pscan[spw][ant]['AMB'].T)
+        #
+    #
+    TsysDic[scan]['Trx'] = TRX[:,:,spwNum* antNum* scan_index:spwNum* antNum* (scan_index+1)]
+    TsysDic[scan]['Tsys']=TSYS[:,:,spwNum* antNum* scan_index:spwNum* antNum* (scan_index+1)]
+    #
+    text_sd = 'Trx  : '
+    for spw_index, spw in enumerate(TsysDic[scan]['spwList']): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spw, (SPWdic[spw]['ch0'] + 0.5*SPWdic[spw]['chStep']*chNum)*1.0e-9)
+    print(text_sd)
+    text_sd = ' Pol : '
+    for spw_index, spw in enumerate(TsysDic[scan]['spwList']): text_sd = text_sd + '     X         Y    |'
+    print(text_sd)
+    text_sd =  ' ----:-'
+    for spw_index, spw in enumerate(TsysDic[scan]['spwList']): text_sd = text_sd + '--------------------+'
+    print(text_sd)
+    for ant_index, ant in enumerate(antList):
+        text_sd = ''
+        for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
+            for pol_index in [0,1]:
+                text_sd = text_sd + '%7.1f K ' % (np.median(TRX[pol_index][:,spw_index + spwNum* (ant_index + antNum* scan_index)]))
+            text_sd = text_sd + '|'
+        #
+        text_sd = '%s : ' % (ant) + text_sd
+        print(text_sd)
+plotTsysDic(prefix, TsysDic)
 
 '''
                 for scan_index in list(range(scanNum)):

@@ -50,7 +50,7 @@ for scan_index, scan in enumerate(scanList):
     logFile.write(timeLabel + '\n'); print(timeLabel)
     TsysDic[scan] = {
         'antList': antList[antsInScan],
-        'Time'   : timeList[scan_index],
+        'mjdSec' : timeList[scan_index],
         'spwList': spwsInScan,
         'chNum'  : [spwDic[spw]['chNum'] for spw in spwsInScan],
         'freq'   : [spwDic[spw]['freq'] for spw in spwsInScan],

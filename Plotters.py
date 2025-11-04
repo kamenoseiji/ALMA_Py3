@@ -139,7 +139,7 @@ def plotTsysDic(prefix, TsysDic):
                 polNum = TRX.shape[0]
                 currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
                 TsysPL = TsysPL + [currentPL]
-                timeLabel = au.call_qa_time('%fs' % (TsysDic[scan]['Time']), form='fits')
+                timeLabel = au.call_qa_time('%fs' % (TsysDic[scan]['mjdSec']), form='fits')
                 for pol_index in range(polNum):
                     currentPL.step(FREQ, TSYS[pol_index], where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
                     currentPL.step(FREQ, TRX[pol_index],  color=polColor[pol_index+2], where='mid', label = 'Trec Pol ' + polName[pol_index])
