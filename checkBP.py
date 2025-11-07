@@ -58,10 +58,10 @@ NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
 '''
-prefix = 'uid___A002_X12d007b_X3583'
+prefix = 'uid___A002_Xfbb9c7_X126e3'
 antFlag = []
-scanList = [3]
-spwList = [25]
+scanList = [4]
+spwList = [11]
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
