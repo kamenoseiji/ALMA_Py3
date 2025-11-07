@@ -242,6 +242,7 @@ for sourceName in SPW_StokesDic.keys():
         FluxList   = FluxList + [StokesDicCat[sourceName][0]]
 SEFD = np.sum(np.array(FluxList))/np.sum(np.array(antGainList)**2, axis=0)
 for ant_index, ant in enumerate(UseAntList): print('%s SPW%d : SEFD = %.2f Jy / %.2f Jy' % (ant, spw, SEFD[0, ant_index], SEFD[1, ant_index]))
+np.save('%s-SPW%d.SEFD.npy' % (prefix, spw), SEFD.T)
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
     fluxList = []

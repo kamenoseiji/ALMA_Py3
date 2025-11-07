@@ -24,7 +24,7 @@ WVRspw = msmd.wvrspws().tolist()
 msmd.done()
 if len(WVRspw) > 0:
     os.system('rm -rf %s.WVR' % (prefix))
-    wvrgcal(vis=prefix + '.ms', caltable=prefix + '.WVR', wvrspw=WVRspw, toffset=0, statsource='', wvrflag=[], minnumants=2 )
+    wvrgcal(vis=prefix + '.ms', caltable=prefix + '.WVR', wvrspw=WVRspw, spw=spwList, toffset=0, statsource='', wvrflag=[], minnumants=2 )
     applycal(vis=prefix + '.ms', spw=spwChar, interp='nearest', gaintable=prefix + '.WVR', spwmap=[], calwt=True, flagbackup=False)
     os.system('rm -rf ' + prefix + '.WVR.ms')
     split(vis=prefix + '.ms', spw=spwChar, width=chanbin, datacolumn='corrected', outputvis=prefix+'.WVR.ms')
