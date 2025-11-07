@@ -73,13 +73,13 @@ def revList(inList):
     #
     return outList
 #
-def Ant2Bla_RevLex(ant0, ant1, antNum):    # Reverse Lexical, with autcorr
-    antenna0 = min(ant0, ant1); antenna1 = max(ant0, ant1)
-    kernel = int(antNum* antenna0 - antenna0* (antenna0 - 1)/2)
-    return kernel + antenna1 - antenna0
+def Ant2Bla_RevLex(station1, station2, antNum):    # Reverse Lexical, with autcorr
+    antenna1, antenna2 = (station1, station2) if station1 > station2 else (station2, station1)
+    kernel = int(antNum* antenna1 - antenna1* (antenna1 - 1)/2)
+    return kernel + antenna1 - antenna1
 #
-def Ant2Bl_RevLex(ant1, ant2, antnum):    # Reverse Lexical, without autcorr
-    antenna1 = max(ant1, ant2); antenna2 = min(ant1, ant2)
+def Ant2Bl_RevLex(station1, station2, antnum):    # Reverse Lexical, without autcorr
+    antenna1, antenna2 = (station1, station2) if station1 > station2 else (station2, station1)
     return int(antnum* antenna2 - (antenna2 + 1)* (antenna2 + 2) / 2  + antenna1)
 #
 def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
@@ -92,8 +92,6 @@ def subArrayIndex(Flag, refant):          #-------- SubArray Indexing
     SAantMap = [refant] + sort(np.array(list(set(SAantennas) - set([refant])))).tolist()
     SAantNum = len(SAantennas); SAblNum = int(SAantNum* (SAantNum - 1)/2)
     SAblMap, SAblInv = Ant2BlD(SAantMap[np.array(ant0)[0:SAblNum]], SAantMap[np.array(ant1)[0:SAblNum]])
-    #SAblMap, SAblInv = list(range(SAblNum)), list(range(SAblNum))
-    #for bl_index in list(range(SAblNum)): SAblMap[bl_index], SAblInv[bl_index] = Ant2BlD(SAantMap[ant0[bl_index]], SAantMap[ant1[bl_index]])
     return SAantMap, SAblMap, SAblInv
 #
 def antFlagBL(msfile, BLlimit, spw, scan, antFlag = []):    # Flag distant antennas out
