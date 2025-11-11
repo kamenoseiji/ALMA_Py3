@@ -85,6 +85,10 @@ BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
 XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spw))
 BP_ant[:,1] *= XYspec
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
+#-------- Load XY phase table
+if os.path.isfile('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant)): TS = np.load('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant))
+if os.path.isfile('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant)): XYphase = np.load('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))
+SP_PH = scipy.interpolate.splrep(TS, XYphase, k=3)
 #-------- Load Gain and Flag table
 FGantList = np.load('%s.Ant.npy' % (prefix))
 UseAntIndexInFG = indexList(UseAntList,FGantList)
@@ -92,11 +96,12 @@ unFlaggedAntNum = len(UseAntIndexInFG)
 if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
 if os.path.isfile('%s-SPW%d.GA.npy' % (prefix, spw)): GA = np.load('%s-SPW%d.GA.npy' % (prefix, spw))
 if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+twiddle = np.exp((1.0j)* scipy.interpolate.splev(TS, SP_PH))
+GA[:,1] *= twiddle
 UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
 #-------- Load SEFD table
 SEFD = np.load('%s-SPW%d.SEFD.npy' % (prefix, spw))
 GA = GA/abs(GA); GA = GA.transpose(2,0,1)*np.sqrt(SEFD)
-#caledVis = caledVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())    # caledVis : apply pol-averaged gain correction 
 #-------- Check band and BandPA
 spwName = msmd.namesforspws(spw)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
