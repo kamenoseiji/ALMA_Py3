@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from Plotters import plotStokesSpec
+from Plotters import plotStokesSpectra
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -21,6 +21,6 @@ spwList = [int(spw) for spw in  options.spwList.split(',')]
 refantName = options.refant
 for spw in spwList:
     for sourceName in sourceList:
-        plotStokesSpec(prefix, refantName, sourceName, spw)
+        plotStokesSpectra(prefix, refantName, sourceName, spw)
     #
 #

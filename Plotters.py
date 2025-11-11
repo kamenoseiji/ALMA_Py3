@@ -673,7 +673,7 @@ def plotFL(pp, scanDic, SPWDic):
     pp.close()
     return
 #-------- Plot Stokes Spectra
-def plotStokesSpec(prefix, refantName, sourceName, spw):
+def plotStokesSpectra(prefix, refantName, sourceName, spw):
     polLabel, Pcolor = ['I', 'Q', 'U', 'V'], ['black', 'blue', 'red', 'green']
     StokesSpecFile = '%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refantName, sourceName, spw)
     StokesFreqFile = '%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refantName, sourceName, spw)

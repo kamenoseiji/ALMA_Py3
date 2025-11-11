@@ -10,12 +10,13 @@ from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSo
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
 from optparse import OptionParser
-'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-r', dest='BPscan', metavar='BPscan',
+    help='Bandpass scan e.g. 3', default='0')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan List e.g. 3,6,9,42,67', default='')
 parser.add_option('-R', dest='refant', metavar='refant',
@@ -25,19 +26,19 @@ parser.add_option('-s', dest='spw', metavar='spw',
 (options, args) = parser.parse_args()
 prefix  = options.prefix
 refant  = options.refant
-QUmodel = options.QUmodel
 antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
+BPscan  = int(options.BPscan)
 '''
 prefix = '2025.1.00003.CSV_V_star_W_Hya_a_03_TM1'
 refant = 'DA50'
-QUmodel = True
 antFlag = []
 spw = 0
 BPscan = 0
 scanList = [3,5,13,88,104]
 #scanList = [3]
+'''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 scansFile = []
@@ -141,35 +142,19 @@ for scan_index, scan in enumerate(scanVisDic.keys()):
         for pol_index in range(4): StokesSpec[time_index][:,pol_index] = np.sum(PS[pol_index][:,time_index]* temp, axis=1)
     scanVisDic[scan]['StokesSpec'] = np.mean(StokesSpec.real, axis=0).T
     scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T/np.sqrt(blNum)
-'''
 #-------- Store and Plot Stokes spectra
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
     StokesSpec, StokesSpecErr, WeightSum = np.zeros([4, chNum]), np.zeros([4, chNum]), np.zeros(4)
     for scan in scanLS:
-        scanWeight = 1.0 / np.median(scanVisDic[scan]['scanVisErr'], axis=1)**2
-        StokesSpecErr += 1.0/scanVisDic[scan]['scanVisErr']**2
+        scanWeight = 1.0 / np.median(scanVisDic[scan]['StokesErr'], axis=1)**2
+        StokesSpecErr += 1.0/scanVisDic[scan]['StokesErr']**2
         WeightSum += scanWeight
-        StokesSpec += (scanVisDic[scan]['scanVis'].T * scanWeight).T
+        StokesSpec += (scanVisDic[scan]['StokesSpec'].T * scanWeight).T
     StokesSpec = (StokesSpec.T / WeightSum).T
     StokesSpecErr = 1.0/np.sqrt(StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
     np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
     SPW_StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
-#---- Save Stokes parameters of the calibraors
-fileDic = open('Stokes.%s-SPW%d.dic' % (prefix, spw), mode='wb')
-pickle.dump(SPW_StokesDic, fileDic)
-fileDic.close()
-#-------- summarize Stokes parameters
-StokesTextFile = open('Stokes.%s-SPW%d.txt' % (prefix, spw), mode='w')
-text_sd = 'Source       I      Q      U      V      p%    EVPA'
-print(text_sd); StokesTextFile.write(text_sd + '\n')
-for sourceName in SPW_StokesDic.keys():
-    if SPW_StokesDic[sourceName] == []: continue
-    text_sd = '%s %6.3f %6.3f %6.3f %6.3f %5.2f %5.2f' % (sourceName, SPW_StokesDic[sourceName][0], SPW_StokesDic[sourceName][1], SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][3], 100.0* np.sqrt(SPW_StokesDic[sourceName][1]**2 + SPW_StokesDic[sourceName][2]**2)/SPW_StokesDic[sourceName][0], 90.0* np.arctan2(SPW_StokesDic[sourceName][2], SPW_StokesDic[sourceName][1]) / np.pi)
-    print(text_sd); StokesTextFile.write(text_sd + '\n')
-#
-StokesTextFile.close()
 msmd.done()
-'''
