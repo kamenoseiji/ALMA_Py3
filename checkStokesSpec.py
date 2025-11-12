@@ -102,6 +102,8 @@ GA[:,1] *= twiddle
 UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
 #-------- Load SEFD table
 SEFD = np.load('%s-SPW%d.SEFD.npy' % (prefix, spw))
+blWeight = 1.0/SEFD[ant0,0]*SEFD[ant1,1]
+blWeight = blWeight / np.sum(blWeight)
 GA = GA/abs(GA); GA = GA.transpose(2,0,1)*np.sqrt(SEFD)
 #-------- Check band and BandPA
 spwName = msmd.namesforspws(spw)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
@@ -141,10 +143,9 @@ for scan_index, scan in enumerate(scanVisDic.keys()):
     scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(3,0,1,2) # [ch,time,bl,pol]
     GAscan = GA[indexList(scanVisDic[scan]['mjdSec'], TS)]
     scanVisDic[scan]['visSpec'] = scanVisDic[scan]['visSpec'] *GAscan[:,ant1][:,:,polXindex]*GAscan[:,ant0][:,:,polYindex].conjugate()  # [ch,time,bl,pol]
-    #scanVisDic[scan]['StokesSpec'] = np.zeros([timeNum, chNum, 4], dtype=complex)
     PS = InvPAVector(scanVisDic[scan]['PA'], np.ones(len(scanVisDic[scan]['PA'])))
     for time_index in list(range(timeNum)):
-        temp = np.mean(np.sum(M.transpose(3,0,1,2)*scanVisDic[scan]['visSpec'][:,time_index], axis=0), axis=1)
+        temp = np.sum(M.transpose(3,0,1,2)*scanVisDic[scan]['visSpec'][:,time_index], axis=0).transpose(0,2,1).dot(blWeight)
         for pol_index in range(4): StokesSpec[time_index][:,pol_index] = np.sum(PS[pol_index][:,time_index]* temp, axis=1)
     scanVisDic[scan]['StokesSpec'] = np.mean(StokesSpec.real, axis=0).T
     scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T/np.sqrt(blNum)
