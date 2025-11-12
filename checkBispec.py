@@ -28,13 +28,22 @@ parser.add_option('-S', dest='startTime', metavar='startTime',
 #
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+BPprefix = options.BPprefix.replace("/", "_").replace(":","_").replace(" ","")
 antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 timeBunch = int(options.timeBunch)
 if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
-#if options.refant != '': refant = options.refant
 refant = options.refant
+'''
+prefix = 'uid___A002_X1308e09_X5d5d.WVR'
+scanList = [3]
+spw = 0
+refant = ''
+timeBunch = 1
+antFlag = []
+BPprefix = ''
+'''
 #-------- Definitions
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
@@ -86,7 +95,7 @@ figInch  = max(16,UseAntNum)
 fontSize = min(32, figInch)
 #-------- Bandpass Table
 #if 'BPprefix' in locals():
-if options.BPprefix != '':
+if BPprefix != '':
     BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (options.BPprefix, antList[UseAnt[refantID]], BPscan, spw)
     print('---Loading bandpass table : ' + BPfileName)
     BP_ant = np.load(BPfileName)

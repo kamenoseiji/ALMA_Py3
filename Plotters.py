@@ -517,8 +517,8 @@ def plotBispec(antList, scanVis, DT, plotFile, labelList, pMax):
         if ants[1] > 0:         # plot Closure phase
             BLphs = figSPW.add_subplot(antNum-1, antNum-1, (ants[0] - 1)*(antNum-1) + ants[1])
             BLphs.patch.set_facecolor('lightyellow')
-            tri = Ant2Bl(np.array([ants[0],ants[1],ants[0]]), np.array([0, 0, ants[1]]))
-            #tri0, tri1, tri2 = Ant2Bl(ants[0], 0), Ant2Bl(ants[1], 0), Ant2Bl(ants[0], ants[1])
+            ant1List, ant0List = [], []
+            tri = [Ant2Bl(ants1,ants0) for (ants1,ants0) in zip([ants[0],ants[1],ants[0]],[0, 0, ants[1]])]
             for pol_index in list(range(polNum)):
                 plotVis = scanVis[pol_index, tri[0]].conjugate()* scanVis[pol_index, tri[1]]* scanVis[pol_index, tri[2]]
                 #plotVis = scanVis[pol_index, tri0].conjugate()* scanVis[pol_index, tri1]* scanVis[pol_index, tri2]
