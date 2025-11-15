@@ -694,7 +694,7 @@ def plotStokesSpectra(prefix, refantName, sourceName, spw):
     StokesI_SP.tick_params(axis='both', labelsize=6)
     StokesP_SP.tick_params(axis='both', labelsize=6)
     StokesI_SP.axis([np.min(Freq), max(Freq), 0.0, 1.25*IMax])
-    StokesP_SP.axis([np.min(Freq), max(Freq), -0.15*IMax, 0.15*IMax])
+    StokesP_SP.axis([np.min(Freq), max(Freq), -0.05*IMax, 0.05*IMax])
     StokesI_SP.text(min(Freq), IMax*1.35, sourceName)
     StokesI_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
     StokesP_SP.legend(loc = 'best', prop={'size' :7}, numpoints = 1)
