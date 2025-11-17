@@ -8,8 +8,6 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
-parser.add_option('-b', dest='bunchNum', metavar='bunchNum',
-    help='Channel binning', default='1')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan ID  e.g. 3,5,7', default='')
 parser.add_option('-R', dest='refant', metavar='refant',
@@ -22,7 +20,6 @@ parser.add_option('-P', dest='PLOTPDF', metavar='PLOTPDF',
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 refant  = options.refant
-bunchNum=  int(options.bunchNum)
 spwList = [int(spw) for spw in options.spwList.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 PLOTPDF = options.PLOTPDF
@@ -34,13 +31,6 @@ for spw_index, spw in enumerate(spwList):
     BPant   = np.array([np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, scan, spw)) for scan in scanList])
     XYspec  = np.array([np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, scan, spw)) for scan in scanList])
     scanNum, antNum, parapolNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
-    #-------- Channel binning
-    if 'bunchNum' not in locals(): bunchNum = 1
-    if bunchNum > 1:
-        def bunchVecCH(spec): return bunchVec(spec, bunchNum)
-        BPant  = np.apply_along_axis(bunchVecCH, 3, BPant)
-        XYspec = np.apply_along_axis(bunchVecCH, 1, XYspec)
-        FreqList[spw_index] = bunchVecCH(FreqList[spw_index])
     BW = max(FreqList[spw_index]) - min(FreqList[spw_index])
     #-------- Weight and phase using the reference SPW
     if spw_index == 0:
@@ -92,7 +82,7 @@ for spw_index, spw in enumerate(spwList):
 if 'PLOTPDF' not in locals(): PLOTPDF = False
 if PLOTPDF:
     pp = PdfPages('XYP_%s_REF%s_Scan0.pdf' % (prefix, refant))
-    plotXYP(pp, prefix, spwList, XYSPW, XYdelayList, bunchNum) 
+    plotXYP(pp, prefix, spwList, XYSPW, XYdelayList, 1) 
     pp = PdfPages('BP_%s_REF%s_Scan0.pdf'  % (prefix, refant))
     if 'plotMin' not in locals(): plotMin = 0.0
     if 'plotMax' not in locals(): plotMax = 1.2

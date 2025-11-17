@@ -15,6 +15,8 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 parser.add_option('-a', dest='antFlag', metavar='antFlag',
     help='Antennas to flag e.g. DA41,DV08', default='')
+parser.add_option('-b', dest='BPprefix', metavar='BPprefix',
+    help='Bandpass uid and scan to apply e.g. uid___A002_X10dadb6_X18e63,3', default='')
 parser.add_option('-c', dest='scanList', metavar='scanList',
     help='Scan List e.g. 3,6,9,42,67', default='')
 parser.add_option('-Q', dest='QUmodel', metavar='QUmodel',
@@ -116,11 +118,17 @@ for sourceID in srcDic.keys():
     StokesDicCat[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
     print('-- %s I=%.1f p=%.1f%% (est)' % (sourceName, StokesDicCat[sourceName][0], 100.0*np.sqrt(StokesDicCat[sourceName][1]**2 + StokesDicCat[sourceName][2]**2)/StokesDicCat[sourceName][0]))
 DxSpec, DySpec = np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
-if 'BPprefix' not in locals():  BPprefix, BPscan = prefix, 0
-BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPscan, spw))
+#-------- Bandpass Table
+print(options.BPprefix)
+if options.BPprefix != '':
+    BPprefix, BPrefsan = options.BPprefix.split(',')[0], int(options.BPprefix.split(',')[1])
+    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPrefsan, spw)
+    print(BPfileName)
+    XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (BPprefix, refant, BPrefsan, spw))
+    BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load(BPfileName)
 BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
-if 'XYprefix' not in locals(): XYprefix = prefix
-XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, spw))
+#if 'XYprefix' not in locals(): XYprefix = prefix
+#XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, spw))
 print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
 #-------- For visibilities in each scan
