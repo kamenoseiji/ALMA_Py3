@@ -148,14 +148,16 @@ for scan_index, scan in enumerate(scanVisDic.keys()):
         temp = np.sum(M.transpose(3,0,1,2)*scanVisDic[scan]['visSpec'][:,time_index], axis=0).transpose(0,2,1).dot(blWeight)
         for pol_index in range(4): StokesSpec[time_index][:,pol_index] = np.sum(PS[pol_index][:,time_index]* temp, axis=1)
     scanVisDic[scan]['StokesSpec'] = np.mean(StokesSpec.real, axis=0).T
-    scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T/np.sqrt(blNum)
+    scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T
+    #scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T/np.sqrt(blNum)
 #-------- Store and Plot Stokes spectra
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
     StokesSpec, StokesSpecErr, WeightSum = np.zeros([4, chNum]), np.zeros([4, chNum]), np.zeros(4)
     for scan in scanLS:
-        scanWeight = 1.0 / np.median(scanVisDic[scan]['StokesErr'], axis=1)**2
+        #scanWeight = 1.0 / np.median(scanVisDic[scan]['StokesErr'], axis=1)**2
         StokesSpecErr += 1.0/scanVisDic[scan]['StokesErr']**2
+        scanWeight = len(scanVisDic[scan]['mjdSec'])
         WeightSum += scanWeight
         StokesSpec += (scanVisDic[scan]['StokesSpec'].T * scanWeight).T
     StokesSpec = (StokesSpec.T / WeightSum).T
