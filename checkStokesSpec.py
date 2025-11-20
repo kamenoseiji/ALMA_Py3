@@ -10,6 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -32,14 +33,13 @@ scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 BPscan  = int(options.BPscan)
 '''
-prefix = '2025.1.00003.CSV_V_star_W_Hya_a_03_TM1'
-refant = 'DA50'
+prefix = '2025.1.00003.CSV_V_star_W_Hya_a_02_TM1'
+refant = 'DA41'
 antFlag = []
 spw = 0
 BPscan = 0
-scanList = [3,5,13,88,104]
+scanList = [3,61,104]
 #scanList = [3]
-'''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 scansFile = []
@@ -129,41 +129,35 @@ for ant_index, antName in enumerate(antList[antMap]):
 FreqList = DtermFile[0]
 DxSpec = np.array(DxSpec)   # DxSpec[ant, ch]
 DySpec = np.array(DySpec)
-M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,chNum])).transpose(3,2,0,1)
+M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,chNum])).transpose(0,3,1,2)
 #-------- For visibilities in each scan
 scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum, TS[UseTimeList])
-#mjdSec = []
-#for scan_index, scan in enumerate(scanVisDic.keys()): mjdSec = mjdSec + scanVisDic[scan]['mjdSec'].tolist()
 for scan_index, scan in enumerate(scanVisDic.keys()):
     timeNum = len(scanVisDic[scan]['mjdSec'])
-    StokesSpec = np.zeros([timeNum, chNum, 4], dtype=complex)
+    StokesSpec = np.zeros([timeNum, 4, chNum], dtype=complex)
     scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
     scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
     scanVisDic[scan]['source'] = [source for source in scanDic.keys() if scan in scanDic[source]][0]
     scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(3,0,1,2) # [ch,time,bl,pol]
     GAscan = GA[indexList(scanVisDic[scan]['mjdSec'], TS)]
-    scanVisDic[scan]['visSpec'] = scanVisDic[scan]['visSpec'] *GAscan[:,ant1][:,:,polXindex]*GAscan[:,ant0][:,:,polYindex].conjugate()  # [ch,time,bl,pol]
+    scanVisDic[scan]['visSpec'] *= (GAscan[:,ant1][:,:,polXindex]*GAscan[:,ant0][:,:,polYindex].conjugate())  # [ch,time,bl,pol]
     PS = InvPAVector(scanVisDic[scan]['PA'], np.ones(len(scanVisDic[scan]['PA'])))
     for time_index in list(range(timeNum)):
-        temp = np.sum(M.transpose(3,0,1,2)*scanVisDic[scan]['visSpec'][:,time_index], axis=0).transpose(0,2,1).dot(blWeight)
-        for pol_index in range(4): StokesSpec[time_index][:,pol_index] = np.sum(PS[pol_index][:,time_index]* temp, axis=1)
-    scanVisDic[scan]['StokesSpec'] = np.mean(StokesSpec.real, axis=0).T
-    scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T
-    #scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0).T/np.sqrt(blNum)
+        StokesSpec[time_index] = PS[:,:,time_index].dot(np.sum(M* (scanVisDic[scan]['visSpec'][:,time_index].transpose(0,2,1)*blWeight), axis=(2,3)))
+    scanVisDic[scan]['StokesSpec'] = np.mean(StokesSpec.real, axis=0)   # [pol, ch]
+    scanVisDic[scan]['StokesErr'] = np.std(StokesSpec.imag, axis=0)/np.sqrt(timeNum)
 #-------- Store and Plot Stokes spectra
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
-    StokesSpec, StokesSpecErr, WeightSum = np.zeros([4, chNum]), np.zeros([4, chNum]), np.zeros(4)
+    StokesSpec, StokesSpecErr, WeightSum = np.zeros([4, chNum]), np.zeros([4, chNum]), 0
     for scan in scanLS:
-        #scanWeight = 1.0 / np.median(scanVisDic[scan]['StokesErr'], axis=1)**2
-        StokesSpecErr += 1.0/scanVisDic[scan]['StokesErr']**2
         scanWeight = len(scanVisDic[scan]['mjdSec'])
         WeightSum += scanWeight
-        StokesSpec += (scanVisDic[scan]['StokesSpec'].T * scanWeight).T
-    StokesSpec = (StokesSpec.T / WeightSum).T
-    StokesSpecErr = 1.0/np.sqrt(StokesSpecErr)
+        StokesSpec += (scanWeight* scanVisDic[scan]['StokesSpec'])
+    StokesSpec = StokesSpec / WeightSum
+    #StokesSpecErr = 1.0/np.sqrt(StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
-    np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
+    #np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
-    SPW_StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
+    #SPW_StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
 msmd.done()
