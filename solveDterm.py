@@ -325,9 +325,9 @@ for sourceName in SPW_StokesDic.keys():
         scanVisDic[scan]['visChav'] = scanvisChav
 del scanvisSpec, scanvisChav
 #---- tentatively save scan visibility data
-fileDic = open('scanVis.%s-SPW%d.dic' % (prefix, spw), mode='wb')
-pickle.dump(scanVisDic, fileDic)
-fileDic.close()
+#fileDic = open('scanVis.%s-SPW%d.dic' % (prefix, spw), mode='wb')
+#pickle.dump(scanVisDic, fileDic)
+#fileDic.close()
 #---- tentatively save scan visibility data
 pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)

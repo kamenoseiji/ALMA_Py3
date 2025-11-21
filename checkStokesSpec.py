@@ -10,7 +10,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -40,6 +39,7 @@ spw = 0
 BPscan = 0
 scanList = [3,61,104]
 #scanList = [3]
+'''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 scansFile = []
@@ -120,6 +120,7 @@ for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
     sourceIDscan = list(set(msmd.scansforfield(sourceID)) & set(scanList))
     scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
+msmd.done()
 #-------- Load D-term files 
 DxSpec, DySpec = [], []
 for ant_index, antName in enumerate(antList[antMap]):
@@ -154,10 +155,9 @@ for sourceName in SPW_StokesDic.keys():
         scanWeight = len(scanVisDic[scan]['mjdSec'])
         WeightSum += scanWeight
         StokesSpec += (scanWeight* scanVisDic[scan]['StokesSpec'])
-    StokesSpec = StokesSpec / WeightSum
-    #StokesSpecErr = 1.0/np.sqrt(StokesSpecErr)
+        StokesSpecErr += (scanWeight * scanVisDic[scan]['StokesErr'])**2
+    StokesSpec /= WeightSum
+    StokesSpecErr = np.sqrt(StokesSpecErr) / WeightSum
     np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
-    #np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
+    np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
-    #SPW_StokesDic[sourceName] = np.mean(StokesSpec, axis=1).tolist()
-msmd.done()
