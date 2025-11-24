@@ -32,6 +32,11 @@ for spw_index, spw in enumerate(spwList):
     XYspec  = np.array([np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, scan, spw)) for scan in scanList])
     scanNum, antNum, parapolNum  = BPant.shape[0], BPant.shape[1], BPant.shape[2]
     BW = max(FreqList[spw_index]) - min(FreqList[spw_index])
+    XYsnr = []
+    for scan_index, scan in enumerate(scanList):
+        delay, snr = delay_search(XYspec[scan_index])
+        XYsnr = XYsnr + [snr]
+    bpScanIndex = np.argmax(XYsnr)
     #-------- Weight and phase using the reference SPW
     if spw_index == 0:
         BPmean = np.mean(BPant, axis=0)
@@ -44,8 +49,6 @@ for spw_index, spw in enumerate(spwList):
             BPweight = np.mean(BPcorr[:,:,:,chRange], axis=3).conjugate()
             BPmean =  np.mean(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
         #-------- XY phase
-        bpScanIndex = 0
-        if 'BPscan' in locals(): bpScanIndex = scanList.index(BPscan)   # reference scan for XYspec 
         XYmean = XYspec[bpScanIndex]
         XYcorr = XYspec.dot(XYmean.conjugate()) / chNum
         XYsign = np.sign(XYcorr.real)
