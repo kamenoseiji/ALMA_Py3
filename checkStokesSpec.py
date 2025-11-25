@@ -32,13 +32,12 @@ scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 BPscan  = int(options.BPscan)
 '''
-prefix = '2025.1.00003.CSV_V_star_W_Hya_a_02_TM1'
-refant = 'DA41'
-antFlag = []
-spw = 0
+prefix = '2025.1.00004.CSV_HR5907_a_02_TM1'
+refant = 'DV08'
+antFlag = ['DV01']
+spw = 1
 BPscan = 0
-scanList = [3,61,104]
-#scanList = [3]
+scanList = [13]
 '''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -130,7 +129,7 @@ for ant_index, antName in enumerate(antList[antMap]):
 FreqList = DtermFile[0]
 DxSpec = np.array(DxSpec)   # DxSpec[ant, ch]
 DySpec = np.array(DySpec)
-M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([blNum,chNum])).transpose(0,3,1,2)
+M  = InvMullerVector(DxSpec[ant0], DySpec[ant0], DxSpec[ant1], DySpec[ant1], np.ones([UseBlNum,chNum])).transpose(0,3,1,2)
 #-------- For visibilities in each scan
 scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum, TS[UseTimeList])
 for scan_index, scan in enumerate(scanVisDic.keys()):

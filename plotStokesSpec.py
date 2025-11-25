@@ -19,8 +19,9 @@ prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 sourceList = [source for source in  options.sourceList.split(',')]
 spwList = [int(spw) for spw in  options.spwList.split(',')]
 refantName = options.refant
-for spw in spwList:
-    for sourceName in sourceList:
+print('  Source      Frequency    Stokes I [Jy]  Stokes Q [Jy]    Stokes U [Jy]    Stokes V [Jy]')
+for sourceName in sourceList:
+    for spw in spwList:
         plotStokesSpectra(prefix, refantName, sourceName, spw)
     #
 #
