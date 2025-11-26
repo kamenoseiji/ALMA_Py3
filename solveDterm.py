@@ -9,6 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -27,21 +28,21 @@ parser.add_option('-s', dest='spw', metavar='spw',
     help='SPW to process, e.g. 0', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix
+BPprefix, BPrefsan = options.BPprefix.split(',')[0], int(options.BPprefix.split(',')[1])
 refant  = options.refant
 QUmodel = options.QUmodel
 antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2024.1.00015.CSV_X12f38f9_X8ac7'
-refant = 'DA59'
+prefix = '2025.1.00003.CSV_V_star_W_Hya_a_03_TM1'
+BPprefix = prefix
+BPrefsan = 0
+refant = 'DA50'
 QUmodel = True
 antFlag = []
-spw = 1
-BPscan = 0
-#scanList = [3,9,67,125,133,134,192,251]
-scanList = [3,9,125,134,251]
-'''
+spw = 0
+scanList = [3,5,7,61,107,108,110,160,210]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -119,13 +120,10 @@ for sourceID in srcDic.keys():
     print('-- %s I=%.1f p=%.1f%% (est)' % (sourceName, StokesDicCat[sourceName][0], 100.0*np.sqrt(StokesDicCat[sourceName][1]**2 + StokesDicCat[sourceName][2]**2)/StokesDicCat[sourceName][0]))
 DxSpec, DySpec = np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex), np.zeros([UseAntNum, int(math.ceil(chNum/bunchNum))], dtype=complex)
 #-------- Bandpass Table
-print(options.BPprefix)
-if options.BPprefix != '':
-    BPprefix, BPrefsan = options.BPprefix.split(',')[0], int(options.BPprefix.split(',')[1])
-    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPrefsan, spw)
-    print(BPfileName)
-    XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (BPprefix, refant, BPrefsan, spw))
-    BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load(BPfileName)
+BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix, refant, BPrefsan, spw)
+print(BPfileName)
+XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (BPprefix, refant, BPrefsan, spw))
+BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load(BPfileName)
 BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
 #if 'XYprefix' not in locals(): XYprefix = prefix
 #XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, spw))
@@ -324,10 +322,6 @@ for sourceName in SPW_StokesDic.keys():
         scanVisDic[scan]['scanVisErr'] = np.std(scanvisSpec, axis=1)
         scanVisDic[scan]['visChav'] = scanvisChav
 del scanvisSpec, scanvisChav
-#---- tentatively save scan visibility data
-#fileDic = open('scanVis.%s-SPW%d.dic' % (prefix, spw), mode='wb')
-#pickle.dump(scanVisDic, fileDic)
-#fileDic.close()
 #---- tentatively save scan visibility data
 pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)
