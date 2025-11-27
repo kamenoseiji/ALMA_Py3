@@ -327,7 +327,7 @@ pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)
 #-------- Save Results
 np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
-np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase )
+np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase + np.arccos(XYsign))
 XYC = np.zeros([2, timeNum], dtype=complex)
 for scan_index, scan in enumerate(scanVisDic.keys()): XYC[:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav'][[1,2]]
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYV )
