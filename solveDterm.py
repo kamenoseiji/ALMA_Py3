@@ -9,6 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
+'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -34,15 +35,14 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2025.1.00003.CSV_V_star_W_Hya_a_03_TM1'
+prefix = '2025.1.00004.CSV_HR5907_a_02_TM1'
 BPprefix = prefix
 BPrefsan = 0
-refant = 'DA50'
+refant = 'DV08'
 QUmodel = True
-antFlag = []
+antFlag = ['DV01']
 spw = 0
-scanList = [3,5,7,61,107,108,110,160,210]
-'''
+scanList = [3,6,9,11,14,16,19,21,24,26,29,31,34,36,39,40,42,45,48,50,53,55,58,60,63,65,68,70,73,76]
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -165,7 +165,7 @@ if 'QUmodel' not in locals(): QUmodel = False
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
     if len(scanLS) < 1 : continue
-    if QUmodel:
+    if QUmodel and SPW_StokesDic[sourceName] != [] :
         QUsol = np.array(SPW_StokesDic[sourceName])[[1,2]]/SPW_StokesDic[sourceName][0]
     else:
         PAList, scanVisXList, scanVisYList = [], [], []
@@ -173,7 +173,7 @@ for sourceName in SPW_StokesDic.keys():
             PAList = PAList + scanVisDic[scan]['PA'].tolist()
             scanVisXList = scanVisXList + scanVisDic[scan]['scanVis'][0].tolist()
             scanVisYList = scanVisYList + scanVisDic[scan]['scanVis'][-1].tolist()
-        QUsol   = XXYY2QU(np.array(PAList,), np.array([scanVisXList, scanVisYList]))             # XX*, YY* to estimate Q, U
+        QUsol   = XXYY2QU(np.array(PAList), np.array([scanVisXList, scanVisYList]))             # XX*, YY* to estimate Q, U
         text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/np.pi); print(text_sd)
         del PAList, scanVisXList, scanVisYList
     for scan in scanLS:
@@ -218,6 +218,7 @@ for sourceName in SPW_StokesDic.keys():
         UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
 del PAList, scanVisXYList, scanVisYXList
 #-------- 2nd polarized gain adjustment
+a=1/0
 GainX, GainY = polariGain(caledVis[0], caledVis[-1], np.array(QCpUS))
 Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
 for scan_index, scan in enumerate(scanVisDic.keys()):
@@ -327,7 +328,7 @@ pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)
 #-------- Save Results
 np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
-np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), XYphase + np.arccos(XYsign))
+np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))
 XYC = np.zeros([2, timeNum], dtype=complex)
 for scan_index, scan in enumerate(scanVisDic.keys()): XYC[:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav'][[1,2]]
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYV )
