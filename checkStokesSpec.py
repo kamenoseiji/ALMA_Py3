@@ -7,10 +7,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import scipy
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, splineComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
 from optparse import OptionParser
+'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
@@ -37,8 +38,7 @@ refant = 'DV08'
 antFlag = ['DV01']
 spw = 1
 BPscan = 0
-scanList = [13]
-'''
+scanList = [3]
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 scansFile = []
@@ -79,16 +79,39 @@ else:
     scanLS.sort()
 #
 scanVisDic = dict(zip(scanLS, [[]]* len(scanLS)))
+scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
 #-------- Load Bandpass and XY-phase table 
 BPantList, BP_ant = np.load(prefix + '-REF' + refant + '.Ant.npy'), np.load('%s-REF%s-SC%d-SPW%d-BPant.npy' % (prefix, refant, BPscan, spw))
 BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
 XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spw))
 BP_ant[:,1] *= XYspec
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
+#-------- Load Gain and Flag table
+FGantList = np.load('%s.Ant.npy' % (prefix))
+UseAntIndexInFG = indexList(UseAntList,FGantList)
+unFlaggedAntNum = len(UseAntIndexInFG)
+if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
+if os.path.isfile('%s-SPW%d.GA.npy' % (prefix, spw)): GA = np.load('%s-SPW%d.GA.npy' % (prefix, spw))
+if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+
+
+
+
+
+twiddle = np.exp((1.0j)* scipy.interpolate.splev(TS, SP_PH))
+GA[:,1] *= twiddle
+UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
+
+
+
+
 #-------- Load XY phase table
-if os.path.isfile('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant)): TS = np.load('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant))
-if os.path.isfile('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant)): XYphase = np.load('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))
-SP_PH = scipy.interpolate.splrep(TS, XYphase, k=3)
+#if os.path.isfile('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant)): TS = np.load('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant))
+if os.path.isfile('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant)): XYP = np.load('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))
+SP_PH = splineComplex(XYP[0], np.exp((0.0 + 1.0j)* XYP[1]), np.max(np.diff(XYP[0])))
+
+scipy.interpolate.splrep(XYP[0], XYP[1], k=3)
+'''
 #-------- Load Gain and Flag table
 FGantList = np.load('%s.Ant.npy' % (prefix))
 UseAntIndexInFG = indexList(UseAntList,FGantList)

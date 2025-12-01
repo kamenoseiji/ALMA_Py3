@@ -10,6 +10,7 @@ from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSo
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
 from optparse import OptionParser
+'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
@@ -43,7 +44,6 @@ antFlag = ['DV01']
 spw = 0
 #scanList = [3,6,9,11,14,16,19,21,24,26,29,31,34,36,39,40,42,45,48,50,53,55,58,60,63,65,68,70,73,76]
 scanList = [3, 6, 9, 29, 39, 40, 48, 68, 76]
-'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -95,7 +95,7 @@ UseAntIndexInFG = indexList(UseAntList,FGantList)
 unFlaggedAntNum = len(UseAntIndexInFG)
 if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
 if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
-UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
+#UseTimeList = np.where( np.quantile(FG[UseAntIndexInFG], 2.0/unFlaggedAntNum, axis=0) == 1)[0].tolist()
 #-------- Check band and BandPA
 spwName = msmd.namesforspws(spw)[0]; BandName = re.findall(pattern, spwName)[0]; bandID = int(BandName[3:5])
 BandPA = (BANDPA[bandID] + 90.0)*np.pi/180.0
@@ -107,7 +107,6 @@ azelTime, AntID, AZ, EL = GetAzEl(msfile)
 azelTime_index = np.where( AntID == refAntID )[0].tolist()
 if len(azelTime_index) == 0: azelTime_index = np.where(AntID == 0)[0].tolist()
 SPW_StokesDic = StokesDicCat
-mjdSec = []
 #-------- time-independent spectral setups
 chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); Freq = 1.0e-9* bunchVecCH(Freq)
 for sourceID in srcDic.keys():
@@ -126,40 +125,27 @@ print(BPfileName)
 XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (BPprefix, refant, BPrefsan, spw))
 BPantList, BP_ant = np.load(BPprefix + '-REF' + refant + '.Ant.npy'), np.load(BPfileName)
 BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
-#if 'XYprefix' not in locals(): XYprefix = prefix
-#XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (XYprefix, refant, BPscan, spw))
 print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase cal
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
 #-------- For visibilities in each scan
-scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum, TS[UseTimeList])
-for scan_index, scan in enumerate(scanVisDic.keys()): mjdSec = mjdSec + scanVisDic[scan]['mjdSec'].tolist()
-timeNum, mjdSec = len(mjdSec), np.array(mjdSec)
-np.save('%s-SPW%d-%s.TS.npy' % (prefix, spw, refant), mjdSec )
-Az, El, PA = np.zeros(timeNum), np.zeros(timeNum), np.zeros(timeNum)
+scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
+#scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum, TS[UseTimeList])
+mjdSec = []
 for scan_index, scan in enumerate(scanVisDic.keys()):
-    scanVisDic[scan]['scanFlag'] = indexList(TS[UseTimeList], scanVisDic[scan]['mjdSec'])
-    Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
-    scanVisDic[scan]['EL'] = El[scanVisDic[scan]['index']]
-    scanVisDic[scan]['PA'] = AzEl2PA(Az[scanVisDic[scan]['index']], El[scanVisDic[scan]['index']], ALMA_lat) + BandPA
+    scanAntFlag = FG[:, indexList(scanVisDic[scan]['mjdSec'], TS)]
+    scanVisDic[scan]['flag'] = scanAntFlag[ant0]* scanAntFlag[ant1]
+    scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
+    scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
     scanVisDic[scan]['source'] = [source for source in scanDic.keys() if scan in scanDic[source]][0]
     scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0) # bandpass cal
-    scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)
-    PA[scanVisDic[scan]['index']] = scanVisDic[scan]['PA']
-np.save('%s-SPW%d-%s.Azel.npy' % (prefix, spw, refant), np.array([mjdSec, Az, El, PA]))
-caledVis, QCpUS, UCmQS, StokesI = np.ones([4, UseBlNum, timeNum], dtype=complex), np.ones(timeNum), np.ones(timeNum), np.ones(timeNum)
-#-------- Parallel-hand phase calibration
-print('---- Antenna-based gain solution using tracking antennas')
-for scan_index, scan in enumerate(scanVisDic.keys()): caledVis[:,:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav'] # caledVis[pol, BL, time] : raw chav
-Gain = np.array([ np.apply_along_axis(gainComplex, 0, caledVis[0]), np.apply_along_axis(gainComplex, 0, caledVis[-1]) ])
-Gamp = np.sqrt(np.mean(abs(Gain)**2, axis=0))                                   # average in dual parallel polarization
-Gain = Gamp* Gain/abs(Gain)                                                     # polarization-averaged gain
-caledVis = caledVis / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())    # caledVis : apply pol-averaged gain correction 
-for scan_index, scan in enumerate(scanVisDic.keys()):
-    time_index = scanVisDic[scan]['index']
-    blWeight = np.mean(caledVis[[0,3]][:,:,time_index].real, axis=(0,2))**2 / (np.var(caledVis[0,:,time_index].real, axis=0) + np.var(caledVis[-1,:,time_index].real, axis=0))
+    scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)* scanVisDic[scan]['flag']
+    scanVisDic[scan]['Gain'] = np.array([ np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][0]), np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][-1])])* scanAntFlag
+    Gamp = np.sqrt(np.mean(abs(scanVisDic[scan]['Gain'])**2, axis=0))
+    scanVisDic[scan]['Gain'] = Gamp* np.exp((0.0 + 1.0j)*np.angle(scanVisDic[scan]['Gain']))
+    caledVis = scanVisDic[scan]['visChav'] / (scanVisDic[scan]['Gain'][polYindex][:,ant0]* scanVisDic[scan]['Gain'][polXindex][:,ant1].conjugate())    # caledVis : apply pol-averaged gain correction 
+    blWeight = np.mean(caledVis[[0,3]].real* scanVisDic[scan]['flag'], axis=(0,2))**2 / (np.var(caledVis[0].real, axis=1) + np.var(caledVis[-1].real, axis=1))
     scanVisDic[scan]['blWeight'] = blWeight / np.sum(blWeight)
-    scanVisDic[scan]['scanVis'] = caledVis[:,:,time_index].transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
-    scanVisDic[scan]['Gain'] = Gain[:,:,time_index]
+    scanVisDic[scan]['scanVis'] = caledVis.transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
 #-------- Coarse estimation of Q and U using XX and YY
 print('  -- Solution for Q and U')
 if 'QUmodel' not in locals(): QUmodel = False
@@ -178,10 +164,9 @@ for sourceName in SPW_StokesDic.keys():
         text_sd = '[XX,YY] %s: Q/I= %6.3f  U/I= %6.3f p=%.2f%% EVPA = %6.2f deg' % (sourceName, QUsol[0], QUsol[1], 100.0* np.sqrt(QUsol[0]**2 + QUsol[1]**2), np.arctan2(QUsol[1],QUsol[0])*90.0/np.pi); print(text_sd)
         del PAList, scanVisXList, scanVisYList
     for scan in scanLS:
-        time_index = scanVisDic[scan]['index']
         CS, SN = np.cos(2.0* scanVisDic[scan]['PA']), np.sin(2.0* scanVisDic[scan]['PA'])
-        scanVisDic[scan]['QCpUS'] = QUsol[0]* CS + QUsol[1]* SN; QCpUS[time_index] = scanVisDic[scan]['QCpUS']
-        scanVisDic[scan]['UCmQS'] = QUsol[1]* CS - QUsol[0]* SN; UCmQS[time_index] = scanVisDic[scan]['UCmQS']
+        scanVisDic[scan]['QCpUS'] = QUsol[0]* CS + QUsol[1]* SN
+        scanVisDic[scan]['UCmQS'] = QUsol[1]* CS - QUsol[0]* SN
 #-------- XY phase determination
 scanVisXYList, scanVisYXList = [], []
 for scan_index, scan in enumerate(scanVisDic.keys()):
@@ -190,6 +175,7 @@ for scan_index, scan in enumerate(scanVisDic.keys()):
 XYphase = XY2Phase(UCmQS, np.array([scanVisXYList, scanVisYXList]))    # XY*, YX* to estimate X-Y phase
 XYsign = np.sign(np.cos(XYphase))
 text_sd = '  -- Degenerating pi-ambiguity in XY phase : %6.2f [deg] sign = %3.0f' % (XYphase* 180.0 / np.pi, XYsign); print(text_sd)
+a=1/0
 #-------- Polarized gain adjustment
 print('  -- Polarized gain calibration')
 GainX, GainY = polariGain(caledVis[0], caledVis[-1], QCpUS)
