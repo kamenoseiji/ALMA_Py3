@@ -9,7 +9,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -42,7 +41,9 @@ refant = 'DV08'
 QUmodel = True
 antFlag = ['DV01']
 spw = 0
-scanList = [3,6,9,11,14,16,19,21,24,26,29,31,34,36,39,40,42,45,48,50,53,55,58,60,63,65,68,70,73,76]
+#scanList = [3,6,9,11,14,16,19,21,24,26,29,31,34,36,39,40,42,45,48,50,53,55,58,60,63,65,68,70,73,76]
+scanList = [3, 6, 9, 29, 39, 40, 48, 68, 76]
+'''
 #----------------------------------------- Procedures
 def flagOutLier(value, thresh=5.0):
     return np.where(abs(value - np.median(value)) > thresh* np.std(value))[0].tolist()
@@ -218,7 +219,6 @@ for sourceName in SPW_StokesDic.keys():
         UCmQS[scanVisDic[scan]['index']] = scanVisDic[scan]['UCmQS']
 del PAList, scanVisXYList, scanVisYXList
 #-------- 2nd polarized gain adjustment
-a=1/0
 GainX, GainY = polariGain(caledVis[0], caledVis[-1], np.array(QCpUS))
 Gain = np.array([Gain[0]* GainX, Gain[1]* GainY])
 for scan_index, scan in enumerate(scanVisDic.keys()):
@@ -328,7 +328,7 @@ pp = PdfPages('%s-SPW%d-%s-QUXY.pdf' % (prefix, spw, refant))
 plotQUXY(pp, scanVisDic)
 #-------- Save Results
 np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
-np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant))
+np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), np.array([mjdSec, XYphase]))
 XYC = np.zeros([2, timeNum], dtype=complex)
 for scan_index, scan in enumerate(scanVisDic.keys()): XYC[:,scanVisDic[scan]['index']] = scanVisDic[scan]['visChav'][[1,2]]
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), XYV )
