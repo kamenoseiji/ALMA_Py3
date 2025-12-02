@@ -1911,7 +1911,6 @@ def polariGain( XX, YY, QCpUS):
     blNum, timeNum = XX.shape[0], XX.shape[1]
     Xscale = 1.0 / (1.0 + QCpUS)
     Yscale = 1.0 / (1.0 - QCpUS)
-    #
     ScaledXX, ScaledYY = XX * Xscale, YY* Yscale
     return gainComplexVec(ScaledXX), gainComplexVec(ScaledYY)
 #
