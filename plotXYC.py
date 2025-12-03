@@ -17,14 +17,14 @@ prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 spw     = int(options.spw)
 refantName = options.refant
 #-------- Load tables
-timeFile = '%s-SPW%d-%s.TS.npy'  % (prefix, spw, refantName)
+#timeFile = '%s-SPW%d-%s.TS.npy'  % (prefix, spw, refantName)
 xycFile  = '%s-SPW%d-%s.XYC.npy' % (prefix, spw, refantName)
 xyvFile  = '%s-SPW%d-%s.XYV.npy' % (prefix, spw, refantName)
 xypFile  = '%s-SPW%d-%s.XYPH.npy'% (prefix, spw, refantName)
 azelFile = '%s-SPW%d-%s.Azel.npy'% (prefix, spw, refantName)
 DT = []
-timeStamp, XYC, XYV, XYPH, AZEL = np.load(timeFile), np.load(xycFile), np.load(xyvFile), np.load(xypFile), np.load(azelFile)
-for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
+XYC, XYV, XYPH, AZEL = np.load(xycFile), np.load(xyvFile), np.load(xypFile), np.load(azelFile)
+for mjdSec in XYPH[0].tolist(): DT.append(datetime.datetime.strptime(qa.time('%fs' % (mjdSec), form='fits', prec=9)[0], '%Y-%m-%dT%H:%M:%S.%f'))
 DT = np.array(DT)
 PA = np.angle(np.exp((0.0 + 1.0j)* AZEL[3]))
 XYV *= np.sign(XYV.real)

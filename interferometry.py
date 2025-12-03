@@ -396,23 +396,19 @@ def GetVisibility(msfile, ant1, ant2, spwID, scanID):
 def loadXspecScan(scanVisDic, prefix, spw,  bunchNum):
     def bunchVecCH(spec): return bunchVec(spec, bunchNum)
     scanList = list(scanVisDic.keys())  
-    #init_timeIndex = 0
+    init_timeIndex = 0
     for scan in scanList:
         text_sd = '-- Loading visibility data %s SPW=%d SCAN=%d...' % (prefix, spw, scan)
         timeStamp, Pspec, Xspec = GetVisAllBL(prefix + '.ms', spw, scan)  # Xspec[POL, CH, BL, TIME]
-        #useTimeIndex = indexList(TS, timeStamp)
-        #text_sd = text_sd + '%d unflagged records' % (len(useTimeIndex)); print(text_sd)
-        #if len(useTimeIndex) < bunchNum: scanVisDic.pop(scan); continue
-        #timeStamp, Xspec = timeStamp[useTimeIndex], Xspec[:,:,:,useTimeIndex]
+        text_sd = text_sd + '%d records' % (len(timeStamp)); print(text_sd)
         if bunchNum > 1: Xspec = np.apply_along_axis(bunchVecCH, 1, Xspec)
         timeNum = len(timeStamp)
         scanVisDic[scan] = {
             'msfile': prefix,
-            #'index': list(range(init_timeIndex, init_timeIndex + timeNum)),
-            #'flag': np.ones(timeNum),
+            'index': list(range(init_timeIndex, init_timeIndex + timeNum)),
             'mjdSec': timeStamp,
             'visSpec': Xspec}
-        #init_timeIndex += timeNum
+        init_timeIndex += timeNum
     return scanVisDic
 #-------- Load visiblities in all SPWs and scans
 def loadScanSPW(msfile, spwList, scanList):

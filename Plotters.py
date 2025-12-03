@@ -746,12 +746,9 @@ def plotQUXY(pp, scanDic):
         ThetaPlot, VisXX, VisYY, VisXY = [], [], [], []
         #-------- PA range to draw model
         for scan in scanList:
-            scanFlag = scanDic[scan]['scanFlag']
-            PA = scanDic[scan]['PA'][scanFlag]
             Stokes = np.mean(scanDic[scan]['scanVis'], axis=1)
             EVPA = 0.5* np.arctan2(Stokes[2], Stokes[1])
-            Theta = PA - EVPA
-            ThetaPlot = ThetaPlot + np.arctan(np.tan(Theta)).tolist()
+            ThetaPlot = ThetaPlot + np.arctan(np.tan(scanDic[scan]['PA'] - EVPA)).tolist()
         ThetaPlot = np.array(ThetaPlot)
         ThetaMin, ThetaMax = np.min(ThetaPlot), np.max(ThetaPlot)
         ThetaRange = np.arange(ThetaMin, ThetaMax, 0.01)

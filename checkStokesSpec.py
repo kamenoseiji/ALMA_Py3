@@ -35,10 +35,10 @@ BPscan  = int(options.BPscan)
 '''
 prefix = '2025.1.00004.CSV_HR5907_a_02_TM1'
 refant = 'DV08'
-antFlag = ['DV01']
-spw = 1
+antFlag = []
+spw = 0
 BPscan = 0
-scanList = [3]
+scanList = [76]
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 scansFile = []
@@ -58,6 +58,10 @@ UseAntNum = len(UseAntList); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
+#-------- Check Stokes Parameters for each source
+if not 'bunchNum' in locals(): bunchNum = 1
+def bunchVecCH(spec): return bunchVec(spec, bunchNum)
+chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); Freq = 1.0e-9* bunchVecCH(Freq)
 #-------- Check source list
 srcDic = GetSourceDic(msfile)
 srcIDList = list(srcDic.keys())
@@ -70,6 +74,12 @@ sourceScan = []
 scanDic   = dict(zip(sourceList, [[]]*numSource)) # Scan list index for each source
 StokesDic = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters for each source
 StokesDicCat = dict(zip(sourceList, [[]]*numSource)) # Stokes parameters in AMAPOLA
+#-------- Time-based flagged data
+FGantList = np.load('%s.Ant.npy' % (prefix))
+UseAntIndexInFG = indexList(UseAntList,FGantList)
+unFlaggedAntNum = len(UseAntIndexInFG)
+if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
+if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
 #-------- Check scan list
 if 'scanList' in locals():
     scanList.sort()
@@ -86,13 +96,13 @@ BP_ant = BP_ant[indexList(antList[antMap], BPantList)]      # BP antenna mapping
 XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spw))
 BP_ant[:,1] *= XYspec
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
+for scan_index, scan in enumerate(scanVisDic.keys()):
+    scanAntFlag = FG[:, indexList(scanVisDic[scan]['mjdSec'], TS)]
+    scanVisDic[scan]['flag'] = scanAntFlag[ant0]* scanAntFlag[ant1]
+    scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0)
+    scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)* scanVisDic[scan]['flag']
 #-------- Load Gain and Flag table
-FGantList = np.load('%s.Ant.npy' % (prefix))
-UseAntIndexInFG = indexList(UseAntList,FGantList)
-unFlaggedAntNum = len(UseAntIndexInFG)
-if os.path.isfile('%s-SPW%d.TS.npy' % (prefix, spw)): TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
 if os.path.isfile('%s-SPW%d.GA.npy' % (prefix, spw)): GA = np.load('%s-SPW%d.GA.npy' % (prefix, spw))
-if os.path.isfile('%s-SPW%d.FG.npy' % (prefix, spw)): FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
 
 
 
@@ -111,7 +121,6 @@ if os.path.isfile('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant)): XYP = np.load
 SP_PH = splineComplex(XYP[0], np.exp((0.0 + 1.0j)* XYP[1]), np.max(np.diff(XYP[0])))
 
 scipy.interpolate.splrep(XYP[0], XYP[1], k=3)
-'''
 #-------- Load Gain and Flag table
 FGantList = np.load('%s.Ant.npy' % (prefix))
 UseAntIndexInFG = indexList(UseAntList,FGantList)
@@ -183,3 +192,4 @@ for sourceName in SPW_StokesDic.keys():
     np.save('%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refant, sourceName, spw), StokesSpec)
     np.save('%s-REF%s-%s-SPW%d.StokesErr.npy' % (prefix, refant, sourceName, spw), StokesSpecErr)
     np.save('%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refant, sourceName, spw), Freq)
+'''
