@@ -1669,6 +1669,12 @@ def splineComplex( samplePoints, vector, smoothWidth=3, Weight=np.array([1.0,1.0
     if len(Weight) != len(samplePoints): Weight = np.median(Weight) * np.ones(len(samplePoints))
     SP_real, SP_imag = scipy.interpolate.splrep(samplePoints, vector.real, k=3, w=Weight, t=samplePoints[node_index]), scipy.interpolate.splrep(samplePoints, vector.imag, k=3, w=Weight, t=samplePoints[node_index])
     return( scipy.interpolate.splev(samplePoints, SP_real) + (0.0 + 1.0j)* scipy.interpolate.splev(samplePoints, SP_imag))
+#-------- Spline interpolation
+def splineInterp( samplePoints, vector, requestedPoints, smoothWidth=3, Weight=np.array([1.0,1.0]) ):
+    node_index = list(range(int(smoothWidth/2), len(samplePoints)-2, int(smoothWidth)) )
+    if len(Weight) != len(samplePoints): Weight = np.median(Weight) * np.ones(len(samplePoints))
+    SP_real, SP_imag = scipy.interpolate.splrep(samplePoints, vector.real, k=3, w=Weight, t=samplePoints[node_index]), scipy.interpolate.splrep(samplePoints, vector.imag, k=3, w=Weight, t=samplePoints[node_index])
+    return( scipy.interpolate.splev(requestedPoints, SP_real) + (0.0 + 1.0j)* scipy.interpolate.splev(requestedPoints, SP_imag))
 #
 #-------- Van Vleck Correction
 def loadVanvQ4( File ):

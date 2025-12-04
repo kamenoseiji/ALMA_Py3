@@ -328,6 +328,7 @@ np.save('%s-SPW%d-%s.GA.npy' % (prefix, spw, refant), Gain )
 np.save('%s-SPW%d-%s.XYPH.npy' % (prefix, spw, refant), np.array([mjdSec, XYphase]))
 np.save('%s-SPW%d-%s.XYV.npy' % (prefix, spw, refant), 0.5*(XV + YV.conjugate()))
 np.save('%s-SPW%d-%s.XYC.npy' % (prefix, spw, refant), XYC )
+np.save('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (BPprefix, refant, BPrefsan, spw), XYspec*XYsign)
 #-------- Store and Plot Stokes spectra
 for sourceName in SPW_StokesDic.keys():
     scanLS = scanDic[sourceName]
