@@ -39,9 +39,8 @@ BPprefix = prefix
 BPrefsan = 0
 refant = 'DV08'
 QUmodel = True
-antFlag = []
+antFlag = ['DV01']
 spw = 0
-#scanList = [3,6,9,11,14,16,19,21,24,26,29,31,34,36,39,40,42,45,48,50,53,55,58,60,63,65,68,70,73,76]
 scanList = [3, 6, 9, 29, 39, 40, 48, 68, 76]
 '''
 #----------------------------------------- Procedures
@@ -124,9 +123,9 @@ print('Apply XY phase into Y-pol Bandpass.'); BP_ant[:,1] *= XYspec  # XY phase 
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
 #-------- For visibilities in each scan
 scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
-caledVisStack = np.zeros([4,blNum,0],dtype=complex)
+caledVisStack = np.zeros([4,UseBlNum,0],dtype=complex)
 for scan_index, scan in enumerate(scanVisDic.keys()):
-    scanAntFlag = FG[:, indexList(scanVisDic[scan]['mjdSec'], TS)]
+    scanAntFlag = FG[indexList(antList[antMap], FGantList)][:, indexList(scanVisDic[scan]['mjdSec'], TS)]
     scanVisDic[scan]['flag'] = scanAntFlag[ant0]* scanAntFlag[ant1]
     scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
     scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
