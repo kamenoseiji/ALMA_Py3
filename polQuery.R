@@ -51,7 +51,7 @@ for(sourceName in srcList){
     if(freqNum > 1){
 	    for(freq_index in 1:freqNum){
 	    	srcFreqDF <- srcDF[srcDF$Freq == freqList[freq_index],]
-	    	if(((nrow(srcFreqDF) >= 3) & (diff(range(srcFreqDF$timeDiff)) > min(srcFreqDF$timeDiff)))){
+	    	if(((nrow(srcFreqDF) >= 3) & (diff(range(srcFreqDF$timeDiff)) > min(abs(srcFreqDF$timeDiff))))){
 			    fit <- lm(data=srcFreqDF, formula=I ~ timeDiff, weights=(I/(eI + 1.0e-3)) / abs(timeDiff + 5))
 			    estI[freq_index] <- summary(fit)$coefficients[1,'Estimate'];  errI[freq_index] <- summary(fit)$coefficients[1,'Std. Error']
 			    fit <- lm(data=srcFreqDF, formula=Q ~ timeDiff, weights=(I/(eQ + 1.0e-3)) / abs(timeDiff + 5))
