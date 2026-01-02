@@ -29,13 +29,28 @@ parser.add_option('-R', dest='refant', metavar='refant',
 (options, args) = parser.parse_args()
 #-------- BB_spw : BB power measurements for list of spws, single antenna, single scan
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
+BPprefix = options.BPprefix
 antFlag = [ant for ant in options.antFlag.split(',')]
 plotAnt = [] if options.plotAnt == '' else [ant for ant in options.plotAnt.split(',')]
 timeBunch = int(options.timeBunch)
 scanList= [int(scan) for scan in options.scanList.split(',')]
+refant = options.refant
 spw = int(options.spw)
 SNR_THRESH = options.threshold
 PLOTPDF = options.PLOTPDF
+'''
+prefix = '2023.1.00335.S_X11c29b6_X757d'
+antFlag = []
+plotAnt = []
+timeBunch = 1
+#scanList = [3,5,11,131,179,180,193,312,354,355,372,491,530]
+scanList = [5]
+spw = 0
+SNR_THRESH = 1.0
+refant = 'DA55'
+BPprefix = '2023.1.00335.S_X11c29b6_X757d,0'
+PLOTPDF = True
+'''
 #-------- Initial Settings
 #if 'SNR_THRESH' not in locals(): SNR_THRESH = 0.0
 #if 'antFlag' not in locals(): antFlag = []
@@ -59,21 +74,21 @@ print(text_sd)
 blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
 ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
 for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-if options.refant not in antList[UseAnt]: options.refant = ''
-if options.refant == '':
+if refant not in antList[UseAnt]: refant = ''
+if refant == '':
     timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
     uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist)
 else:
-    refantID = indexList(np.array([options.refant]), antList[UseAnt])[0]
+    refantID = indexList(np.array([refant]), antList[UseAnt])[0]
 print('  Use ' + antList[UseAnt[refantID]] + ' as the refant.')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
 #blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print('  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 #-------- Bandpass Table
-if options.BPprefix != '':
-    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (options.BPprefix.split(',')[0], antList[UseAnt[refantID]], int(options.BPprefix.split(',')[1]), spw)
+if BPprefix != '':
+    BPfileName = '%s-REF%s-SC%d-SPW%d-BPant.npy' % (BPprefix.split(',')[0], antList[UseAnt[refantID]], int(BPprefix.split(',')[1]), spw)
     print('---Loading bandpass table : ' + BPfileName)
     BP_ant = np.load(BPfileName)
 #
@@ -110,7 +125,7 @@ for scan_index, scan in enumerate(scanList):
     Gain, antSNR, gainFlag = np.ones([UseAntNum, parapolNum, len(timeStamp)], dtype=complex), np.zeros([UseAntNum, parapolNum, len(timeStamp)]), np.ones([UseAntNum,len(timeStamp)])
     for pol_index in list(range(parapolNum)):
         Gain[:, pol_index], tempErr = np.apply_along_axis(gainComplexErr, 0, chAvgVis[pol_index])
-        antSNR[:, pol_index] = abs(Gain[:, pol_index])**2 / abs(tempErr)**2
+        antSNR[:, pol_index] = abs(Gain[:, pol_index]) / abs(tempErr)
         gainFlag = gainFlag* ((np.sign( antSNR[:, pol_index] - SNR_THRESH ) + 1.0)/2)
     #
     timeList = timeList + timeStamp.tolist()

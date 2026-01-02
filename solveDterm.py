@@ -34,14 +34,14 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2025.1.00004.CSV_HR5907_a_02_TM1'
+prefix = '2023.1.00335.S_X11c29b6_X757d'
 BPprefix = prefix
 BPrefsan = 0
-refant = 'DV08'
+refant = 'DA55'
 QUmodel = True
-antFlag = ['DV01']
+antFlag = []
 spw = 0
-scanList = [3, 6, 9, 29, 39, 40, 48, 68, 76]
+scanList = [3,179,180,193,312,354,355,491,530]
 '''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()

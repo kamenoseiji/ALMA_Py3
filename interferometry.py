@@ -1820,14 +1820,13 @@ def gainComplexVec( bl_vis, niter=2 ):       # bl_vis[baseline, channel]
     for iter_index in list(range(niter)): Solution = np.apply_along_axis(LocalGainSolve, 0, np.concatenate([bl_vis, Solution]))
     return Solution
 #
-def gainComplex( bl_vis, niter=2 ):
+def gainComplex( bl_vis, niter=4 ):
     blNum  =  len(bl_vis)
     antNum =  Bl2Ant(blNum)[0]
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()
     CompSol = np.zeros(antNum, dtype=complex)
     #---- Initial solution
-    CompSol[0] = sqrt(abs(bl_vis[0])) + 1.52e-5 + 0.0j
-    #CompSol[0] = sqrt(np.median(abs(bl_vis.real))) + 0j
+    CompSol[0] = 1.0e-6 + np.sqrt(abs(bl_vis[0])) + 0j     # add 1.0e-6 to avoid division by 0
     CompSol[1:antNum] = bl_vis[kernelBL] / CompSol[0]
     #----  Iteration
     for iter_index in list(range(niter)):
@@ -1840,13 +1839,13 @@ def gainComplex( bl_vis, niter=2 ):
     #
     return CompSol
 #
-def gainComplexErr( bl_vis, niter=2 ):
+def gainComplexErr( bl_vis, niter=4 ):
     blNum  =  len(bl_vis)
     antNum =  Bl2Ant(blNum)[0]
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()
     CompSol = np.zeros(antNum, dtype=complex)
     #---- Initial solution
-    CompSol[0] = 1.0e-6 + sqrt(abs(bl_vis[0])) + 0j     # add 1.0e-6 to avoid division by 0
+    CompSol[0] = 1.0e-6 + np.sqrt(abs(bl_vis[0])) + 0j     # add 1.0e-6 to avoid division by 0
     CompSol[1:antNum] = bl_vis[kernelBL] / CompSol[0]
     #----  Iteration
     for iter_index in range(niter):
@@ -1857,7 +1856,8 @@ def gainComplexErr( bl_vis, niter=2 ):
         correction = np.linalg.solve(L.T, t)
         CompSol    = CompSol + correction[range(antNum)] + 1.0j* np.append(0, correction[range(antNum, 2*antNum-1)])
     #
-    return CompSol, abs(logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate())).real)
+    #return CompSol, abs(logamp_solve(abs(bl_vis - CompSol[ant0]* CompSol[ant1].conjugate())).real)
+    return CompSol, abs(logamp_solve( abs(bl_vis)/abs(CompSol[ant0]* CompSol[ant1].conjugate())) - 1.0)* abs(CompSol)
 #
 #-------- Function to calculate visibilities
 def polariVis( Xspec ):     # Xspec[polNum, blNum, chNum, timeNum]
