@@ -127,7 +127,7 @@ def spwMS(msfile):
         chFreq = msmd.chanfreqs(spw)
         spwDic[spw] = {
             'Band'   : [spwName.split('ALMA_')[1] for spwName in msmd.namesforspws(spw)[0].split('#') if 'ALMA_' in spwName][0],
-            'BB'     : msmd.baseband(spw)-1,
+            'BB'     : msmd.baseband(spw),
             'chNum'  : len(chFreq),
             'refFreq': msmd.reffreq(spw)['m0']['value'],
             'BW'     : msmd.bandwidths(spw),

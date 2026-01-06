@@ -13,8 +13,8 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'uid___A002_X12f38f9_Xfef1'
-scanList = [6]
+prefix = 'uid___A002_X13270a2_X16eba'
+scanList = [3]
 '''
 spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
@@ -23,7 +23,8 @@ if not os.path.isdir(msfile): importasdm(prefix)
 SPWdic = spwMS(msfile)
 SPWFull = SPW_FULL_RES( prefix )
 for spw in SPWdic.keys():
-    SPWdic[spw]['ID'] = [SPWFull[spw2]['ID'] for spw2 in SPWFull.keys() if (SPWFull[spw2]['BB'] == SPWdic[spw]['BB']) and (SPWFull[spw2]['BW'] == SPWdic[spw]['BW']) and (SPWFull[spw2]['refFreq'] == SPWdic[spw]['refFreq'])][0]
+    #SPWdic[spw]['ID'] = [SPWFull[spw2]['ID'] for spw2 in SPWFull.keys() if (SPWFull[spw2]['BB'] == SPWdic[spw]['BB']) and (SPWFull[spw2]['BW'] == SPWdic[spw]['BW']) and (SPWFull[spw2]['refFreq'] == SPWdic[spw]['refFreq'])][0]
+    SPWdic[spw]['ID'] = [SPWFull[spw2]['ID'] for spw2 in SPWFull.keys() if (SPWFull[spw2]['BB'] == SPWdic[spw]['BB']) and (SPWFull[spw2]['BW'] == SPWdic[spw]['BW']) and (SPWFull[spw2]['ch0'] == SPWdic[spw]['ch0'])][0]
 SPWLO = SPW_LO(SPWdic, prefix)
 BBList = np.sort(np.unique(np.array([SPWdic[spw]['BB'] for spw in SPWdic.keys()]))).tolist()
 #-------- Reconfigure SPWs in MS
@@ -34,7 +35,7 @@ for spw_index, spw in enumerate(SPWdic.keys()):
     if set(scanList) & set(SPWdic[spw]['scanList']) == set(): continue 
     LO1, RFrange = SPWdic[spw]['LO1']*1.0e-9, np.sort(np.array([SPWdic[spw]['ch0'], SPWdic[spw]['ch0'] + (SPWdic[spw]['chNum']-1)* SPWdic[spw]['chStep']]))* 1.0e-9
     IFrange = np.sort(abs(RFrange - LO1))
-    text_sd = '%02d  %s BB%d  %10.6f %9.6f [%7.3f - %7.3f] [%6.3f - %6.3f]' % (spw, SPWdic[spw]['Band'], SPWdic[spw]['BB']+1, LO1, SPWdic[spw]['LO2']*1.0e-9, RFrange[0], RFrange[1], IFrange[0], IFrange[1])
+    text_sd = '%02d  %s BB%d  %10.6f %9.6f [%7.3f - %7.3f] [%6.3f - %6.3f]' % (spw, SPWdic[spw]['Band'], SPWdic[spw]['BB'], LO1, SPWdic[spw]['LO2']*1.0e-9, RFrange[0], RFrange[1], IFrange[0], IFrange[1])
     for BB in BBList:
         LO2 = [SPWdic[spw2]['LO2']*1.0e-9 for spw2 in SPWdic.keys() if SPWdic[spw2]['BB'] == BB][0]
         if (IFrange[0] < LO2) and (LO2 < IFrange[1]): text_sd = text_sd + ' RF=%.3f ' % (LO1 + SPWdic[spw]['SB1']*LO2)
