@@ -39,16 +39,16 @@ spw = int(options.spw)
 SNR_THRESH = options.threshold
 PLOTPDF = options.PLOTPDF
 '''
-prefix = '2023.1.00335.S_X11c29b6_X757d'
+prefix = '2024.1.00750.S_X134b3d1_X1b6b3'
 antFlag = []
 plotAnt = []
 timeBunch = 1
 #scanList = [3,5,11,131,179,180,193,312,354,355,372,491,530]
-scanList = [5]
+scanList = [2,5,8,31,42]
 spw = 0
 SNR_THRESH = 1.0
-refant = 'DA55'
-BPprefix = '2023.1.00335.S_X11c29b6_X757d,0'
+refant = 'DV03'
+BPprefix = ''
 PLOTPDF = True
 '''
 #-------- Initial Settings

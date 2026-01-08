@@ -34,14 +34,14 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2023.1.00335.S_X11c29b6_X757d'
+prefix = '2024.1.00750.S_X134b3d1_X1b6b3'
 BPprefix = prefix
 BPrefsan = 0
-refant = 'DA55'
+refant = 'DV03'
 QUmodel = True
 antFlag = []
 spw = 0
-scanList = [3,179,180,193,312,354,355,491,530]
+scanList = [2,5,8,31,42]
 '''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -124,23 +124,28 @@ BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Ba
 #-------- For visibilities in each scan
 scanVisDic = loadXspecScan(scanVisDic, prefix, spw, bunchNum)
 caledVisStack = np.zeros([4,UseBlNum,0],dtype=complex)
+startIndex = 0
 for scan_index, scan in enumerate(scanVisDic.keys()):
     scanAntFlag = FG[indexList(antList[antMap], FGantList)][:, indexList(scanVisDic[scan]['mjdSec'], TS)]
-    scanVisDic[scan]['flag'] = scanAntFlag[ant0]* scanAntFlag[ant1]
+    scanVisDic[scan]['flag'] = np.min(scanAntFlag, axis=0)
+    flagIndex = np.where(scanVisDic[scan]['flag'] > 0)[0].tolist()
+    scanVisDic[scan]['index'] = list(range(startIndex, startIndex+len(flagIndex))); startIndex += len(flagIndex)
+    scanVisDic[scan]['mjdSec'] = scanVisDic[scan]['mjdSec'][flagIndex]
     scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
     scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
     scanVisDic[scan]['source'] = [source for source in scanDic.keys() if scan in scanDic[source]][0]
-    scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl).transpose(2,3,1,0) # bandpass cal
-    scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)* scanVisDic[scan]['flag']
-    scanVisDic[scan]['Gain'] = np.array([ np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][0]), np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][-1])])* scanAntFlag
+    scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl)[flagIndex].transpose(2,3,1,0) # bandpass cal
+    scanVisDic[scan]['visChav'] = np.mean(scanVisDic[scan]['visSpec'][:,chRange], axis=1)
+    scanVisDic[scan]['Gain'] = np.array([ np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][0]), np.apply_along_axis(gainComplex, 0, scanVisDic[scan]['visChav'][-1])])
     Gamp = np.sqrt(np.mean(abs(scanVisDic[scan]['Gain'])**2, axis=0))
     scanVisDic[scan]['Gain'] = Gamp* np.exp((0.0 + 1.0j)*np.angle(scanVisDic[scan]['Gain']))
     denominator = scanVisDic[scan]['Gain'][polYindex][:,ant0]* scanVisDic[scan]['Gain'][polXindex][:,ant1].conjugate()
     caledVis = np.divide(scanVisDic[scan]['visChav'], denominator, out=np.zeros_like(denominator), where=(abs(denominator) > 1.0e-20))    # caledVis : apply pol-averaged gain correction 
-    blWeight = np.mean(caledVis[[0,3]].real* scanVisDic[scan]['flag'], axis=(0,2))**2
+    blWeight = np.mean(caledVis[[0,3]].real, axis=(0,2))**2
     scanVisDic[scan]['blWeight'] = blWeight / np.sum(blWeight)
     scanVisDic[scan]['scanVis'] = caledVis.transpose(0,2,1).dot(scanVisDic[scan]['blWeight'])
     caledVisStack = np.concatenate([caledVisStack, caledVis], 2)
+del startIndex
 #-------- Coarse estimation of Q and U using XX and YY
 print('  -- Solution for Q and U')
 if 'QUmodel' not in locals(): QUmodel = False
@@ -177,6 +182,7 @@ StokesI = np.ones(len(QCpUS))
 XYphase = XY2Phase(UCmQS, np.array([scanVisXYList, scanVisYXList]))    # XY*, YX* to estimate X-Y phase
 XYsign = np.sign(np.cos(XYphase))
 text_sd = '  -- Degenerating pi-ambiguity in XY phase : %6.2f [deg] sign = %3.0f' % (XYphase* 180.0 / np.pi, XYsign); print(text_sd)
+del scanVisXYList, scanVisYXList, caledVisX, caledVisY
 #-------- Polarized gain adjustment
 print('  -- Polarized gain calibration')
 GainX, GainY = polariGain(caledVisStack[0], caledVisStack[-1], QCpUS)
