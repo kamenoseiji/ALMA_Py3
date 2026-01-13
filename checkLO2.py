@@ -13,10 +13,10 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 '''
-prefix = 'uid___A002_X13270a2_X16eba'
+prefix = 'uid___A002_X12e4038_X4b53'
 scanList = [3]
-'''
 spurLog = open(prefix + '-LO2Spur.log', 'w')
+'''
 #-------- Get LO1 and LO2 frequencies
 msfile = prefix + '.ms'
 if not os.path.isdir(msfile): importasdm(prefix)
