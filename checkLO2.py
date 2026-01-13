@@ -15,8 +15,8 @@ scanList  = [] if options.scanList == '' else [int(scan) for scan in options.sca
 '''
 prefix = 'uid___A002_X12e4038_X4b53'
 scanList = [3]
-spurLog = open(prefix + '-LO2Spur.log', 'w')
 '''
+spurLog = open(prefix + '-LO2Spur.log', 'w')
 #-------- Get LO1 and LO2 frequencies
 msfile = prefix + '.ms'
 if not os.path.isdir(msfile): importasdm(prefix)

@@ -18,10 +18,16 @@ parser.add_option('-c', dest='scanList', metavar='scanList',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 scanList = [int(scan) for scan in options.scanList.split(',')]
 spwList = [int(spw) for spw in options.spwList.split(',')]
+'''
+prefix = 'uid___A002_X133b089_X18b6f'
+scanList = [4]
+spwList = [19]
+'''
 #-------- Procedures
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
-plotAntList = antList if options.antName == '' else [ant for ant in options.antName.split(',')]
+#plotAntList = antList if options.antName == '' else [ant for ant in options.antName.split(',')]
+plotAntList = antList
 antNum = len(plotAntList)
 scanNum = len(scanList)
 spwNum = len(spwList)
