@@ -17,6 +17,7 @@ from optparse import OptionParser
 def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
+'''
 #-------- Parse options
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
@@ -36,13 +37,12 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_Xdf8d1a_Xb88'
+prefix = 'uid___A002_Xb64387_X6939'
 antFlag = []
 uvLimit = 5000
-BPscan = 6
+BPscan  = 0
 QUMODEL = True
-TsysDigitalCorrection = False
-'''
+TsysDigitalCorrection = True
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
@@ -326,7 +326,9 @@ for BandName in RXList:
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[checkScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
+        #XYphase = 0
         XYsign = np.sign(np.cos(XYphase))
+        #XYsign = 1
         print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
         BPSPWList[spw_index][:,1] *= XYsign
     #-------- Apply Bandpass and Phase Correction

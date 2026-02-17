@@ -110,7 +110,8 @@ def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
     return
 #-------- Plot Tsys and Trx Spectrum
 def plotTsysDic(prefix, TsysDic):
-    pp = PdfPages('TSYS_' + prefix + '.pdf')
+    bandName = TsysDic[next(iter(TsysDic))]['Band']
+    pp = PdfPages('TSYS_%s.%s.pdf' % (prefix, bandName))
     #-------- Plots for Tsys spectra
     scanList = list(TsysDic.keys()); scanNum = len(scanList)
     antList  = TsysDic[scanList[0]]['antList']; antNum = len(antList)

@@ -156,8 +156,8 @@ for band_index, bandName in enumerate(UniqBands):
         SunAngle = srcDic[sourceID]['SA']
         print('%s : Sun Angle = %.1f' % (sourceName, SunAngle))
         if SunAngle < SunAngleTsysLimit: scanFlag[:,:,:,scan_index] *= 0.01
-    for spw_index, spw in enumerate(atmspwLists[band_index]):
-        np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # TxList[spw][pol,ch,ant,scan]
+    #for spw_index, spw in enumerate(atmspwLists[band_index]):
+    #    np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), TrxList[spw_index])    # TxList[spw][pol,ch,ant,scan]
     #-------- Az and El position at atmCal and onsource scans
     AtmEL = np.ones([useAntNum, atmscanNum])
     for ant_index, ant in enumerate(useAnt):
