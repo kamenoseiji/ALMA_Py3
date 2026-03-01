@@ -62,23 +62,24 @@ GAspw   = int(options.GAspw)
 GAprefix = BPprefix
 refScan = int(options.refscan)
 '''
-BPprefix = 'uid___A002_X12e95ca_X7383.WVR'
-GAprefix = 'uid___A002_X12e95ca_X7383.WVR'
-prefix = 'uid___A002_X12e95ca_X7383.WVR'
+BPprefix = 'uid___A002_X135cc83_Xe6b9'
+GAprefix = 'uid___A002_X135cc83_Xe6b9'
+prefix = 'uid___A002_X135cc83_Xe6b9'
 antFlag = []
 refScan = 3
-scanList = [26]
+scanList = [5,8]
 #spwList = [15,17,19,21]
-spwList = [0,2,4,6]
-GAspw   = 0
-chBin = 1
-plotMin = 0.0
-plotMax = 1.5
+spwList = [25,27,29,31]
+GAspw   = 25
+chBin = 16
+plotMin = -90.0
+plotMax = 90.0 
 XYLog = False
 BPPLOT = True
 FG     = False
 refant = 'DA45'
 '''
+def bunchVecCH(spec): return bunchVec(spec, chBin)
 #--------
 def delayFit(freq, spec):
     chNum = len(freq)
@@ -138,9 +139,14 @@ SideBand = ['LSB', 'USB']
 FreqList, BPList, Freq1D = [], [], []
 for spw_index, spw in enumerate(spwList):
     BPList   = BPList + [np.load(BPfileList[spw_index])]
-    FreqList = FreqList + [np.load(BPfreqList[spw_index])]
+    BPfreq = np.load(BPfreqList[spw_index])
+    if chBin >2:
+        SPWdic[spw]['chNum'] /= chBin
+        SPWdic[spw]['chStep'] *= chBin
+        BPfreq = bunchVecCH(BPfreq)                                                                                                                                       
+    FreqList = FreqList + [BPfreq]
     SPWdic[spw]['chRange'] = list(range(int(0.05*SPWdic[spw]['chNum']), int(0.95*SPWdic[spw]['chNum'])))
-    Freq1D = Freq1D + np.load(BPfreqList[spw_index])[SPWdic[spw]['chRange']].tolist()
+    Freq1D = Freq1D + BPfreq[SPWdic[spw]['chRange']].tolist()
 Freq1D = 1.0e-9* np.array(Freq1D)
 #-------- Load Visiblities
 GDL = np.zeros([4* antNum + 1,len(scanList)])
@@ -158,6 +164,9 @@ for scan_index, scan in enumerate(scanList):
         Xspec  = ParaPolBL(Xspec[:,:,blMap], blInv)
         BPant  = BPList[spw_index][BPantMap]                        # BPant[ant, pol, ch]
         CaledXspec = np.mean(GAscan[ant0].conjugate()* GAscan[ant1]* Xspec.transpose(1,2,0,3), axis=3).transpose(1,2,0) # CaledXspec[bl, pol, ch]
+        if chBin > 1:
+            BPant      = np.apply_along_axis(bunchVecCH, 2, BPant)
+            CaledXspec = np.apply_along_axis(bunchVecCH, 2, CaledXspec)
         CaledXspec = CaledXspec / (BPant[ant0]* BPant[ant1].conjugate())
         caledBPList = caledBPList + [np.array([gainComplexVec(CaledXspec[:,0]), gainComplexVec(CaledXspec[:,1])]).transpose(1,0,2)]
     GDL[0, scan_index] = np.median(timeStamp)

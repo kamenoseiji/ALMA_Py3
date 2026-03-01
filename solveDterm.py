@@ -34,14 +34,14 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 '''
-prefix = '2024.1.00750.S_X134b3d1_X1b6b3'
+prefix = '2025.1.00609.S_X1366160_Xb7c1'
 BPprefix = prefix
 BPrefsan = 0
-refant = 'DV03'
+refant = 'DA45'
 QUmodel = True
-antFlag = []
+antFlag = ['DA41','DV11','DV25']
 spw = 0
-scanList = [2,5,8,31,42]
+scanList = [3,5,7,23,34,35,42,61,69]
 '''
 #----------------------------------------- Procedures
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -105,9 +105,9 @@ SPW_StokesDic = StokesDicCat
 chNum, chWid, Freq = GetChNum(msfile, spw); chRange = list(range(int(0.05*chNum/bunchNum), int(0.95*chNum/bunchNum))); Freq = 1.0e-9* bunchVecCH(Freq)
 for sourceID in srcDic.keys():
     sourceName = srcDic[sourceID]['Name']
-    sourceIDscan = list(set(msmd.scansforfield(sourceID)) & set(scanList))
+    sourceIDscan = list(set(msmd.scansforfield(sourceID)) & set(scanList)); sourceIDscan.sort()
     scanDic[sourceName] = scanDic[sourceName] + sourceIDscan 
-    interval, timeStamp = GetTimerecord(msfile, 0, 1, spw, sourceIDscan[0])
+    interval, timeStamp = GetTimerecord(msfile, refAntID, refAntID, spw, sourceIDscan[0])
     IQU = GetPolQuery(sourceName, timeStamp[0], np.median(Freq), SCR_DIR)
     if len(IQU[0]) == 0: continue
     StokesDicCat[sourceName] = [IQU[0][sourceName], IQU[1][sourceName], IQU[2][sourceName], 0.0]
