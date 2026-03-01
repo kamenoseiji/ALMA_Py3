@@ -17,7 +17,6 @@ from optparse import OptionParser
 def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
-'''
 #-------- Parse options
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
@@ -43,6 +42,7 @@ uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = True
+'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
