@@ -2,7 +2,6 @@ import numpy as np
 from Plotters import plotTsysDic
 import analysisUtils as au
 from interferometry import GetAntName, GetChNum, GetBandNames, GetAzEl, GetTemp, RADDEG
-'''
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -16,6 +15,7 @@ PLOTTSYS= options.PLOTTSYS
 prefix = 'uid___A002_Xd66bb8_X10d74'
 #PLOTTSYS = True
 PLOTTSYS = False
+'''
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
 tb.open(msfile + '/SYSCAL')
