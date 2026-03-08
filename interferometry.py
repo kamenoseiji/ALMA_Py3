@@ -49,6 +49,10 @@ def indexList( refArray, motherArray ):     # Compare two arrays and return matc
     for currentItem in refArray: IL = IL + np.where( motherArray == currentItem )[0].tolist()
     return IL
 #
+def interValue( refTime, refValue, givenTime ):     # Return interpolated value at given time
+    timeStep = abs(np.median(np.diff(refTime)))
+    return np.array([(1.0 / abs(refTime[np.where(abs(refTime - timePoint) < timeStep)[0]] - timePoint)).dot(refValue[np.where(abs(refTime - timePoint) < timeStep)[0]]) / np.sum(1.0 / abs(refTime[np.where(abs(refTime - timePoint) < timeStep)[0]] - timePoint)) for timePoint in givenTime])
+#
 def smoothValue( refTime, refValue, givenTime ):     # Return value at given time
     SP  = UnivariateSpline( refTime, refValue, s=0.25*np.std(refValue))
     return SP(givenTime)
