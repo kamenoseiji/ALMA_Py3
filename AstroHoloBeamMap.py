@@ -28,9 +28,9 @@ mjdSec, AntID, Offset = GetAzOffset(msfile)
 antList = GetAntName(msfile)
 antPos = GetAntPos(msfile)
 antNum = len(antList)
-scanAntID = np.where(antList == scanAnt)[0][0]
 stareAntList = [antList[ant_index] for ant_index in list(range(antNum)) if np.std( Offset[0,np.where(AntID == ant_index)[0].tolist()] ) < 1.0]
 scanAntList = list( set(antList) - set(stareAntList) )
+scanAntID = np.where(antList == scanAnt)[0][0]
 if scanAnt not in scanAntList: 
     print('%s is not in scan antenna list : ' % (scanAnt) ); print(scanAntList)
     a=1/0
@@ -91,5 +91,14 @@ for spw_index, spw in enumerate(spwList):
             twiddle = np.exp(phaseScale* (0.0+1.0j)* (azoTS*u + eloTS*v))
             PI[u_index,v_index] += GAI[spw_index].dot(twiddle)
 PI *= ampScale
-figFileName = '%s-%s.amp.png' % (prefix, scanAnt); plt.imshow(abs(PI), extent=(-6,6,-6,6)); plt.colorbar(); plt.title(prefix + ' ' + scanAnt); plt.show(); plt.savefig(figFileName, format='png', dpi=72); plt.close('all')
-figFileName = '%s-%s.phase.png' % (prefix, scanAnt); plt.imshow(np.angle(PI)*surfaceScale, extent=(-6,6,-6,6)); plt.colorbar(); plt.title(prefix + ' ' + scanAnt); plt.show(); plt.savefig(figFileName, format='png', dpi=72); plt.close('all')
+figFileName = '%s-%s.amp.png' % (prefix, scanAnt)
+plt.imshow(abs(PI), extent=(-6,6,-6,6))
+plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
+plt.savefig(figFileName, format='png', dpi=72)
+plt.close('all')
+figFileName = '%s-%s.phase.png' % (prefix, scanAnt)
+plt.imshow(np.angle(PI)*surfaceScale, extent=(-6,6,-6,6))
+plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
+plt.savefig(figFileName, format='png', dpi=72)
+plt.close('all')
+np.save('AH-%s-%s.npy' % (prefix, ant), PI)
