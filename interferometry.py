@@ -1849,7 +1849,7 @@ def gainComplexErr( bl_vis, niter=4 ):
     ant0, ant1, kernelBL = ANT0[0:blNum], ANT1[0:blNum], KERNEL_BL[range(antNum-1)].tolist()
     CompSol = np.zeros(antNum, dtype=complex)
     #---- Initial solution
-    CompSol[0] = 1.0e-6 + np.sqrt(abs(bl_vis[0])) + 0j     # add 1.0e-6 to avoid division by 0
+    CompSol[0] = np.sqrt(np.median(abs(bl_vis))) + 0j     # add 1.0e-6 to avoid division by 0
     CompSol[1:antNum] = bl_vis[kernelBL] / CompSol[0]
     #----  Iteration
     for iter_index in range(niter):

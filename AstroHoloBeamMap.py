@@ -5,6 +5,11 @@ SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 RADSEC = np.pi/180/3600 # radian per arcsec
 CVEL   = 299792458      # spacetime constant
 from optparse import OptionParser
+#-------- For Plot
+def circlePoints( x, y, radius ):   # (x,y): center position
+    angle = np.arange(-np.pi, (130/128)*np.pi, np.pi/128)
+    return x + radius* np.cos(angle), y + radius* np.sin(angle)
+#
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
@@ -88,16 +93,19 @@ for spw_index, spw in enumerate(spwList):
     ampScale = 1.0/np.sum(np.abs(GAI))
     for u_index,u in enumerate(dishPlace):
         for v_index,v in enumerate(dishPlace):
-            twiddle = np.exp(phaseScale* (0.0+1.0j)* (azoTS*u + eloTS*v))
+            twiddle = np.exp(phaseScale* (0.0-1.0j)* (azoTS*u + eloTS*v))
             PI[u_index,v_index] += GAI[spw_index].dot(twiddle)
-PI *= ampScale
+PA = ampScale*abs(PI)
+PP = surfaceScale*np.angle(PI)
 figFileName = '%s-%s.amp.png' % (prefix, scanAnt)
-plt.imshow(abs(PI), extent=(-6,6,-6,6))
+plt.imshow(20.0* np.log10(abs(PA)/np.max(PA)), extent=(-6,6,-6,6), cmap='nipy_spectral', vmax=0.0, vmin=-15.0)
+circle_x, circle_y = circlePoints(0, 0, 6); plt.plot( circle_x, circle_y )
 plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
 plt.savefig(figFileName, format='png', dpi=72)
 plt.close('all')
 figFileName = '%s-%s.phase.png' % (prefix, scanAnt)
-plt.imshow(np.angle(PI)*surfaceScale, extent=(-6,6,-6,6))
+plt.imshow(PP - np.median(PP), extent=(-6,6,-6,6), cmap='nipy_spectral', vmax=10.0, vmin=-10.0)
+plt.plot( circle_x, circle_y )
 plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
 plt.savefig(figFileName, format='png', dpi=72)
 plt.close('all')
