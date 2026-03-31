@@ -15,11 +15,14 @@ parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
 parser.add_option('-p', dest='scanAnt', metavar='scanAnt',
     help='Antenna to plot', default='')
+parser.add_option('-w', dest='uvweight', metavar='uvweight',
+    help='UV weight 0:natural, 1:uniform', default='0')
 parser.add_option('-s', dest='spwList', metavar='spwList',
     help='SPW List e.g. 0,1,2,3', default='')
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 scanAnt = options.scanAnt
+uvweight = int(options.uvweight)
 spwList = [] if options.spwList == '' else [int(spw) for spw in options.spwList.split(',')]
 '''
 prefix = 'uid___A002_X1366160_X4514.WVR'
@@ -84,16 +87,17 @@ for spw in spwList:
     GAI = GAI + [np.mean((GA.T/GAXY), axis=1)]
 #-------- Dish Mapping : (u, v) stand for the position in the dish surface [m]
 azoTS, eloTS = interValue(mjdSec, Offset[0], TS), interValue(mjdSec, Offset[1], TS) 
+uvWeight = np.ones(len(azoTS)) if uvweight == 0 else np.sqrt(azoTS**2 + eloTS**2)
 dishPlace = np.arange(-6,6,0.1)
 PI= np.zeros([len(dishPlace), len(dishPlace)], dtype=complex)
 for spw_index, spw in enumerate(spwList):
     chNum, chWid, freq = GetChNum(msfile, spw)
     phaseScale = 2.0* np.pi* freq[0]*RADSEC/CVEL
     surfaceScale = CVEL/(4.0* np.pi*freq[0])*1.0e6
-    ampScale = 1.0/np.sum(np.abs(GAI))
+    ampScale = 1.0/np.sum(np.abs(GAI))/np.mean(uvWeight)
     for u_index,u in enumerate(dishPlace):
         for v_index,v in enumerate(dishPlace):
-            twiddle = np.exp(phaseScale* (0.0-1.0j)* (azoTS*u + eloTS*v))
+            twiddle = uvWeight* np.exp(phaseScale* (0.0-1.0j)* (azoTS*u + eloTS*v))
             PI[u_index,v_index] += GAI[spw_index].dot(twiddle)
 PA = ampScale*abs(PI)
 PP = surfaceScale*np.angle(PI)
@@ -104,7 +108,7 @@ plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
 plt.savefig(figFileName, format='png', dpi=72)
 plt.close('all')
 figFileName = '%s-%s.phase.png' % (prefix, scanAnt)
-plt.imshow(PP - np.median(PP), extent=(-6,6,-6,6), cmap='nipy_spectral', vmax=10.0, vmin=-10.0)
+plt.imshow(PP - np.median(PP), extent=(-6,6,-6,6), cmap='nipy_spectral', vmax=40.0, vmin=-40.0)
 plt.plot( circle_x, circle_y )
 plt.colorbar(); plt.title(prefix + ' ' + scanAnt)
 plt.savefig(figFileName, format='png', dpi=72)
