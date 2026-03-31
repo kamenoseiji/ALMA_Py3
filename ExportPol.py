@@ -47,7 +47,7 @@ def GetBPcalSPWs(msfile):
     BPspwList, chNumList, chWidList = [], [], []
     for spw in bpSPWs:
         chNum, chWid, freq = GetChNum(msfile, spw)
-        if chNum > 8:               # Filter out WVR and CHAVG spectral windows
+        if chNum > 16:               # Filter out WVR and CHAVG spectral windows
             BPspwList = BPspwList + [spw]   # Filter out WVR and CHAVG spectral windows
             chNumList = chNumList + [chNum]
             chWidList = chWidList + [1.0e-6* abs(chWid[0])]
