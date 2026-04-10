@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetPolQuery, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
+from interferometry import GetBaselineIndex, CrossCorrAntList, GetAntName, GetSourceDic, indexList, BANDPA, GetTimerecord, GetVisAllBL, GetPolQuery, QUscale, interValue, BANDFQ, ANT0, ANT1, Ant2BlD, GetAzEl, GetChNum, bunchVec, loadXspecScan, AzElMatch, AzEl2PA, ALMA_lat, CrossPolBL, gainComplex, XXYY2QU, XY2Phase, polariGain, XY2Stokes, XY2PhaseVec, VisMuiti_solveD, InvMullerVector, InvPAVector, get_progressbar_str, RADDEG
 import pickle
 from Plotters import plotXYP, plotBP, plotSP, lineCmap, plotQUXY, plotXYVis
 '''
@@ -101,6 +101,10 @@ for prefix in prefixList:
         timeList = timeList + timeStamp.tolist()
         azList, elList, PAList = azList + azTS.tolist(), elList + elTS.tolist(), PAList + paTS.tolist()
     #
+PA = np.array(PAList)
+scaledQ,scaledU = StokesDicCat[sourceName][1]/StokesDicCat[sourceName][0], StokesDicCat[sourceName][2]/StokesDicCat[sourceName][0]
+csPA, snPA = np.cos(2.0* PA), np.sin(2.0* PA)
+QCpUS, UCmQS = scaledQ* csPA + scaledU* snPA, scaledU* csPA - scaledQ* snPA
 visChav = np.zeros([4, UseBlNum, len(timeList)], dtype=complex)
 pointer = 0
 for vis_index, vis in enumerate(visList):
@@ -108,11 +112,20 @@ for vis_index, vis in enumerate(visList):
     visChav[:,:,pointer:pointer+visLength] = vis[:,0]
     pointer += visLength
 del visList
-GA = np.array([ np.apply_along_axis(gainComplex, 0, visChav[0]), np.apply_along_axis(gainComplex, 0, visChav[-1])])
-Gamp = np.sqrt(np.mean(abs(GA)**2, axis=0))
-GA = Gamp* np.exp((0.0 + 1.0j)*np.angle(GA))
+Xscale, Yscale = QUscale(np.array(PAList), StokesDicCat[sourceName][1]/StokesDicCat[sourceName][0], StokesDicCat[sourceName][2]/StokesDicCat[sourceName][0])
+GA = np.array([ np.apply_along_axis(gainComplex, 0, visChav[0]*Xscale), np.apply_along_axis(gainComplex, 0, visChav[-1]*Yscale)])
+#Gamp = np.sqrt(np.mean(abs(GA)**2, axis=0))
+#GA = Gamp* np.exp((0.0 + 1.0j)*np.angle(GA))
 denominator = GA[polYindex][:,ant0]* GA[polXindex][:,ant1].conjugate()
 caledVis = np.divide(visChav, denominator, out=np.zeros_like(denominator), where=(abs(denominator) > 1.0e-20))    # caledVis : apply pol-averaged gain correction 
+XYphase = XY2Phase(UCmQS, np.mean(caledVis, axis=1)[1:3])
+XYsign = np.sign(np.cos(XYphase))
+text_sd = '  -- Degenerating pi-ambiguity in XY phase : %6.2f [deg] sign = %3.0f' % (XYphase* 180.0 / np.pi, XYsign); print(text_sd)
+GA[1] *= XYsign
+denominator = GA[polYindex][:,ant0]* GA[polXindex][:,ant1].conjugate()
+caledVis = np.divide(visChav, denominator, out=np.zeros_like(denominator), where=(abs(denominator) > 1.0e-20))    # caledVis : apply pol-averaged gain correction 
+Dx, Dy = VisMuiti_solveD(Vis, QCpUS, UCmQS)
+
 
 '''
     SPW_StokesDic = StokesDicCat
