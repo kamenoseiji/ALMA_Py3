@@ -68,6 +68,7 @@ for spw_index in range(spwNum):
             Xspec[:,ch_index] = np.mean(Xspec[:,sourceRange], axis=1)
         Pspec = Pspec[:,0:chNum]
         Xspec = Xspec[:,0:chNum]
+    chRange = list(range(int(0.1*chNum), int(0.9*chNum)))
     #---- integration timerange
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
     endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
@@ -89,6 +90,7 @@ for spw_index in range(spwNum):
     tempAC  = np.mean(Pspec, axis=3)    # tempVis[pol, ch, ant]
     pMax = np.percentile(abs(tempVis), 98) if 'plotMax' not in locals() else plotMax
     aMax = np.percentile(abs(tempAC), 98)
+    aMed = np.median(abs(tempVis))      # median of cross-correlation amplitude among all baselines and polarization
     polColor = ['b', 'g']
     for bl_index in list(range(blNum)):
         ants = Bl2Ant(bl_index)
@@ -99,8 +101,13 @@ for spw_index in range(spwNum):
             BLamp.step(Freq, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
             BLphs.plot( Freq, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
         #
-        if np.max(abs(plotVis)) > 0.1:
+        #if np.std(tempVis[0][chRange, bl_index] + tempVis[1][chRange, bl_index]) > 3* aMed:
+        #if np.max(abs(plotVis)) > 0.1:
+        #if np.std(abs(plotVis)) > 3* aMed:
+        if np.std(abs(tempVis[0][chRange, bl_index] + tempVis[1][chRange, bl_index])) > aMed:
             print('Out of Range : %s - %s' % (antList[ants[0]], antList[ants[1]]))
+        #print('%s - %s : %8.2e %8.2e' % (antList[ants[0]], antList[ants[1]], np.std(abs(tempVis[0][chRange, bl_index] + tempVis[1][chRange, bl_index])), aMed))
+        #print('%s - %s : %8.2e %8.2e' % (antList[ants[0]], antList[ants[1]], np.std(tempVis[0][chRange, bl_index] + tempVis[1][chRange, bl_index]), aMed))
         BLamp.axis([np.min(Freq), np.max(Freq), 0.0, 1.25*pMax])
         BLphs.axis([np.min(Freq), np.max(Freq), -math.pi, math.pi])
         BLamp.xaxis.set_major_locator(plt.NullLocator())

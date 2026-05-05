@@ -302,6 +302,14 @@ def plotAC(prefix, antList, spwList, freqList, AC):
     del(SDPL)
     return
 #
+#-------- Plot Dynamic Spectra
+def plotDynamicSpec(prefix, antList, spwList, freqList, AC):
+    pp = PdfPages('DSP_' + prefix + '.pdf')
+    antNum, spwNum, polNum = len(antList), len(spwList), AC[0].shape[2]
+    figAnt = plt.figure(figsize = (11, 8))
+    figAnt.suptitle(prefix + ' Dynamic Spectra')
+    figAnt.text(0.45, 0.05, 'Frequency [GHz]')
+    figAnt.text(0.03, 0.5, 'UTC', rotation=90)
 #-------- Plot Cross power spectrum
 def plotSP(pp, prefix, antList, spwList, freqList, BPList, plotMin=0.0, plotMax=1.5, delayMessage=False):
     antNum, spwNum = len(antList), len(spwList)

@@ -48,7 +48,7 @@ antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
 ONTAU = False
-prefix = 'uid___A002_X12fb842_X40a0'
+prefix = 'uid___A002_X132e57d_X14030'
 '''
 SunAngleTsysLimit = 5.0 # [deg] 
 #if 'PLOTTAU'  not in locals(): PLOTTAU  = False
@@ -193,7 +193,7 @@ for band_index, bandName in enumerate(UniqBands):
         np.save('%s-%s-SPW%d.Tau0C.npy' % (prefix, bandName, spw), Tau0Coef[spw_index])    # freqList[spw]
     #-------- Violently variable Tau0
     for spw_index, spw in enumerate(sqldspwLists[band_index]):
-        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.15 : ONTAU = True #    variability > 15%
+        if np.std(Tau0Excess[spw_index]) / Tau0med[spw_index] > 0.20 : ONTAU = True #    variability > 20%
         if len(Tau0Excess[spw_index]) < 2 and Tau0med[spw_index] > 0.05 : ONTAU = True #   single-shot tau > 0.05
         if ONTAU:
             print('SPW%d : sd(Tau0) = %.3f / median(Tau0) = %.3f' % (atmspwLists[band_index][spw_index], np.std(Tau0Excess[spw_index]), Tau0med[spw_index]))
