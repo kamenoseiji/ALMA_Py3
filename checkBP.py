@@ -5,9 +5,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 from matplotlib.backends.backend_pdf import PdfPages
-from interferometry import GetBaselineIndex, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+import analysisUtils as au
+from interferometry import GetBaselineIndex, GetTimerecord, CrossCorrAntList, Ant2Bl, Ant2BlD, Bl2Ant, indexList, ANT0, ANT1, bestRefant, bunchVec, GetAntName, GetUVW, GetChNum, BPtable
+from casatools import quanta as qatool
 from ASDM_XML import SPW_FULL_RES, spwMS, spwIDMS
 from Plotters import plotXYP, plotBP, plotSP
+qa = qatool()
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -32,6 +35,10 @@ parser.add_option('-P', dest='BPPLOT', metavar='BPPLOT',
     help='Plot PDF', action="store_true")
 parser.add_option('-R', dest='refant', metavar='refant',
     help='reference antenna', default='')
+parser.add_option('-S', dest='startTime', metavar='startTime',
+    help='Start time e.g. 2020-03-03T14:11:25', default='')
+parser.add_option('-i', dest='integTime', metavar='integTime',
+    help='Integration [s] e.g. 60', default='')
 parser.add_option('-D', dest='delayMessage', metavar='delayMessage',
     help='Print residual delay)', action="store_true")
 parser.add_option('-X', dest='XYLog', metavar='XYLog',
@@ -45,6 +52,8 @@ if not os.path.isdir(prefix + '.ms'):
         os.system('rm -rf %s.ms' % (prefix))
         os.system('asdmExport %s' % (prefix))
     importasdm(prefix)
+if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
+if options.integTime != '': integTime = float(options.integTime)
 antFlag = [ant for ant in options.antFlag.split(',')]
 scanList  = [] if options.scanList == '' else [int(scan) for scan in options.scanList.split(',')]
 chBin=  int(options.chBin)
@@ -103,6 +112,15 @@ if refant == '':
 else:
     refantID = np.where(antList[UseAnt] == refant)[0][0]
 print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
+#interval, timeStamp = GetTimerecord(msfile, 0, 0, refSPW, BPscan)
+#integDuration = np.median(interval)
+#timeNum = len(timeStamp)
+#startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
+#endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
+#st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
+#timeRange = list(range(st_index, st_index + timeNum))
+#text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
+#print(text_timerange)
 #-------- Baseline Mapping
 print('---Baseline Mapping')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
@@ -114,18 +132,32 @@ print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
 print('---Generating antenna-based bandpass table')
 SideBand = ['LSB', 'USB']
 for BPscan in scanList:
+    interval, timeStamp = GetTimerecord(msfile, 0, 0, refSPW, BPscan)
+    integDuration = np.median(interval)
+    timeNum = len(timeStamp)
+    startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
+    endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
+    st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
+    timeRange = list(range(st_index, st_index + timeNum))
+    text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
+    print(text_timerange)
+    #
     spws = [spw for spw in spwList if BPscan in SPWdic[spw]['scanList']]
     FreqList, BPList, XYList, XYdelayList = [], [], [], []
     for spw_index, spw in enumerate(spws):
         if FG:  # Flag table
             FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
             TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS)
         else:
-            if spw_index == 0:
-                BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin)
-            else :
-                BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, np.array([]), np.array([]), Gain)
+            FG = np.ones([UseAntNum, timeNum])
+            TS = timeStamp
+        flagIndex = np.where(TS < startMJD)[0].tolist() + np.where(TS > endMJD)[0].tolist()
+        FG[:,flagIndex] *= 0.0
+        print(flagIndex)
+        if spw_index == 0:
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS)
+        else :
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS, Gain)
         #
         BPList = BPList + [BP_ant]
         XYList = XYList + [XY_BP]
