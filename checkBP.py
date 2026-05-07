@@ -38,7 +38,7 @@ parser.add_option('-R', dest='refant', metavar='refant',
 parser.add_option('-S', dest='startTime', metavar='startTime',
     help='Start time e.g. 2020-03-03T14:11:25', default='')
 parser.add_option('-i', dest='integTime', metavar='integTime',
-    help='Integration [s] e.g. 60', default='')
+    help='Integration [s] e.g. 60', default='1e6')
 parser.add_option('-D', dest='delayMessage', metavar='delayMessage',
     help='Print residual delay)', action="store_true")
 parser.add_option('-X', dest='XYLog', metavar='XYLog',
@@ -67,10 +67,10 @@ NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
 '''
-prefix = 'uid___A002_Xfbb9c7_X126e3'
+prefix = 'uid___A002_X13967c1_Xec9d'
 antFlag = []
-scanList = [4]
-spwList = [11]
+scanList = [3]
+spwList = []
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
@@ -78,6 +78,8 @@ XYLog = False
 BPPLOT = True
 FG     = False
 refant = ''
+startMJD = qa.convert('2026-04-24T09:44:00', 's')['value']
+integTime = 600
 '''
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
@@ -88,7 +90,7 @@ if os.path.isdir(prefix + '/SpectralWindow.xml'):
 else:
     SPWdic = spwMS(msfile)
 if len(spwList) == 0:   # Use all available spws
-    spwList = [spw for spw in SPWdic.keys() if SPWdic[spw]['chNum'] > 4 and len(SPWdic[spw]['scanList']) > 0]
+    spwList = [spw for spw in SPWdic.keys() if SPWdic[spw]['chNum'] > 4 and ((len(scanList) == 0 and len(SPWdic[spw]['scanList']) > 0) or (scanList[0] in SPWdic[spw]['scanList']))]
 #
 if len(scanList) == 0:  # Use all available scans
     for spw in spwList: scanList = scanList + SPWdic[spw]['scanList']
@@ -112,15 +114,6 @@ if refant == '':
 else:
     refantID = np.where(antList[UseAnt] == refant)[0][0]
 print( '  Use %s as the refant.' % (antList[UseAnt[refantID]]))
-#interval, timeStamp = GetTimerecord(msfile, 0, 0, refSPW, BPscan)
-#integDuration = np.median(interval)
-#timeNum = len(timeStamp)
-#startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
-#endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
-#st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
-#timeRange = list(range(st_index, st_index + timeNum))
-#text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
-#print(text_timerange)
 #-------- Baseline Mapping
 print('---Baseline Mapping')
 antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
@@ -136,29 +129,27 @@ for BPscan in scanList:
     integDuration = np.median(interval)
     timeNum = len(timeStamp)
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
-    endMJD = min(timeStamp[-1], startMJD + timeNum* integDuration)
+    endMJD = min(timeStamp[-1], startMJD + integTime)
     st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
     timeRange = list(range(st_index, st_index + timeNum))
+    startMJD, endMJD = timeStamp[timeRange[0]], timeStamp[timeRange[-1]]
     text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
     print(text_timerange)
-    #
     spws = [spw for spw in spwList if BPscan in SPWdic[spw]['scanList']]
     FreqList, BPList, XYList, XYdelayList = [], [], [], []
     for spw_index, spw in enumerate(spws):
         if FG:  # Flag table
-            FG = np.load('%s-SPW%d.FG.npy' % (prefix, spw))
+            FLG= np.load('%s-SPW%d.FG.npy' % (prefix, spw))
             TS = np.load('%s-SPW%d.TS.npy' % (prefix, spw))
         else:
-            FG = np.ones([UseAntNum, timeNum])
+            FLG= np.ones([UseAntNum, len(timeStamp)])
             TS = timeStamp
-        flagIndex = np.where(TS < startMJD)[0].tolist() + np.where(TS > endMJD)[0].tolist()
-        FG[:,flagIndex] *= 0.0
-        print(flagIndex)
+        flagIndex = list(set(range(len(TS))) - set(timeRange))
+        FLG[:,flagIndex] *= 0.0
         if spw_index == 0:
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS)
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FLG, TS)
         else :
-            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FG, TS, Gain)
-        #
+            BP_ant, XY_BP, XYD, Gain, XYsnr = BPtable(msfile, spw, BPscan, blMap, blInv, chBin, FLG, TS, Gain)
         BPList = BPList + [BP_ant]
         XYList = XYList + [XY_BP]
         chNum, chWid, Freq = GetChNum(msfile, spw)
