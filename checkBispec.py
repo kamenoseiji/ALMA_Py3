@@ -25,6 +25,8 @@ parser.add_option('-R', dest='refant', metavar='refant',
     help='Reference antenna e.g. DA42', default='')
 parser.add_option('-S', dest='startTime', metavar='startTime',
     help='Start time e.g. 2020-03-03T14:11:25', default='')
+parser.add_option('-M', dest='plotMax', metavar='plotMax',
+    help='Max amplitude to plot', default='')
 #
 (options, args) = parser.parse_args()
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
@@ -33,6 +35,7 @@ antFlag = [ant for ant in options.antFlag.split(',')]
 scanList= [int(scan) for scan in options.scanList.split(',')]
 spw     = int(options.spw)
 timeBunch = int(options.timeBunch)
+if options.plotMax != ''  : plotMax = float(options.plotMax)
 if options.startTime != '': startMJD = qa.convert(options.startTime, 's')['value']
 refant = options.refant
 '''
@@ -71,26 +74,6 @@ ant0 = ANT0[0:UseBlNum]; ant1 = ANT1[0:UseBlNum]
 #blMap, blInv = Ant2BlD(np.array(antMap)[ant0], np.array(antMap)[ant1])
 for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
 print( '  %d baselines are inverted.' % (len(np.where( blInv )[0])))
-'''
-print('---Checking array configuration')
-flagAnt = np.ones([antNum]); flagAnt[indexList(antFlag, antList)] = 0.0
-UseAnt = np.where(flagAnt > 0.0)[0].tolist(); UseAntNum = len(UseAnt); UseBlNum  = int(UseAntNum* (UseAntNum - 1) / 2)
-text_sd = '  Usable antennas (%d) : ' % (len(UseAnt))
-for ants in antList[UseAnt].tolist(): text_sd = text_sd + ants + ' '
-print(text_sd)
-ant0, ant1 = ANT0[0:UseBlNum], ANT1[0:UseBlNum]
-blMap = Ant2Bl(np.array(antMap)[ant0], np.array(antMap)[ant1])
-#blMap, blInv= list(range(UseBlNum)), [False]* UseBlNum
-#for bl_index in list(range(UseBlNum)): blMap[bl_index] = Ant2Bl(UseAnt[ant0[bl_index]], UseAnt[ant1[bl_index]])
-timeStamp, UVW = GetUVW(msfile, spw, scanList[0])
-uvw = np.mean(UVW[:,blMap], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-if 'refant' in locals():    refantID = indexList(np.array([refant]), antList[UseAnt])[0]
-else: refantID = bestRefant(uvDist)
-print('  Use ' + antList[UseAnt[refantID]] + ' as the refant.')
-antMap = [UseAnt[refantID]] + list(set(UseAnt) - set([UseAnt[refantID]]))
-for bl_index in list(range(UseBlNum)): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ant0[bl_index]], antMap[ant1[bl_index]])
-print('  %d baselines are inverted.' % (len(np.where( blInv )[0])))
-'''
 figInch  = max(16,UseAntNum)
 fontSize = min(32, figInch)
 #-------- Bandpass Table
