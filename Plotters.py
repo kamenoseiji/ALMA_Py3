@@ -504,6 +504,10 @@ def plotBispec(antList, scanVis, DT, plotFile, labelList, pMax):
         for pol_index in list(range(polNum)):
             plotVis = scanVis[pol_index, bl_index]
             BLamp.step(DT, abs(plotVis), color=polColor[pol_index], where='mid', label = 'Pol=' + polName[pol_index])
+            if np.max(abs(plotVis)) > 7.0* np.median(abs(plotVis)):
+                timeOutIndex = np.where( abs(plotVis) > 7.0* np.median(abs(plotVis)))[0].tolist()
+                text_sd = 'Out of range pol-%s %s - %s : [%s - %s]' % (polName[pol_index], antList[ants[0]], antList[ants[1]], DT[timeOutIndex[0]], DT[timeOutIndex[-1]])
+                print(text_sd)
         #
         BLamp.axis([np.min(DT), np.max(DT), 0.0, 1.25*pMax])
         BLamp.xaxis.set_major_locator(plt.NullLocator())
@@ -529,7 +533,7 @@ def plotBispec(antList, scanVis, DT, plotFile, labelList, pMax):
                 #plotVis = scanVis[pol_index, tri0].conjugate()* scanVis[pol_index, tri1]* scanVis[pol_index, tri2]
                 BLphs.plot(DT, np.angle(plotVis), '.', color=polColor[pol_index], label = 'Pol=' + polName[pol_index])
             #
-            print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri[0], tri[1], tri[2], antList[0], antList[ants[1]], antList[ants[0]]))
+            #print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri[0], tri[1], tri[2], antList[0], antList[ants[1]], antList[ants[0]]))
             #print('%d : %d - %d - %d (ant %s, %s, %s)' % (bl_index, tri0, tri1, tri2, antList[0], antList[ants[1]], antList[ants[0]]))
             BLphs.set_title('%s-%s-%s' % (antList[0], antList[ants[1]], antList[ants[0]] ), fontsize=0.5*fontSize)
             BLphs.axis([np.min(DT), np.max(DT), -math.pi, math.pi])
