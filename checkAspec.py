@@ -3,7 +3,6 @@ from scipy import stats
 from optparse import OptionParser
 from interferometry import GetAntName, GetTimerecord, GetChNum, GetPSpecScan, indexList
 from Plotters import plotAC
-'''
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
     help='EB UID   e.g. uid___A002_X10dadb6_X18e6', default='')
@@ -23,6 +22,7 @@ spwList = [int(spw) for spw in options.spwList.split(',')]
 prefix = 'uid___A002_X131acd3_X3a70'
 scanList = [5]
 spwList = [35,37]
+'''
 #-------- Procedures
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
