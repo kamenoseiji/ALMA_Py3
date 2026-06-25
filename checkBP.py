@@ -67,19 +67,19 @@ NPY     = options.NPY
 XYLog   = options.XYLog
 refant  = options.refant
 '''
-prefix = 'uid___A002_X13967c1_Xec9d'
+prefix = '2025.1.01356.S_X13c84cf_X2bf05'
 antFlag = []
-scanList = [3]
-spwList = []
+scanList = [6]
+spwList = [0,1,2,3]
 chBin = 1
 plotMin = 0.0
 plotMax = 1.5
 XYLog = False
 BPPLOT = True
 FG     = False
-refant = ''
-startMJD = qa.convert('2026-04-24T09:44:00', 's')['value']
-integTime = 600
+refant = 'DA42'
+#startMJD = qa.convert('2026-04-24T09:44:00', 's')['value']
+integTime = 1e6
 '''
 #-------- Procedures
 if XYLog: xyLog = open(prefix + '.XYdelay.log', 'w')
@@ -130,9 +130,9 @@ for BPscan in scanList:
     timeNum = len(timeStamp)
     startMJD = min(max(startMJD, timeStamp[0]), timeStamp[-1]) if 'startMJD' in locals() else timeStamp[0]
     endMJD = min(timeStamp[-1], startMJD + integTime)
-    st_index, timeNum = np.argmin(abs(timeStamp - startMJD)), int((endMJD - startMJD + 0.1*integDuration) / integDuration)
-    timeRange = list(range(st_index, st_index + timeNum))
-    startMJD, endMJD = timeStamp[timeRange[0]], timeStamp[timeRange[-1]]
+    st_index = np.argmin(abs(timeStamp - startMJD))
+    et_index = timeNum -1 if abs(endMJD-timeStamp[-1]) < integDuration else np.argmin( abs(timeStamp - endMJD))
+    timeRange = list(range(st_index, et_index + 1))
     text_timerange = au.call_qa_time('%fs' % (startMJD), form='fits', prec=6) + ' - ' + au.call_qa_time('%fs' % (endMJD), form='fits', prec=6)
     print(text_timerange)
     spws = [spw for spw in spwList if BPscan in SPWdic[spw]['scanList']]
