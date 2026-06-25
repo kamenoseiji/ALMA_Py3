@@ -36,12 +36,12 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_Xb64387_X6939'
+prefix = 'uid___A002_Xd8fac0_X19f'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
-TsysDigitalCorrection = True
+TsysDigitalCorrection = False
 '''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)

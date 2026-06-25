@@ -76,7 +76,7 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
         sourceName = srcDic[fieldID]['Name']
         probeAntID = 0
         while True:
-            AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, probeAntID, AZ, EL)
+            AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, probeAntID, probeAntID, AZ, EL)
             if np.min(ElScan) < 0.1:
                 probeAntID += 1
             else:
