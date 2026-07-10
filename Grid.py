@@ -113,13 +113,15 @@ def AeNominal(msfile, antList):
     antDia = [msmd.antennadiameter(antName)['value'] for antName in antList]
     msmd.close()
     msmd.done()
-    return 0.7* 0.25* np.pi* antDia**2      # Nominal Collecting Area
+    return 0.72* 0.25* np.pi* antDia**2      # Nominal Collecting Area
 #
 def nearestValue():
     TauEonList[spw_index][0]
 #-------- Apply Tsys calibration to visibilities
 def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList, smoothValue
+    from atmCal import residTskyTransfer0
+    import analysisUtils as au
     #---- Check antenna list
     antList = GetAntName(prefix + '.ms')
     antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
@@ -127,49 +129,49 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     antDia = GetAntD(TrxAntList)
     useAnt = indexList(TrxAntList,antList); useAntNum = len(useAnt); useBlNum = int(useAntNum* (useAntNum - 1)/2)
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
-    #useBlMap = Ant2Bl(np.array(ant0), np.array(ant1))
     useBlMap = [Ant2Bl(useAnt[ant0[bl_index]], useAnt[ant1[bl_index]])  for bl_index in list(range(useBlNum))]
     nominalAe = 0.72
-    #---- Load Tsys data
-    tempAtm = GetTemp(prefix + '.ms')
-    TauE = np.load('%s-%s.TauE.npy' % (prefix, BandName))   #  TauE[spw,scan]: time-variable excexs of zenith optical depth
-    atmTime = np.load('%s-%s.atmTime.npy' % (prefix, BandName))#  atmTime[scan] : mjdSed at TauE measurements
-    atmReltime = atmTime - atmTime[0]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
-    Tau0List, Tau0CList, TrxList, TaNList, TrxFreq, TauEonList = [], [], [], [], [], []
+    #---- Time variables (mjdSec, EL)
+    atmTime, atmEL = np.load('%s-%s.atmTime.npy' % (prefix, BandName)), np.load('%s-%s.EL.npy' % (prefix, BandName))
+    atmSecZ = 1.0 / np.sin(atmEL)
+    tempAtm = GetTemp(prefix + '.ms')
+    TrxList, TskyList, Tau0List, TauEList, SPList = [], [], [], [], []
+    #-------- Zenith optical depth
     for spw_index, spw in enumerate(BandbpSPW['spw']):
-        Tau0List = Tau0List + [np.load('%s-%s-SPW%d.Tau0.npy' % (prefix, BandName, spw))]   # Tau0List[spw] [ch]
-        Tau0CList= Tau0CList+ [np.load('%s-%s-SPW%d.Tau0C.npy'% (prefix, BandName, spw))]   # Tau0CList[spw] [intercept,slope]
-        Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))
         TrxList  = TrxList  + [np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, spw))]   # TrxList[spw] [pol, ch, ant, scan]
-        TaNList  = TaNList  + [np.load('%s-%s-SPW%d.TantN.npy'% (prefix, BandName, spw))]   # TaNList[spw] [ant, ch]
-        TrxFreq  = TrxFreq  + [np.load('%s-%s-SPW%d.TrxFreq.npy'% (prefix, BandName, spw))] # TrxFreq[spw] [ch]
-        TauEonPath = '%s-%s-SPW%d.TauEon.npy' % (prefix, BandName, spw)
-        if os.path.isfile(TauEonPath): 
-            TauEonList = TauEonList + [np.load(TauEonPath)]
-        else:
-            TauEonList = TauEonList + [np.array([])]
+        TskyList = TrxList  + [np.load('%s-%s-SPW%d.Tsky.npy'  % (prefix, BandName, spw))]  # TskyList[spw] [pol, ch, ant, scan]
+        Tsky = np.median(TskyList[spw_index], axis=(0,2))   # Sky should be commom for pol and ant
+        #-------- Suppress Band-edge outliers
+        chNum = Tsky.shape[0]
+        Tsky[0:int(0.05*chNum)] = Tsky[int(0.05*chNum)]
+        Tsky[-int(0.05*chNum):] = Tsky[int(-0.05*chNum)-1]
+        initTau0 = -np.log(1 - np.median(Tsky)/tempAtm) / np.median(atmSecZ)
+        Tau0List = Tau0List + [np.array([scipy.optimize.leastsq(residTskyTransfer0, [initTau0], args=(tempAtm, atmSecZ, Tsky[ch], atmEL))[0][0] for ch in range(Tsky.shape[0])])]
+        Tau0Med = np.median(Tau0List[spw_index])
+        TauEList = TauEList + [residTskyTransfer0([Tau0Med], tempAtm, atmSecZ, np.median(Tsky, axis=0), atmEL) / (tempAtm - au.Tcmb)* np.exp(-Tau0Med* atmSecZ) / atmSecZ]
+        SPList = SPList + [tauSMTH(atmTime, TauEList[spw_index])]   # interpolation along time
+    #-------- Applying Tsys and attenuation correction for each scan
     for scan_index, scan in enumerate(scanDic.keys()):
         scanTau = []
         TsysScanDic = dict(zip(TrxAntList, [[]]* len(TrxAntList)))
         source = scanDic[scan]['source']
         for spw_index, spw in enumerate(BandbpSPW['spw']):
             chNum = BandbpSPW['chNum'][spw_index]
-            TrxAnt = (np.median(TrxList[spw_index], axis=3) + TaNList[spw_index].T).transpose(1, 2, 0)  # [ch, ant, pol]
+            TrxAnt = np.median(TrxList[spw_index], axis=3).transpose(1, 2, 0) 
+            #-------- Suppress Band-edge outliers
+            TrxAnt[0:int(0.05*chNum)] = TrxAnt[int(0.05*chNum)]
+            TrxAnt[-int(0.05*chNum):] = TrxAnt[int(-0.05*chNum)-1]
+            #-------- On-source excess (Tant) added to Tsys
             StokesI = SSODic[source][1][spw_index] if source in SSOCatalog else scanDic[scan]['I'] 
             Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
+            #-------- Interpolated optical depth in the scan
             Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
+            Tau0SP += scipy.interpolate.splev(scanDic[scan]['mjdSec'], SPList[spw_index])
             secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
-            if TauEonList[spw_index].shape[0] == 2:
-                #Tau0SP = Tau0SP + TauEonList[spw_index][1][indexList(scanDic[scan]['mjdSec'], TauEonList[spw_index][0])]
-                Tau0SP = Tau0SP + smoothValue(TauEonList[spw_index][0], TauEonList[spw_index][1], scanDic[scan]['mjdSec']).tolist()
-            else: 
-                SP = tauSMTH(atmReltime, TauE[spw_index] )
-                Tau0SP = Tau0SP + scipy.interpolate.splev(scanDic[scan]['mjdSec'] - atmTime[0], SP)
-            zenithTau = Tau0SP + Tau0CList[spw_index][0] + Tau0CList[spw_index][1]*secZ   # Smoothed zenith optical depth
-            scanTau = scanTau + [zenithTau * secZ]  # Optical depth at the elevation
-            exp_Tau = np.exp(-zenithTau * secZ )    # Atmospheric attenuation
-            atmCorrect = np.mean(1.0 / exp_Tau, axis=1)              # Correction for atmospheric attenuation
+            scanTau = scanTau + [Tau0SP * secZ]             # Optical depth at the elevation
+            exp_Tau = np.exp(-scanTau[spw_index] * secZ )   # Atmospheric attenuation
+            atmCorrect = np.mean(1.0 / exp_Tau, axis=1)     # Correction for atmospheric attenuation
             TsysScan = (Tcmb + Tant + (TrxAnt.transpose(2,1,0)* atmCorrect + tempAtm* (atmCorrect - 1.0)).transpose(0,2,1)).transpose(2,0,1)
             #-------- Tsys correction
             Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3,2,0,1)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])

@@ -12,9 +12,8 @@ parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 PLOTTSYS= options.PLOTTSYS
 '''
-prefix = 'uid___A002_Xd66bb8_X10d74'
-#PLOTTSYS = True
-PLOTTSYS = False
+prefix = 'uid___A002_X13d35a5_X124ee'
+PLOTTSYS = True
 '''
 #-------- Read SYSCAL table
 msfile = prefix + '.ms'
@@ -42,18 +41,6 @@ msmd.close()
 BandNames = GetBandNames(msfile, spwList); UniqBands = list(set(BandNames))
 NumBands = len(UniqBands)
 TsysDic = dict(zip(scanList, [[]]*len(scanList)))  # Scan-based Tsys and Trx
-
-def TauFit( Tsky, secZ, tempAtm ):
-    chNum, antNum, scanNum = Tsky.shape[0], Tsky.shape[1], Tsky.shape[2]
-    if scanNum < 2:
-        TantN = np.zeros([antNum, chNum])
-        Tau0  = -np.log( (np.median(Tsky, axis=1) - tempAtm) / (au.Tcmb - tempAtm) ) / secZ 
-        
-        return Tau0, TantN, TauExcess
-
-    return Tau0, TantN, TauExcess
-
-
 #-------- Read SPW frequency
 for spw_index, spw in enumerate(spwList):
     chNum, chWid, freq = GetChNum(msfile, spw)
@@ -83,7 +70,6 @@ for bandName in np.unique(BandNames):
     #-------- Save into NPY
     spwNum = len(TsysBandDic[bandScanList[0]]['spwList'])
     np.save('%s-%s.TrxAnt.npy' % (prefix, bandName), antList)     # antList[ant]
-    #np.save('%s-%s.TauE.npy' % (prefix, bandName), Tau0Excess)     # antList[ant]
     for spw_index, spw in enumerate(TsysBandDic[bandScanList[0]]['spwList']):
         np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), TsysBandDic[bandScanList[0]]['freq'][spw_index])
         TrxList, TskyList = [], []
@@ -93,7 +79,10 @@ for bandName in np.unique(BandNames):
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), np.array(TrxList).transpose(1,2,3,0))
         np.save('%s-%s-SPW%d.Tsky.npy' % (prefix, bandName, spw), np.array(TskyList).transpose(1,2,0))
     #-------- Log Trx 
+    atmTimeList, atmElList = [], []
     for scan_index, scan in enumerate(TsysBandDic.keys()):
+        atmTimeList = atmTimeList + [TsysBandDic[scan]['mjdSec']]
+        atmElList   = atmElList + [TsysBandDic[scan]['El']]
         timeLabel = 'Scan %d : %s EL=%.1f' % (scan, au.call_qa_time('%fs' % (TsysBandDic[scan]['mjdSec']), form='fits'), RADDEG*TsysBandDic[scan]['El'])
         logFile.write(timeLabel + '\n'); print(timeLabel)
         text_sd = 'Trx  : '
@@ -113,5 +102,7 @@ for bandName in np.unique(BandNames):
                 for pol_index in [0,1]: text_sd = text_sd + '%7.1f K ' % (np.median(TsysBandDic[scan]['Trx'][pol_index][:,data_index], axis=0))
                 text_sd = text_sd + '|'
             logFile.write(text_sd + '\n'); print(text_sd)
+    np.save('%s-%s.atmTime.npy' % (prefix, bandName), np.array(atmTimeList))
+    np.save('%s-%s.EL.npy' % (prefix, bandName), np.array(atmElList))
     if PLOTTSYS: plotTsysDic(prefix, TsysBandDic)
     logFile.close()
