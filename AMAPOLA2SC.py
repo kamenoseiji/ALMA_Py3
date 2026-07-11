@@ -26,6 +26,7 @@ from optparse import OptionParser
 #-------- Parse options
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to Ingest e.g. uid___A002_X10ded83_Xa91e', default='')
+parser.add_option('-d',  dest='dryrun', metavar='dryrun', help='Dry run if specified, otherwise update SC', default='store_true')
 (options, args) = parser.parse_args()
 AMAPOLA_PATH = '/users/skameno/ALMAR/WORK/'
 AMAPOLA_URI = 'https://www.alma.cl/~skameno/Grid/Stokes/'
@@ -35,6 +36,7 @@ UserPass = os.getenv('b64credentials', '')  # Authorization Basic Base64
 if len(UserPass) < 8:                       # Check Authorization
     print('Set Base64 Credential to the environmental variable \'b64credentials\'\n')
     exit()
+DRYRUN  = options.dryrun
 #-------- Parse AMAPOLA LOG
 def AMAPOLA_IQUV( logLines ):
     # logLines : AMAPOLA Log file on the web
@@ -122,7 +124,8 @@ for data in dataList:
     I = StokesValues[0,0]
     Psqr = StokesValues[0,1]**2 + StokesValues[0,2]**2
     Pdeg = 100.0*np.sqrt(Psqr) / I
-    ePdeg= 100.0*np.sqrt((StokesValues[0,1]**2 * StokesValues[1,1]**2 + StokesValues[0,2]**2 * StokesValues[1,2]**2)/ Psqr + (Psqr* StokesValues[1,0]**2)/I**2 )/I 
+    ePdeg = Pdeg*np.sqrt( (StokesValues[0,1]**2 * StokesValues[1,1]**2 + StokesValues[0,2]**2 * StokesValues[1,2]**2)/Psqr**2 + (StokesValues[1,0]/I)**2 )
+    #ePdeg= 100.0*np.sqrt((StokesValues[0,1]**2 * StokesValues[1,1]**2 + StokesValues[0,2]**2 * StokesValues[1,2]**2)/ Psqr + (Psqr* StokesValues[1,0]**2)/I**2 )/I 
     Pang = 90.0* np.arctan2(StokesValues[0,2],StokesValues[0,1])/np.pi
     ePang= 90.0* np.sqrt(StokesValues[0,1]**2 * StokesValues[1,2]**2 + StokesValues[0,2]**2 * StokesValues[1,1]**2) / Psqr / np.pi
     print('%s : %.1f GHz : %6.3f (%.3f) %+.3f (%.3f) %+.3f (%.3f) %+.3f (%.3f)  %6.3f (%.3f)  %+7.3f (%.3f)' % (data['names'][0]['name'], 1.0e-9* data['frequency'],
@@ -136,6 +139,7 @@ for data in dataList:
     if abs(StokesValues[0,0] - data['flux']) > 0.2* data['flux']: continue  # Filter >20% discrepancy out
     #---- Post polarization data to SC
     urlPart = '/sc/rest/measurements/%d/update?degree=%.3f&degreeUncertainty=%.3f&angle=%.3f&angleUncertainty=%.3f' % (data['id'], Pdeg, ePdeg, Pang, ePang)
+    if DRYRUN: continue
     conn.putrequest('POST', urlPart);
     conn.putheader('Authorization', 'Basic %s' % (UserPass))
     conn.endheaders()
