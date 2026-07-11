@@ -171,14 +171,14 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
             #-------- Interpolated optical depth in the scan
             Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
-            if np.max(atmSecZ) - np.min(atmSecZ) > 0.5: Tau0SP += scipy.interpolate.splev(scanDic[scan]['mjdSec'], SPList[spw_index])
+            if np.max(atmSecZ) - np.min(atmSecZ) > 0.25: Tau0SP += scipy.interpolate.splev(scanDic[scan]['mjdSec'], SPList[spw_index])
             secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             scanTau = scanTau + [Tau0SP * secZ]             # Optical depth at the elevation
-            exp_Tau = np.exp(-scanTau[spw_index] * secZ )   # Atmospheric attenuation
+            exp_Tau = np.exp(-scanTau[spw_index])           # Atmospheric attenuation
             atmCorrect = np.mean(1.0 / exp_Tau, axis=1)     # Correction for atmospheric attenuation
             TsysScan = (Tcmb + Tant + (TrxAnt.transpose(2,1,0)* atmCorrect + tempAtm* (atmCorrect - 1.0)).transpose(0,2,1)).transpose(2,0,1)
             #-------- Tsys correction
-            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3,2,0,1)* np.sqrt(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex])
+            Xspec = XspecList[spw_index][scan_index][:,:,useBlMap].transpose(3,2,0,1)* np.sqrt(abs(TsysScan[ant0][:,polXindex]* TsysScan[ant1][:,polYindex]))
             XspecList[spw_index][scan_index][:,:,useBlMap] = Xspec.transpose(2,3,1,0)
             for ant_index, ant in enumerate(TrxAntList): TsysScanDic[ant] = TsysScanDic[ant] + [TsysScan[ant_index]]
         scanDic[scan]['Tau']  = scanTau

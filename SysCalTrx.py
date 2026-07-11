@@ -75,7 +75,7 @@ for bandName in np.unique(BandNames):
         TrxList, TskyList = [], []
         for scan_index, scan in enumerate(TsysBandDic.keys()):
             Trx  = TsysBandDic[scan]['Trx'][:,:,range(spw_index, antNum*spwNum, spwNum)]
-            Tsys = TsysBandDic[scan]['Tsys'][:,:,range(spw_index, antNum*spwNum, spwNum)] - Tcmb
+            Tsys = TsysBandDic[scan]['Tsys'][:,:,range(spw_index, antNum*spwNum, spwNum)]
             TrxList  = TrxList  + [Trx]
             TskyList = TskyList + [np.mean((Tsys - Trx)* tempAtm / (Tsys + tempAtm), axis=0) ]
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), np.array(TrxList).transpose(1,2,3,0))
