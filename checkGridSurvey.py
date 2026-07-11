@@ -28,7 +28,6 @@ parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to
 parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply Tsys digital correction', action='store_true')
 (options, args) = parser.parse_args()
 #-------- Check options
-'''
 prefix  = options.uid.replace("/", "_").replace(":","_").replace(" ","")
 antFlag = [ant for ant in options.antFlag.split(',')]
 uvLimit = int(options.uvLimit)
@@ -37,17 +36,19 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13d35a5_Xe95d'
+prefix = 'uid___A002_X13a3180_X171db'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
+'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
 os.system('casa --nologger --agg -c ' + SCR_DIR + 'SysCalTrx.py -u %s' % (prefix))
+#os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
 TrxFileList = glob.glob(prefix + '*Trx.npy')
 RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
@@ -148,7 +149,6 @@ for BandName in RXList:
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
-    a=1/0
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]

@@ -1,7 +1,7 @@
 import numpy as np
 from Plotters import plotTsysDic
 import analysisUtils as au
-from interferometry import GetAntName, GetChNum, GetBandNames, GetAzEl, GetTemp, RADDEG
+from interferometry import GetAntName, GetChNum, GetBandNames, GetAzEl, GetTemp, RADDEG, Tcmb
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-u', dest='prefix', metavar='prefix',
@@ -12,7 +12,7 @@ parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 PLOTTSYS= options.PLOTTSYS
 '''
-prefix = 'uid___A002_X13d35a5_X124ee'
+prefix = 'uid___A002_X13a3180_X171db'
 PLOTTSYS = True
 '''
 #-------- Read SYSCAL table
@@ -74,8 +74,10 @@ for bandName in np.unique(BandNames):
         np.save('%s-%s-SPW%d.TrxFreq.npy' % (prefix, bandName, spw), TsysBandDic[bandScanList[0]]['freq'][spw_index])
         TrxList, TskyList = [], []
         for scan_index, scan in enumerate(TsysBandDic.keys()):
-            TrxList  = TrxList  + [TsysBandDic[scan]['Trx'][:,:,range(spw_index, antNum*spwNum, spwNum)]]
-            TskyList = TskyList + [np.mean(TsysBandDic[scan]['Tsys'][:,:,range(spw_index, antNum*spwNum, spwNum)] - TsysBandDic[scan]['Trx'][:,:,range(spw_index, antNum*spwNum, spwNum)], axis=0)]
+            Trx  = TsysBandDic[scan]['Trx'][:,:,range(spw_index, antNum*spwNum, spwNum)]
+            Tsys = TsysBandDic[scan]['Tsys'][:,:,range(spw_index, antNum*spwNum, spwNum)] - Tcmb
+            TrxList  = TrxList  + [Trx]
+            TskyList = TskyList + [np.mean((Tsys - Trx)* tempAtm / (Tsys + tempAtm), axis=0) ]
         np.save('%s-%s-SPW%d.Trx.npy' % (prefix, bandName, spw), np.array(TrxList).transpose(1,2,3,0))
         np.save('%s-%s-SPW%d.Tsky.npy' % (prefix, bandName, spw), np.array(TskyList).transpose(1,2,0))
     #-------- Log Trx 
