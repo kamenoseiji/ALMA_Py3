@@ -36,7 +36,7 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13da9fd_X5c94'
+prefix = 'uid___A002_X13da9fd_X40af'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
@@ -146,7 +146,7 @@ for BandName in RXList:
     StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, srcDic, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
-    QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['source'][0] == 'J' and str.isdigit(scanDic[scan]['source'][1])]
+    QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['I'] > 0.01 ]
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
     #-------- Check usable antennas and refant
@@ -324,9 +324,7 @@ for BandName in RXList:
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[checkScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
-        #XYphase = 0
         XYsign = np.sign(np.cos(XYphase))
-        #XYsign = 1
         print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
         BPSPWList[spw_index][:,1] *= XYsign
     #-------- Apply Bandpass and Phase Correction
