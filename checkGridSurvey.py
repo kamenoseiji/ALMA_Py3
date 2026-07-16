@@ -36,7 +36,7 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13d65ef_X42ac'
+prefix = 'uid___A002_X13da9fd_X5c94'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
@@ -124,7 +124,7 @@ for BandName in RXList:
     srcDic = GetSourceDic(msfile)
     sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-    if BandName not in ['RB_01', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
+    if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
     if BandName == 'RB_01': SSOList = []
     SSOList = []
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
