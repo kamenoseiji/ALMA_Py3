@@ -6,7 +6,7 @@ parser = OptionParser()
 parser.add_option('-s', dest='SBcode', metavar='SBcode',
     help='SB code  e.g. PSO_Grid', default='PSO_Grid')
 parser.add_option('-d', dest='days', metavar='days',
-    help='Backword days', default='2')
+    help='Backword days', default='4')
 (options, args) = parser.parse_args()
 backDays=  int(options.days)
 UserPass = os.getenv('b64credentials', '')   # Authorization Basic Base64

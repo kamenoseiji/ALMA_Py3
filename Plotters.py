@@ -256,13 +256,14 @@ def plotAC(prefix, antList, spwList, freqList, AC):
         for spw_index in range(spwNum):
             Freq = freqList[spw_index]
             chNum = len(Freq)
-            chRange = range( int(chNum*0.06), int(chNum* 0.96))
+            chRange = range( int(chNum*0.03), int(chNum* 0.97))
+            #chRange = range( chNum )
             Freq = Freq[chRange]
             for pol_index in range(polNum):
                 ACPL = figAnt.add_subplot(4, spwNum, spwNum* pol_index + spw_index + 1)
                 SDPL = figAnt.add_subplot(4, spwNum, spwNum* (2+pol_index) + spw_index + 1)
                 ACList = ACList + [ACPL]; SDList = SDList + [SDPL]
-                avgAC = np.mean(AC[spw_index][ant_index, :, pol_index], axis=0)[chRange]
+                avgAC = np.mean(abs(AC[spw_index][ant_index, :, pol_index]), axis=0)[chRange]
                 plotACM = 10.0* np.log10(avgAC)
                 maxAC, minAC, maxFreq = np.max(plotACM), np.min(plotACM), Freq[np.argmax(plotACM)]
                 text_sd = 'Peak = %.1f dB at %.3f GHz' % (maxAC, maxFreq)
