@@ -1,8 +1,7 @@
 import sys
 import numpy as np
 import scipy
-import analysisUtils as au
-from interferometry import GetChNum, GetPSpec, GetLoadTemp, GetTimerecord, get_progressbar_str, indexList
+from interferometry import GetChNum, GetPSpec, GetLoadTemp, GetTimerecord, get_progressbar_str, indexList, Tcmb, mjd2utc
 from casatools import table as tbtool
 from casatools import msmetadata as msmdtool
 tb = tbtool()
@@ -17,17 +16,17 @@ def BlackBody(T, f):    # T in [K], f in [GHz]
 #-------- Residuals for Tsky - secz regresion (optical depth + intercept)
 def residTskyTransfer( param, Tamb, secz, Tsky, weight ):
     exp_Tau = np.exp( -param[1]* secz )
-    return weight* (Tsky - (param[0] + au.Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
+    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
 #
 #-------- Residuals for Tsky - secz regresion (without intercept)
 def residTskyTransfer0( param, Tamb, secz, Tsky, weight ):
     exp_Tau = np.exp( -param[0]* secz )
-    return weight* (Tsky - (au.Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
+    return weight* (Tsky - (Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
 #
 #-------- Residuals for Tsky - secz regresion (fixed zenith optical depth)
 def residTskyTransfer2( param, Tamb, Tau0, secz, Tsky, weight ):
     exp_Tau = np.exp( -Tau0* secz )
-    return weight* (Tsky - (param[0] + au.Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
+    return weight* (Tsky - (param[0] + Tcmb* exp_Tau  + Tamb* (1.0 - exp_Tau)))
 #
 def concatScans(timeList, dataList):
     TimeCont, DataCont = [], []
@@ -37,7 +36,7 @@ def concatScans(timeList, dataList):
     index = np.argsort(TimeCont)
     return np.array(TimeCont)[index], np.array(DataCont)[index]
 #
-def ATTatm(onTime, onData, offTime, offData):
+def ATTatm(onTime, onData, offTime, offData):   # Attenuator setting between atmCal and onsource
     if np.min(onTime) > np.min(offTime):
         onData = np.array((np.ones(int(min(onTime)) - int(min(offTime)) + 10)* onData[0]).tolist() + onData.tolist())
         onTime = np.array(np.arange(int(min(offTime)) - 10, int(min(onTime))).tolist() + onTime.tolist())
@@ -150,7 +149,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
         for spw_index, spw in enumerate(spwList):
             chNum = TskyList[spw_index].shape[0]
             TantNList = TantNList + [np.zeros([useAntNum, chNum])]
-            Tau0List  = Tau0List  + [ -np.log( (np.median(TskyList[spw_index], axis=(1,2)) - tempAtm) / (au.Tcmb - tempAtm) ) / secZ ]
+            Tau0List  = Tau0List  + [ -np.log( (np.median(TskyList[spw_index], axis=(1,2)) - tempAtm) / (Tcmb - tempAtm) ) / secZ ]
             Tau0Coef = Tau0Coef + [np.zeros(2)]
         return Tau0List, Tau0Excess, Tau0Coef, TantNList
     #    
@@ -169,7 +168,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
                 Tau0Med[ch_index]  = fit[0][0]
             #
             Tau0List  = Tau0List  + [Tau0Med]
-            Tau0Excess[spw_index] = residTskyTransfer0([np.median(Tau0Med)], tempAtm, secZ, np.median(TskyList[spw_index], axis=(0,1)), scanWeight ) / (tempAtm - au.Tcmb)* np.exp(-np.median(Tau0Med)* secZ) / secZ / (scanWeight + 1e-3)
+            Tau0Excess[spw_index] = residTskyTransfer0([np.median(Tau0Med)], tempAtm, secZ, np.median(TskyList[spw_index], axis=(0,1)), scanWeight ) / (tempAtm - Tcmb)* np.exp(-np.median(Tau0Med)* secZ) / secZ / (scanWeight + 1e-3)
         #
         #-------- Tau0Excess dependent on secZ 
         for spw_index, spw in enumerate(spwList):
@@ -217,7 +216,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
             fit = scipy.optimize.leastsq(residTskyTransfer0, param, args=(tempAtm, secZ, TskyResid[:,ch_index], scanWeight / (np.var(TskyList[spw_index][ch_index], axis=0) + 1e-2)))
             Tau0Med[ch_index]  = fit[0][0]
         #
-        Tau0Excess[spw_index] = residTskyTransfer0([np.median(Tau0Med)], tempAtm, secZ, np.median(TskyResid, axis=1), scanWeight ) / (tempAtm - au.Tcmb)* np.exp(-np.median(Tau0Med)* secZ) / secZ / (scanWeight + 1e-3)
+        Tau0Excess[spw_index] = residTskyTransfer0([np.median(Tau0Med)], tempAtm, secZ, np.median(TskyResid, axis=1), scanWeight ) / (tempAtm - Tcmb)* np.exp(-np.median(Tau0Med)* secZ) / secZ / (scanWeight + 1e-3)
         Tau0List  = Tau0List  + [Tau0Med]
         TantNList = TantNList + [TantN]
         #
@@ -237,7 +236,7 @@ def tau0SpecFit(tempAtm, secZ, useAnt, spwList, TskyList, scanFlag):
 def LogTrx(antList, spwList, freqList, scanList, timeRef, Trx, TantN, logFile):
     antNum, spwNum, scanNum, polNum = len(antList), len(spwList), Trx[0].shape[3], Trx[0].shape[0]
     for scan_index in list(range(scanNum)):
-        text_sd =  'Scan %d : %s' % (scanList[scan_index], au.call_qa_time('%fs' % (timeRef[scan_index]), form='fits')); logFile.write(text_sd + '\n'); print(text_sd)
+        text_sd =  'Scan %d : %s' % (scanList[scan_index], mjd2utc(timeRef[scan_index])); logFile.write(text_sd + '\n'); print(text_sd)
         text_sd = 'Trx  : '
         for spw_index in list(range(spwNum)): text_sd = text_sd + ' SPW%03d  %6.1f GHz |' % (spwList[spw_index], freqList[spw_index])
         logFile.write(text_sd + '\n'); print(text_sd)

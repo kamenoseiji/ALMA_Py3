@@ -1,11 +1,10 @@
 import os
 import math
 from casatools import quanta as qatool
-import analysisUtils as au
 import numpy as np
 import scipy
 import datetime
-from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG
+from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG, Tcmb, mjd2utc
 from Grid import tauSMTH, SSOCatalog, lmStokes
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
@@ -54,7 +53,7 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
         plotMax = 1.2 * np.max(chAvgTsky)
         TskyPL = figTauFit.add_subplot(1, spwNum, spw_index + 1 )
         TskyPL.axis([1.0, 2.5, 0.0, plotMax])
-        TskyPL.plot( airmass, au.Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color='k', alpha=0.5)
+        TskyPL.plot( airmass, Tcmb* np.exp(-chAvgTau0* airmass) + tempAtm* (1.0 - np.exp(-chAvgTau0* airmass)), '-', color='k', alpha=0.5)
         for ant_index in range(antNum):
             rgb = lineCmap(float(ant_index) / antNum )
             plotTsky = chAvgTsky[ant_index]
@@ -68,16 +67,15 @@ def plotTauFit(prefix, antList, spwList, secZ, tempAtm, Tau0, TantN, TskyList, s
     figTauFit.savefig('TAUF_' + prefix + '.pdf')
     plt.close('all')
     return
-#
 #-------- Plot plotTauEOn
 def plotTauEOn(prefix, bandName, spw, onTime, onData, TauEOn):
-    DT = []
-    for mjdSec in onTime.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
+    DT = [datetime.datetime.strptime(mjd2utc(mjdSec), '%Y-%m-%dT%H:%M:%S.%f') for mjdSec in onTime.tolist()]
     figTau = plt.figure(0, figsize = (11,8))
     figTau.suptitle('%s %s SPW %d CHAV data and zenith optical depth' % (prefix, bandName, spw))
-    figTau.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
+    figTau.text(0.45, 0.05, 'UTC on %s' % (mjd2utc(onTime[0])[:10]))
     CHAVPL = figTau.add_subplot(2, 1, 1)
     CHAVPL.plot(DT, onData, 'k.')
+    CHAVPL.set_xlim(DT[0], DT[-1])
     CHAVPL.set_ylabel('Channel-Averaded Power')
     TAU0PL = figTau.add_subplot(2, 1, 2)
     TAU0PL.plot(DT, TauEOn, 'b.')
@@ -87,14 +85,12 @@ def plotTauEOn(prefix, bandName, spw, onTime, onData, TauEOn):
     return
 #-------- Plot Tau0-Excess
 def plotTau0E(prefix, atmTime, spwList, Tau0, Tau0Excess, scanFlag):
-    spwNum = len(spwList)
     figTauE = plt.figure(0, figsize = (11,8))
     figTauE.suptitle(prefix + ' Zenith Optical Depth')
-    DT, DTSpl = [], []
-    for mjdSec in atmTime.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
+    DT = [datetime.datetime.strptime(mjd2utc(mjdSec), '%Y-%m-%dT%H:%M:%S.%f') for mjdSec in atmTime.tolist()]
     mjdSpl = np.arange(atmTime[0], atmTime[-1], 1)
-    for mjdSec in mjdSpl.tolist(): DTSpl.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
-    figTauE.text(0.45, 0.05, 'UTC on %s' % (DT[0].strftime('%Y-%m-%d')));
+    DTSpl = [datetime.datetime.strptime(mjd2utc(mjdSec), '%Y-%m-%dT%H:%M:%S.%f') for mjdSec in mjdSpl.tolist()]
+    figTauE.text(0.45, 0.05, 'UTC on %s' % (mjd2utc(atmTime[0])[:10]))
     figTauE.text(0.03, 0.45, 'Zenith Optical Depth', rotation=90)
     TauEPL = figTauE.add_subplot(1, 1, 1)
     for spw_index, spw in enumerate(spwList):
@@ -136,11 +132,11 @@ def plotTsysDic(prefix, TsysDic):
             spwNum = len(TsysDic[scan]['spwList'])
             for spw_index, spw in enumerate(TsysDic[scan]['spwList']):
                 index = spwNum* ant_index + spw_index
-                TRX, TSYS, FREQ = TsysDic[scan]['Trx'][:,:,index], TsysDic[scan]['Tsys'][:,:,index], 1.0e-9*TsysDic[scan]['freq'][spw_index]
+                TRX, TSYS, FREQ = TsysDic[scan]['Trx'][:,:,index], TsysDic[scan]['Tsys'][:,:,index], TsysDic[scan]['freq'][spw_index]
                 polNum = TRX.shape[0]
                 currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
                 TsysPL = TsysPL + [currentPL]
-                timeLabel = au.call_qa_time('%fs' % (TsysDic[scan]['mjdSec']), form='fits')
+                timeLabel = mjd2utc(TsysDic[scan]['mjdSec'])[:-4]
                 for pol_index in range(polNum):
                     currentPL.step(FREQ, TSYS[pol_index], where='mid', color=polColor[pol_index], label = 'Tsys Pol '+ polName[pol_index])
                     currentPL.step(FREQ, TRX[pol_index],  color=polColor[pol_index+2], where='mid', label = 'Trec Pol ' + polName[pol_index])
@@ -183,7 +179,7 @@ def plotTsys(prefix, antList, spwList, freqList, atmTime, TrxList, TskyList):
             for scan_index in range(scanNum):
                 currentPL = figAnt.add_subplot(scanNum, spwNum, spwNum* scan_index + spw_index + 1 )
                 TsysPL = TsysPL + [currentPL]
-                timeLabel = au.call_qa_time('%fs' % (atmTime[scan_index]), form='fits')
+                timeLabel = mjd2utc(atmTime[scan_index])[:-4]
                 for pol_index in range(polNum):
                     plotTrx  = TrxList[spw_index][pol_index, chRange, ant_index, scan_index]
                     plotTsys = TskyList[spw_index][chRange, ant_index, scan_index] + plotTrx
@@ -440,9 +436,9 @@ def plotGain(prefix, spw, plotAntList=[]):
     GainFile = '%s-SPW%d.GA.npy' % (prefix, spw)    # Gain[ant, pol, time]
     FlagFile = '%s-SPW%d.FG.npy' % (prefix, spw)    # Flag[ant, time] 
     pp = PdfPages('GA_%s-SPW%d.pdf' %  (prefix, spw))
-    DT, timeStamp, Gain, FG = [], np.load(timeFile), np.load(GainFile), np.load(FlagFile)
+    timeStamp, Gain, FG = np.load(timeFile), np.load(GainFile), np.load(FlagFile)
     polList = polName[:Gain.shape[1]]
-    for mjdSec in timeStamp.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
+    DT = [datetime.datetime.strptime(mjd2utc(mjdSec), '%Y-%m-%dT%H:%M:%S.%f') for mjdSec in timeStamp.tolist()]
     #-------- Prepare Plots
     figAmp, figPhs = plt.figure(figsize = (8, 11)), plt.figure(figsize = (8, 11))
     figAmp.suptitle(GainFile + ' Gain Amplitude'); figPhs.suptitle(GainFile + ' Gain Phase')

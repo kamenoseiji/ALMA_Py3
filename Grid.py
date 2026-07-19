@@ -114,14 +114,10 @@ def AeNominal(msfile, antList):
     msmd.close()
     msmd.done()
     return 0.72* 0.25* np.pi* antDia**2      # Nominal Collecting Area
-#
-def nearestValue():
-    TauEonList[spw_index][0]
 #-------- Apply Tsys calibration to visibilities
 def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList, smoothValue
     from atmCal import residTskyTransfer0
-    import analysisUtils as au
     #---- Check antenna list
     antList = GetAntName(prefix + '.ms')
     antNum = len(antList); blNum = int(antNum* (antNum - 1)/2)
@@ -150,7 +146,7 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
         if np.max(atmSecZ) - np.min(atmSecZ) > 0.25:
             Tau0List = Tau0List + [np.array([scipy.optimize.leastsq(residTskyTransfer0, [initTau0], args=(tempAtm, atmSecZ, Tsky[ch], atmEL))[0][0] for ch in range(Tsky.shape[0])])]
             Tau0Med = np.median(Tau0List[spw_index])
-            TauEList = TauEList + [residTskyTransfer0([Tau0Med], tempAtm, atmSecZ, np.median(Tsky, axis=0), atmEL) / (tempAtm - au.Tcmb)* np.exp(-Tau0Med* atmSecZ) / atmSecZ]
+            TauEList = TauEList + [residTskyTransfer0([Tau0Med], tempAtm, atmSecZ, np.median(Tsky, axis=0), atmEL) / (tempAtm - Tcmb)* np.exp(-Tau0Med* atmSecZ) / atmSecZ]
             SPList = SPList + [tauSMTH(atmTime, TauEList[spw_index])]   # interpolation along time
         else:
             Tau0List = Tau0List + [-np.log(1.0 - Tsky/tempAtm)/atmSecZ]
