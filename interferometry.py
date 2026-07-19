@@ -30,6 +30,8 @@ BANDFQ = [0.0, 43.2, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 460.0, 650.0, 870.0
 Tcmb = 2.725    # CMB temperature
 kb        = 1.38064852e3 # Boltzman constant (* 1e26 for Jy scaling)
 RADDEG = 180.0 / math.pi
+SEC_PER_DAY = 86400     # 1 day = 86400 sec
+MJD_EPOCH = datetime.datetime(1858, 11, 17, 0, 0, 0, tzinfo=datetime.timezone.utc)
 ALMA_long= -67.755/180.0* np.pi     # ALMA AOS Longitude
 ALMA_lat = -23.029/180.0* np.pi     # ALMA AOS Latitude
 #-------- Baseline and Antenna Indexing
@@ -254,11 +256,13 @@ def AzEl2PA(az, el, lat=ALMA_lat): # Azimuth, Elevation, Latitude (default=ALMA)
     return np.arctan2( -cos_lat* np.sin(az), (sin_lat* np.cos(el) - cos_lat* np.sin(el)* np.cos(az)) )
 #
 #-------- Greenwidge Mean Sidereal Time
+def mjd2utc( mjdSec ):        # mjd in [sec]
+    utc_dt = MJD_EPOCH + datetime.timedelta(seconds=mjdSec)
+    return utc_dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
 def mjd2gmst( mjd, ut1utc ):        # mjd in [day], ut1utc in [sec]
     FACT = [24110.54841, 8640184.812866, 0.093104, 0.0000062]
     MJD_EPOCH = 51544.5             # MJD at 2000 1/1 12:00:00 UT
     TU_UNIT   = 36525.0
-    SEC_PER_DAY = 86400.0
     tu = (mjd - MJD_EPOCH) / TU_UNIT
     ut1 = modf(mjd)[0]* SEC_PER_DAY + ut1utc
     gmst = (ut1 + FACT[0] + ((FACT[3]* tu + FACT[2])* tu + FACT[1])* tu) / SEC_PER_DAY

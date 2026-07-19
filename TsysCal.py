@@ -14,11 +14,11 @@
 #
 #  They include all of antennas (even if flagged) in MS order
 #
-import analysisUtils as au
+#import analysisUtils as au
 import sys
 import scipy
 import numpy as np
-from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str
+from interferometry import indexList, AzElMatch, GetTemp, GetAntName, GetAtmSPWs, GetBPcalSPWs, GetBandNames, GetAzEl, GetLoadTemp, GetPSpec, GetPSpecScan, GetSourceDic, GetChNum, get_progressbar_str, Tcmb
 from atmCal import scanAtmSpec, residTskyTransfer, residTskyTransfer0, residTskyTransfer2, tau0SpecFit, TrxTskySpec, LogTrx, concatScans, ATTatm
 from Plotters import plotTauSpec, plotTauFit, plotTau0E, plotTsys, plotTauEOn
 from ASDM_XML import BandList
@@ -47,8 +47,8 @@ ONTAU   = options.ONTAU
 antFlag = []
 PLOTTAU = True
 PLOTTSYS = True
-ONTAU = False
-prefix = 'uid___A002_X132e57d_X14030'
+ONTAU = True
+prefix = 'uid___A002_X13da9fd_X5c94'
 '''
 SunAngleTsysLimit = 5.0 # [deg] 
 #if 'PLOTTAU'  not in locals(): PLOTTAU  = False
@@ -225,12 +225,12 @@ for band_index, bandName in enumerate(UniqBands):
             hotTimeCont, hotSQLDCont = concatScans(hotTime, hotSQLD)
             scaleFact = ATTatm(onTimeCont, onSQLDCont, offTimeCont, offSQLDCont)    # Attenuator between atmCal and onsource
             TskyOff= (offSQLDCont* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-            TauOff = -np.log( (TskyOff - tempAtm) / (au.Tcmb - tempAtm) )
+            TauOff = -np.log( (TskyOff - tempAtm) / (Tcmb - tempAtm) )
             az, el = AzElMatch(offTimeCont, azelTime, AntID, ant_index, AZ, EL )
             Tau0Off = TauOff * np.sin(el)
             Tau0Scale = np.median(Tau0Off) / np.median(Tau0[spw_index])
             TskyOn = (onSQLDCont/scaleFact* (np.median(tempHot) - np.median(tempAmb)) + np.median(tempAmb)* np.median(hotSQLDCont) - np.median(tempHot)* np.median(ambSQLDCont)) / (np.median(hotSQLDCont) - np.median(ambSQLDCont))
-            TauOn  = -np.log( (TskyOn - tempAtm) / (au.Tcmb - tempAtm) )/Tau0Scale 
+            TauOn  = -np.log( (TskyOn - tempAtm) / (Tcmb - tempAtm) )/Tau0Scale 
             az, el = AzElMatch(onTimeCont, azelTime, AntID, ant_index, AZ, EL )
             TauEOn = TauOn* np.sin(el) - Tau0med[spw_index]
             np.save('%s-%s-SPW%d.TauEon.npy' % (prefix, bandName,atmspwLists[band_index][spw_index]),np.array([onTimeCont,TauEOn]))     # antList[ant]

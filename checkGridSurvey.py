@@ -36,7 +36,7 @@ QUMODEL = options.QUMODEL
 Apriori = options.Apriori
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13da9fd_X40af'
+prefix = 'uid___A002_X1392e05_X3b93'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
@@ -91,7 +91,7 @@ for BandName in RXList:
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*DELAY*')) & set(BandScanList[BandName]))
         if len(checkScan) == 0: checkScan = list(set(msmd.scansforintent('*POINTING*')) & set(BandScanList[BandName]))
         checkScan.sort()
-        checkScan = checkScan[-1]
+        checkScan = checkScan[0]
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
