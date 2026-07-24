@@ -4,16 +4,17 @@ from casatools import quanta as qatool
 import numpy as np
 import scipy
 import datetime
-from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG, Tcmb, mjd2utc
+from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG, Tcmb, mjd2utc, speed_of_light
 from Grid import tauSMTH, SSOCatalog, lmStokes
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 qa = qatool()
+RADSEC = 180*3600/np.pi         # 206264.80624709636 arcsec/rad
 polColor = ['b', 'g', 'm', 'y']
 polName = ['X', 'Y', 'XY', 'YX']
-#
+StokesComponents = ['I', 'Q', 'U', 'V']
 #-------- Set Color Map
 lineCmap = plt.get_cmap('Set1')
 #-------- Plot optical depth
@@ -633,7 +634,6 @@ def plotFlag(pp, prefix, antList, DT, spwList, FGList):
 #
 #-------- Plot Stokes parameters vs uv distance
 def plotFL(pp, scanDic, SPWDic):
-    polLabel = ['I', 'Q', 'U', 'V']
     Pcolor   = ['black', 'blue', 'red', 'green']
     for scan_index, scan in enumerate(scanDic.keys()):
         scanFlag = scanDic[scan]['scanFlag']
@@ -660,11 +660,11 @@ def plotFL(pp, scanDic, SPWDic):
             axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[2], ScanFlux[2]+ uvMax* ScanSlope[2]]), '-', color=Pcolor[2])
             axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[3], ScanFlux[3]+ uvMax* ScanSlope[3]]), '-', color=Pcolor[3])
             #
-            axes[0,spw_index].plot( uvDist, 180.0* np.angle(StokesVis[0])/ np.pi, '.', label=polLabel[0], color=Pcolor[0])  # Plot visibility phase
-            axes[1,spw_index].plot( uvDist, StokesVis[0].real, '.', label=polLabel[0], color=Pcolor[0])     # Plot Stokes I
-            axes[2,spw_index].plot( uvDist, StokesVis[1].real, '.', label=polLabel[1], color=Pcolor[1])     # Plot Stokes Q
-            axes[2,spw_index].plot( uvDist, StokesVis[2].real, '.', label=polLabel[2], color=Pcolor[2])     # Plot Stokes U
-            axes[2,spw_index].plot( uvDist, StokesVis[3].real, '.', label=polLabel[3], color=Pcolor[3])     # Plot Stoees V
+            axes[0,spw_index].plot( uvDist, 180.0* np.angle(StokesVis[0])/ np.pi, '.', label=StokesComponents[0], color=Pcolor[0])  # Plot visibility phase
+            axes[1,spw_index].plot( uvDist, StokesVis[0].real, '.', label=StokesComponents[0], color=Pcolor[0])     # Plot Stokes I
+            axes[2,spw_index].plot( uvDist, StokesVis[1].real, '.', label=StokesComponents[1], color=Pcolor[1])     # Plot Stokes Q
+            axes[2,spw_index].plot( uvDist, StokesVis[2].real, '.', label=StokesComponents[2], color=Pcolor[2])     # Plot Stokes U
+            axes[2,spw_index].plot( uvDist, StokesVis[3].real, '.', label=StokesComponents[3], color=Pcolor[3])     # Plot Stoees V
             axes[0,spw_index].axis([0.0, uvMax, -180, 180])
             axes[1,spw_index].axis([0.0, uvMax, 0.0, 1.25*IMax])
             axes[2,spw_index].axis([0.0, uvMax, -0.25*IMax, 0.25*IMax])
@@ -680,9 +680,61 @@ def plotFL(pp, scanDic, SPWDic):
     plt.close('all')
     pp.close()
     return
+#-------- Plot Stokes parameters vs uv distance
+def plotResidualMap(pp, scanDic, SPWDic):
+    repFreq = np.mean([np.median(SPWDic['freq'][spw_index]) for spw_index, spw in enumerate( SPWDic['spw'] )])
+    for scan in scanDic.keys():
+        figIM, axes = plt.subplots(2, 2, figsize = (11, 8), sharex=True, sharey=True, gridspec_kw={'right':0.9})
+        figIM.suptitle(scanDic[scan]['source'])
+        timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0]
+        text_src  = '%s Scan%02d %s EL=%4.1f deg' % (scanDic[scan]['msfile'][:-3], scan, timeLabel, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
+        uv = repFreq* np.mean(scanDic[scan]['UVW'][:2], axis=2) / speed_of_light
+        cellSize = 0.05* RADSEC / np.sqrt(np.max(uv[0]**2 + uv[1]**2))
+        mapSize  = RADSEC / np.sqrt(np.min(uv[0]**2 + uv[1]**2))
+        cellNum, blNum, spwNum = int(mapSize/cellSize), uv.shape[1], len(SPWDic['spw'])
+        cellNum = 1 << (cellNum.bit_length() - 1)               # Round down to powers of 2
+        cellNum = min(cellNum, 256)                             # Cap by 256 pix
+        mapSize = cellNum* cellSize
+        StokesMap = np.zeros([4, 2*cellNum, 2*cellNum])
+        Map_l, Map_m = np.meshgrid(cellSize* np.array(range(-cellNum, cellNum)), cellSize* np.array(range(-cellNum, cellNum)))
+        uvCellSize = 0.5*RADSEC/(cellSize*cellNum)
+        for Stokes_index, Stokes in enumerate(StokesComponents): 
+            UVMap, UVnum, UVcount = np.zeros([2*cellNum, 2*cellNum], dtype=complex), np.zeros([2*cellNum, 2*cellNum]), 0
+            for spw_index, spw in enumerate(SPWDic['spw']):
+                freq = np.median(SPWDic['freq'][spw_index])     # Hz
+                uv = freq* np.mean(scanDic[scan]['UVW'][:2], axis=2) / speed_of_light
+                StokesVis = (scanDic[scan]['StokesVis'][spw_index].T - np.array(scanDic[scan]['scanVis'])[:,spw_index]).T
+                #StokesVis = scanDic[scan]['StokesVis'][spw_index]
+                uv_scale = uv/uvCellSize
+                for bl_index in range(blNum):
+                    UVMap[(cellNum + round(uv_scale[0,bl_index]))^cellNum, (cellNum + round(uv_scale[1,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index]
+                    UVMap[(cellNum - round(uv_scale[0,bl_index]))^cellNum, (cellNum - round(uv_scale[1,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index].conjugate()
+                    UVnum[(cellNum + round(uv_scale[0,bl_index]))^cellNum, (cellNum + round(uv_scale[1,bl_index]))^cellNum] += 1
+                    UVnum[(cellNum - round(uv_scale[0,bl_index]))^cellNum, (cellNum - round(uv_scale[1,bl_index]))^cellNum] += 1
+            UVMap[np.where( UVnum > 0 )] /= UVnum[np.where( UVnum > 0 )]
+            StokesMap[Stokes_index] = np.fft.ifftshift(np.fft.ifft2(UVMap)).real
+        StokesMap *= (4*cellNum**2/len(UVMap[np.where( UVnum > 0 )]))     # Scaling
+        #-------- Plot residual Stokes map
+        StokesRMS = np.std( StokesMap[3] )      # image rms in StokesV
+        for index_Stokes, ax in enumerate(axes.ravel()):
+            im = ax.contourf(Map_l, Map_m, StokesMap[index_Stokes], levels=20, vmin=-5*StokesRMS, vmax=15*StokesRMS, cmap='viridis')
+            ax.set_title('%s subtracted %.3f Jy' % (StokesComponents[index_Stokes], np.mean(scanDic[scan]['scanVis'][index_Stokes])))
+            ax.plot(0.0, 0.0, 'w+')
+            ax.set_aspect('equal', adjustable='box')
+            ax.set_xlabel('arcsec'); ax.set_ylabel('arcsec'); 
+            ax.set_xlim( cellSize*cellNum, -cellSize*cellNum)
+            ax.set_ylim(-cellSize*cellNum,  cellSize*cellNum)
+            if index_Stokes == 0: ax.text(-mapSize, 1.15*mapSize, text_src)
+        colorvar_ax = figIM.add_axes([0.91, 0.09, 0.03, 0.7])
+        figIM.colorbar(im, cax=colorvar_ax)
+        colorvar_ax.set_title('Jy')
+        figIM.savefig(pp, format='pdf')
+    plt.close('all')
+    pp.close()
+    return
 #-------- Plot Stokes Spectra
 def plotStokesSpectra(prefix, refantName, sourceName, spw):
-    polLabel, Pcolor = ['I', 'Q', 'U', 'V'], ['black', 'blue', 'red', 'green']
+    Pcolor = ['black', 'blue', 'red', 'green']
     StokesSpecFile = '%s-REF%s-%s-SPW%d.StokesSpec.npy' % (prefix, refantName, sourceName, spw)
     StokesFreqFile = '%s-REF%s-%s-SPW%d.Freq.npy' % (prefix, refantName, sourceName, spw)
     if not os.path.isfile(StokesSpecFile): return
@@ -702,10 +754,10 @@ def plotStokesSpectra(prefix, refantName, sourceName, spw):
     StokesI_SP = figSP.add_subplot( 2, 1, 1 )
     StokesP_SP = figSP.add_subplot( 2, 1, 2 )
     IMax = np.max(StokesSpec[0])
-    StokesI_SP.step(Freq, StokesSpec[0], where='mid', label='Stokes %s = %.3f (%.3f) Jy' % (polLabel[0], np.mean(StokesSpec[0]), sdF* np.std(StokesSpec[0])), color=Pcolor[0])
-    StokesP_SP.step(Freq, StokesSpec[1], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (polLabel[1], np.mean(StokesSpec[1]), sdF* np.std(StokesSpec[1])), color=Pcolor[1])
-    StokesP_SP.step(Freq, StokesSpec[2], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (polLabel[2], np.mean(StokesSpec[2]), sdF* np.std(StokesSpec[2])), color=Pcolor[2])
-    StokesP_SP.step(Freq, StokesSpec[3], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (polLabel[3], np.mean(StokesSpec[3]), sdF* np.std(StokesSpec[3])), color=Pcolor[3])
+    StokesI_SP.step(Freq, StokesSpec[0], where='mid', label='Stokes %s = %.3f (%.3f) Jy' % (StokesComponents[0], np.mean(StokesSpec[0]), sdF* np.std(StokesSpec[0])), color=Pcolor[0])
+    StokesP_SP.step(Freq, StokesSpec[1], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (StokesComponents[1], np.mean(StokesSpec[1]), sdF* np.std(StokesSpec[1])), color=Pcolor[1])
+    StokesP_SP.step(Freq, StokesSpec[2], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (StokesComponents[2], np.mean(StokesSpec[2]), sdF* np.std(StokesSpec[2])), color=Pcolor[2])
+    StokesP_SP.step(Freq, StokesSpec[3], where='mid', label='Stokes %s = %.4f (%.4f) Jy' % (StokesComponents[3], np.mean(StokesSpec[3]), sdF* np.std(StokesSpec[3])), color=Pcolor[3])
     StokesI_SP.tick_params(axis='both', labelsize=6)
     StokesP_SP.tick_params(axis='both', labelsize=6)
     StokesI_SP.axis([np.min(Freq), max(Freq), 0.0, 1.25*IMax])

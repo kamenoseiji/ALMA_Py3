@@ -9,7 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, AzElMatch, gainComplex, gainComplexErr, gainComplexVec, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-from Plotters import plotSP, plotXYP, plotBLAV, plotFL, plotQUXY
+from Plotters import plotSP, plotXYP, plotBLAV, plotFL, plotQUXY, plotResidualMap
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
 from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
@@ -25,6 +25,7 @@ parser.add_option('-A',  dest='Apriori', metavar='Apriori',  help='Apriori ampli
 parser.add_option('-Q',  dest='QUMODEL', metavar='QUMODEL', help='Initial Q,U from AMAPOLA', action='store_true')
 parser.add_option('-U',  dest='uvLimit', metavar='uvLimit', help='(u, v) limet [m]', default='5000')
 parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to refer', default='0')
+parser.add_option('-m',  dest='Map',     metavar='Map',     help='Save redisual map', action='store_true')
 parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply Tsys digital correction', action='store_true')
 (options, args) = parser.parse_args()
 #-------- Check options
@@ -34,9 +35,10 @@ uvLimit = int(options.uvLimit)
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
 Apriori = options.Apriori
+plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X1392e05_X3b93'
+prefix = 'uid___A002_X13b8c30_X1a35'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
@@ -441,8 +443,7 @@ for BandName in RXList:
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
         text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
     #-------- Plot Stokes parameters vs uv distance
-    pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf')
-    plotFL(pp, scanDic, BandbpSPW[BandName])
+    pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf'); plotFL(pp, scanDic, BandbpSPW[BandName])
     #-------- Review D-term
     Dterm = np.zeros([useAntNum, len(BandbpSPW[BandName]['spw']), 2], dtype=complex)
     DtermDic = {'mjdSec': np.median(timeStamp)}
@@ -486,10 +487,12 @@ for BandName in RXList:
     logfile.close()
     ingestFile.close()
     #-------- Plot QUXY
-    pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName))
     for scan_index, scan in enumerate(scanDic.keys()):
         if 'StokesVis' in scanDic[scan].keys():
             scanDic[scan]['scanVis'] = np.mean(np.array(scanDic[scan]['StokesVis']), axis=2).real.T
             scanDic[scan]['visChav'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2))
-    plotQUXY(pp, scanDic)
+    pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName)); plotQUXY(pp, scanDic)
+    if plotMap:
+        pp = PdfPages('MP_' + prefix + '_' + BandName + '.pdf')
+        plotResidualMap(pp, scanDic, BandbpSPW[BandName])
 msmd.close()

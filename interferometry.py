@@ -29,6 +29,7 @@ BANDPA = [0.0, 45.0, -45.0, 80.0, -80.0, 45.0, -45.0, 36.45, 90.0, -90.0, 0.0]  
 BANDFQ = [0.0, 43.2, 75.0, 97.5, 132.0, 183.0, 233.0, 343.5, 460.0, 650.0, 870.0]   # Standard frequency [GHz]
 Tcmb = 2.725    # CMB temperature
 kb        = 1.38064852e3 # Boltzman constant (* 1e26 for Jy scaling)
+speed_of_light = 299792458  # [m/s]
 RADDEG = 180.0 / math.pi
 SEC_PER_DAY = 86400     # 1 day = 86400 sec
 MJD_EPOCH = datetime.datetime(1858, 11, 17, 0, 0, 0, tzinfo=datetime.timezone.utc)

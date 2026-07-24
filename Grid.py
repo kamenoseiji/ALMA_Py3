@@ -143,7 +143,7 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
         Tsky[0:int(0.05*chNum)] = Tsky[int(0.05*chNum)]
         Tsky[-int(0.05*chNum):] = Tsky[int(-0.05*chNum)-1]
         initTau0 = -np.log(1 - np.median(Tsky)/tempAtm) / np.median(atmSecZ)
-        if np.max(atmSecZ) - np.min(atmSecZ) > 0.25:
+        if np.max(atmSecZ) - np.min(atmSecZ) > 0.1:
             Tau0List = Tau0List + [np.array([scipy.optimize.leastsq(residTskyTransfer0, [initTau0], args=(tempAtm, atmSecZ, Tsky[ch], atmEL))[0][0] for ch in range(Tsky.shape[0])])]
             Tau0Med = np.median(Tau0List[spw_index])
             TauEList = TauEList + [residTskyTransfer0([Tau0Med], tempAtm, atmSecZ, np.median(Tsky, axis=0), atmEL) / (tempAtm - Tcmb)* np.exp(-Tau0Med* atmSecZ) / atmSecZ]
@@ -167,7 +167,7 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             Tant = StokesI* nominalAe* np.pi* antDia**2 / (8.0* kb)                     # Antenna temperature of SSO
             #-------- Interpolated optical depth in the scan
             Tau0SP = np.outer(Tau0List[spw_index], np.ones(len(scanDic[scan]['mjdSec'])))
-            if np.max(atmSecZ) - np.min(atmSecZ) > 0.25: Tau0SP += scipy.interpolate.splev(scanDic[scan]['mjdSec'], SPList[spw_index])
+            if np.max(atmSecZ) - np.min(atmSecZ) > 0.1: Tau0SP += scipy.interpolate.splev(scanDic[scan]['mjdSec'], SPList[spw_index])
             secZ = 1.0 / np.sin(scanDic[scan]['EL'])                           # Airmass
             scanTau = scanTau + [Tau0SP * secZ]             # Optical depth at the elevation
             exp_Tau = np.exp(-scanTau[spw_index])           # Atmospheric attenuation
