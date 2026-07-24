@@ -5,6 +5,8 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option('-s', dest='SBcode', metavar='SBcode',
     help='SB code  e.g. PSO_Grid', default='PSO_Grid')
+parser.add_option('-b', dest='Subject', metavar='Subject',
+    help='Subject  e.g. baseline', default='')
 parser.add_option('-d', dest='days', metavar='days',
     help='Backword days', default='4')
 (options, args) = parser.parse_args()
@@ -17,7 +19,10 @@ SLT_URI  = 'https://asa.alma.cl/webslt/service/api/entries?'
 SLTstart = (datetime.datetime.today() - datetime.timedelta(days=backDays)).strftime('%Y-%m-%dT%H:%M:%S')
 SLTend   = (datetime.datetime.today() - datetime.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S')
 #queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&entryType=SBEX&schedBlockCode=%s&status=success\' > SLT.log' % (UserPass, SLT_URI, SLTstart, SLTend, options.SBcode)
-queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&entryType=SBEX&schedBlockCode=%s&status=success\' > SLT.log' % (UserPass, SLT_URI, SLTstart, SLTend, options.SBcode)
+if options.Subject == '':
+    queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&entryType=SBEX&schedBlockCode=%s&status=success\' > SLT.log' % (UserPass, SLT_URI, SLTstart, SLTend, options.SBcode)
+else:
+    queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&subject=%s&status=success\' > SLT.log' % (UserPass, SLT_URI, SLTstart, SLTend, options.Subject)
 #print(queryText)
 os.system(queryText)
 fp = open('SLT.log', 'r')
