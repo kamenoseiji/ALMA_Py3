@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 import datetime
 from interferometry import indexList, GetChNum, bunchVec, delay_search, Bl2Ant, Ant2Bl, RADDEG, Tcmb, mjd2utc, speed_of_light
-from Grid import tauSMTH, SSOCatalog, lmStokes
+from Grid import tauSMTH, SSOCatalog
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
 import matplotlib.cm as cm
@@ -646,25 +646,36 @@ def plotFL(pp, scanDic, SPWDic):
         text_src  = 'Scan%02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'][scanFlag])/np.pi)
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec'][scanFlag]), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
         #---- Display results
-        uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['I'])
+        uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['ScanFlux'][:,0])
         axes[0,0].text(0.0, 1.15*180, text_src)
         axes[0,3].text(0.0, 1.15*180, timeLabel)
-        spwNum = len(scanDic[scan]['I'])
         for spw_index, spw in enumerate(SPWDic['spw']):
             StokesVis = scanDic[scan]['StokesVis'][spw_index]
-            ScanFlux, ScanSlope, ErrFlux = lmStokes(StokesVis, uvDist)
+            ScanFlux = scanDic[scan]['ScanFlux'][spw_index]
+            ScanSlope = scanDic[scan]['uvSlope'][spw_index]* ScanFlux / ScanFlux[0]
+            blFlag = scanDic[scan]['blFlag'][spw_index]
+            #flagOut = list(set(range(len(uvDist))) - set(blFlag)).sort()
             #-------- Plot Stokes visibilities
             axes[0,spw_index].plot( np.array([0.0, uvMax]), np.array([0.0, 0.0]), '-', color='grey')        # phase-0 line
-            axes[1,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[0], ScanFlux[0]+ uvMax* ScanSlope[0]]), '-', color=Pcolor[0])
-            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[1], ScanFlux[1]+ uvMax* ScanSlope[1]]), '-', color=Pcolor[1])
-            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[2], ScanFlux[2]+ uvMax* ScanSlope[2]]), '-', color=Pcolor[2])
-            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[3], ScanFlux[3]+ uvMax* ScanSlope[3]]), '-', color=Pcolor[3])
+            axes[1,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[0], ScanFlux[0] + uvMax* ScanSlope[0]]), '-', color=Pcolor[0])    # Stokes I fitline
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[1], ScanFlux[1] + uvMax* ScanSlope[1]]), '-', color=Pcolor[1])    # Stokes Q fitline
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[2], ScanFlux[2] + uvMax* ScanSlope[2]]), '-', color=Pcolor[2])    # Stokes U fitline
+            axes[2,spw_index].plot( np.array([0.0, uvMax]), np.array([ScanFlux[3], ScanFlux[3] + uvMax* ScanSlope[3]]), '-', color=Pcolor[3])    # Stokes V fitline
             #
-            axes[0,spw_index].plot( uvDist, 180.0* np.angle(StokesVis[0])/ np.pi, '.', label=StokesComponents[0], color=Pcolor[0])  # Plot visibility phase
-            axes[1,spw_index].plot( uvDist, StokesVis[0].real, '.', label=StokesComponents[0], color=Pcolor[0])     # Plot Stokes I
-            axes[2,spw_index].plot( uvDist, StokesVis[1].real, '.', label=StokesComponents[1], color=Pcolor[1])     # Plot Stokes Q
-            axes[2,spw_index].plot( uvDist, StokesVis[2].real, '.', label=StokesComponents[2], color=Pcolor[2])     # Plot Stokes U
-            axes[2,spw_index].plot( uvDist, StokesVis[3].real, '.', label=StokesComponents[3], color=Pcolor[3])     # Plot Stoees V
+            '''
+            axes[0,spw_index].plot( uvDist[flagOut], 180.0* np.angle(StokesVis[0][flagOut])/ np.pi, '.', color='gray')  # Flagged phase
+            axes[1,spw_index].plot( uvDist[flagOut], StokesVis[0][flagOut].real, 'y.')     # Flagged I
+            axes[2,spw_index].plot( uvDist[flagOut], StokesVis[1][flagOut].real, 'y.')     # Flagged Q
+            axes[2,spw_index].plot( uvDist[flagOut], StokesVis[2][flagOut].real, 'y.')     # Flagged U
+            axes[2,spw_index].plot( uvDist[flagOut], StokesVis[3][flagOut].real, 'y.')     # Flagged V
+            '''
+            #
+            axes[0,spw_index].plot( uvDist[blFlag], 180.0* np.angle(StokesVis[0][blFlag])/ np.pi, '.', label=StokesComponents[0], color=Pcolor[0])  # Plot visibility phase
+            axes[1,spw_index].plot( uvDist[blFlag], StokesVis[0][blFlag].real, '.', label=StokesComponents[0], color=Pcolor[0])     # Plot Stokes I
+            axes[2,spw_index].plot( uvDist[blFlag], StokesVis[1][blFlag].real, '.', label=StokesComponents[1], color=Pcolor[1])     # Plot Stokes Q
+            axes[2,spw_index].plot( uvDist[blFlag], StokesVis[2][blFlag].real, '.', label=StokesComponents[2], color=Pcolor[2])     # Plot Stokes U
+            axes[2,spw_index].plot( uvDist[blFlag], StokesVis[3][blFlag].real, '.', label=StokesComponents[3], color=Pcolor[3])     # Plot Stoees V
+            #
             axes[0,spw_index].axis([0.0, uvMax, -180, 180])
             axes[1,spw_index].axis([0.0, uvMax, 0.0, 1.25*IMax])
             axes[2,spw_index].axis([0.0, uvMax, -0.25*IMax, 0.25*IMax])
@@ -706,14 +717,14 @@ def plotResidualMap(pp, scanDic, SPWDic):
                 StokesVis = (scanDic[scan]['StokesVis'][spw_index].T - np.array(scanDic[scan]['scanVis'])[:,spw_index]).T
                 #StokesVis = scanDic[scan]['StokesVis'][spw_index]
                 uv_scale = uv/uvCellSize
-                for bl_index in range(blNum):
-                    UVMap[(cellNum + round(uv_scale[0,bl_index]))^cellNum, (cellNum + round(uv_scale[1,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index]
-                    UVMap[(cellNum - round(uv_scale[0,bl_index]))^cellNum, (cellNum - round(uv_scale[1,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index].conjugate()
-                    UVnum[(cellNum + round(uv_scale[0,bl_index]))^cellNum, (cellNum + round(uv_scale[1,bl_index]))^cellNum] += 1
-                    UVnum[(cellNum - round(uv_scale[0,bl_index]))^cellNum, (cellNum - round(uv_scale[1,bl_index]))^cellNum] += 1
+                for bl_index in scanDic[scan]['blFlag'][spw_index]:
+                    UVMap[(cellNum + round(uv_scale[1,bl_index]))^cellNum, (cellNum + round(uv_scale[0,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index]
+                    UVMap[(cellNum - round(uv_scale[1,bl_index]))^cellNum, (cellNum - round(uv_scale[0,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index].conjugate()
+                    UVnum[(cellNum + round(uv_scale[1,bl_index]))^cellNum, (cellNum + round(uv_scale[0,bl_index]))^cellNum] += 1
+                    UVnum[(cellNum - round(uv_scale[1,bl_index]))^cellNum, (cellNum - round(uv_scale[0,bl_index]))^cellNum] += 1
             UVMap[np.where( UVnum > 0 )] /= UVnum[np.where( UVnum > 0 )]
-            StokesMap[Stokes_index] = np.fft.ifftshift(np.fft.ifft2(UVMap)).real
-        StokesMap *= (4*cellNum**2/len(UVMap[np.where( UVnum > 0 )]))     # Scaling
+            StokesMap[Stokes_index] = np.fft.fftshift(np.fft.fft2(UVMap)).real
+        StokesMap *= (1.0/len(UVMap[np.where( UVnum > 0 )]))     # Scaling
         #-------- Plot residual Stokes map
         StokesRMS = np.std( StokesMap[3] )      # image rms in StokesV
         for index_Stokes, ax in enumerate(axes.ravel()):

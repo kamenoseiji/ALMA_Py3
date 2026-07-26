@@ -38,12 +38,13 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13b8c30_X1a35'
+prefix = 'uid___A002_X137905e_X23bcc'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
+plotMap = True
 '''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
@@ -391,16 +392,17 @@ for BandName in RXList:
         newAeff[:,:,spw_index] = AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[:,:,spw_index], antDia[antMap] )
     for ant_index, ant in enumerate(antMap): Aeff[ant_index] = newAeff[ant_index]
     #-------- Stokes visibilities for each scan
-    ScanFlux, ScanSlope, ErrFlux = np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandScanList[BandName]), len(BandbpSPW[BandName]['spw']), 4])
     text_Stokes = np.repeat('',len(BandbpSPW[BandName]['spw'])).tolist()
     #-------- Store Stokes parameters into scanDic
     for scan_index, scan in enumerate(scanDic.keys()):
         scanFlag  = scanDic[scan]['scanFlag']
+        uvw = np.mean(scanDic[scan]['UVW'], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         if len(scanFlag) == 0: continue
         sourceName = scanDic[scan]['source']
         text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
-        StokesVisList, visChavList = [], []
+        StokesVisList, visChavList, blFlag = [], [], []
+        ScanFlux, ErrFlux, ScanSlope = np.zeros([len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandbpSPW[BandName]['spw']), 4]), np.zeros(len(BandbpSPW[BandName]['spw']))
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]))
             visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
@@ -410,26 +412,27 @@ for BandName in RXList:
             #-------- SSO visibility to correct by model
             if sourceName in FscaleDic.keys(): StokesVis *= (SSODic[sourceName][1][spw_index] / FscaleDic[sourceName]['model'][spw_index])
             #-------- Linear regression to determine zero-spacing visibilities
-            ScanFlux[scan_index, spw_index], ScanSlope[scan_index, spw_index], ErrFlux[scan_index, spw_index] = lmStokes(StokesVis, uvDist[useBlMap])
+            ScanFlux[spw_index], ScanSlope[spw_index], ErrFlux[spw_index], visFlag = lmStokes(StokesVis, uvDist)
+            blFlag = blFlag + [visFlag]
             for pol_index in list(range(4)):
-                text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[scan_index, spw_index, pol_index], ErrFlux[scan_index, spw_index, pol_index])
-            text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[scan_index, spw_index, 1]**2 + ScanFlux[scan_index, spw_index, 2]**2)/ScanFlux[scan_index, spw_index, 0], np.arctan2(ScanFlux[scan_index, spw_index, 2],ScanFlux[scan_index, spw_index, 1])*90.0/np.pi)
+                text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[spw_index, pol_index], ErrFlux[spw_index, pol_index])
+            text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[spw_index, 1]**2 + ScanFlux[spw_index, 2]**2)/ScanFlux[spw_index, 0], np.arctan2(ScanFlux[spw_index, 2],ScanFlux[spw_index, 1])*90.0/np.pi)
         #---- Update scanDic record entry
         CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
-        scanDic[scan]['I'] = [ScanFlux[scan_index, spw_index, 0]* np.ones(len(CS)) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
-        scanDic[scan]['Q']  = [ScanFlux[scan_index, spw_index, 1] for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
-        scanDic[scan]['U']  = [ScanFlux[scan_index, spw_index, 2] for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
-        scanDic[scan]['QCpUS'] = [ScanFlux[scan_index, spw_index, 1]* CS + ScanFlux[scan_index, spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
-        scanDic[scan]['UCmQS'] = [ScanFlux[scan_index, spw_index, 2]* CS - ScanFlux[scan_index, spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['blFlag'] = blFlag
+        scanDic[scan]['ScanFlux'] = ScanFlux        # ScanFlux[spw,pol]
+        scanDic[scan]['QCpUS'] = [ScanFlux[spw_index, 1]* CS + ScanFlux[spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
+        scanDic[scan]['UCmQS'] = [ScanFlux[spw_index, 2]* CS - ScanFlux[spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['visChav'] = visChavList
         scanDic[scan]['StokesVis'] = StokesVisList
-        uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[scan_index,:,0])
+        scanDic[scan]['uvSlope'] = ScanSlope
+        uvMin, uvMax, IMax = min(uvDist), max(uvDist), max(ScanFlux[:,0])
         refFreq = 1.0e-9* np.mean(BandbpSPW[BandName]['freq'])
         relFreq = 1.0e-9* np.array([np.median( BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]) - refFreq
         text_mean = ' mean  %5.1f GHz ' % (refFreq)
         pflux, pfluxerr = np.zeros(4), np.zeros(4)
         for pol_index in list(range(4)):
-            sol, solerr = linearRegression(relFreq, ScanFlux[scan_index, :, pol_index], ErrFlux[scan_index, :, pol_index] )
+            sol, solerr = linearRegression(relFreq, ScanFlux[:, pol_index], ErrFlux[:, pol_index] )
             pflux[pol_index], pfluxerr[pol_index] = sol[0], solerr[0]
             text_mean = text_mean + ' %7.4f (%.4f) ' % (pflux[pol_index], pfluxerr[pol_index])
         text_mean = text_mean + '%6.3f   %6.1f' % (100.0* np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi) 
@@ -455,7 +458,7 @@ for BandName in RXList:
             scanFlag  = scanDic[scan]['scanFlag']
             if len(scanFlag) == 0: continue
             if min(scanDic[scan]['EL']) < ELshadow : continue
-            IList       = IList + scanDic[scan]['I'][spw_index][scanFlag].tolist()
+            IList       = IList + [scanDic[scan]['ScanFlux'][spw_index,0] for time_index in scanFlag]
             QCpUSList   = QCpUSList + scanDic[scan]['QCpUS'][spw_index][scanFlag].tolist()
             UCmQSList   = UCmQSList + scanDic[scan]['UCmQS'][spw_index][scanFlag].tolist()
             visChavList = visChavList + scanDic[scan]['visChav'][spw_index].transpose(2, 0, 1).tolist()
