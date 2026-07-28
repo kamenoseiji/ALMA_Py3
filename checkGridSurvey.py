@@ -18,6 +18,7 @@ def AV(vis): return AllanVarPhase(np.angle(vis), 1)
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
 #-------- Parse options
+'''
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
 parser.add_option('-a',  dest='antFlag', metavar='antFlag', help='Antennas to flag out', default='')
@@ -38,14 +39,13 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X137905e_X23bcc'
+prefix = 'uid___A002_X1344b1c_X798f'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
 plotMap = True
-'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
@@ -167,8 +167,7 @@ for BandName in RXList:
     Gain =  np.array([np.apply_along_axis(gainComplex, 0, checkVis[0]), np.apply_along_axis(gainComplex, 0, checkVis[-1])])
     antCoh = np.array([np.median(abs(Gain[0,ant_index]* Gain[1,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)])
     Aeff = 8.0* kb* antCoh / (np.pi* antDia[useAntMap]**2)
-    for ant_index, ant in enumerate(useAntMap):
-        if abs(Aeff[ant_index] - np.median(Aeff)) > 0.25: flagAnt[ant] *= 0.0
+    flagAnt[[ant for ant_index,ant in enumerate(useAntMap) if abs(Aeff[ant_index] - np.median(Aeff)) > 0.25]] *= 0.0
     useAntMap = np.where(flagAnt > 0.0)[0].tolist(); useAntNum = len(useAntMap)
     useBlNum  = int(useAntNum* (useAntNum - 1) / 2); flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
     text_sd = '  Usable antennas (%d) : ' % (len(useAntMap))

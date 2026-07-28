@@ -697,6 +697,8 @@ def plotResidualMap(pp, scanDic, SPWDic):
     for scan in scanDic.keys():
         figIM, axes = plt.subplots(2, 2, figsize = (11, 8), sharex=True, sharey=True, gridspec_kw={'right':0.9})
         figIM.suptitle(scanDic[scan]['source'])
+        figIM.text(0.45, 0.05, 'Relative RA [arcsec]')
+        figIM.text(0.03, 0.45, 'Relative DEC [arcsec]', rotation=90)
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0]
         text_src  = '%s Scan%02d %s EL=%4.1f deg' % (scanDic[scan]['msfile'][:-3], scan, timeLabel, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         uv = repFreq* np.mean(scanDic[scan]['UVW'][:2], axis=2) / speed_of_light
@@ -728,17 +730,28 @@ def plotResidualMap(pp, scanDic, SPWDic):
         #-------- Plot residual Stokes map
         StokesRMS = np.std( StokesMap[3] )      # image rms in StokesV
         for index_Stokes, ax in enumerate(axes.ravel()):
-            im = ax.contourf(Map_l, Map_m, StokesMap[index_Stokes], levels=20, vmin=-5*StokesRMS, vmax=15*StokesRMS, cmap='viridis')
+            peakPos = np.array((np.where(StokesMap[0] == np.max(StokesMap[0]))))[:,0]   # position of peak in Stokes I
+            peakI   = StokesMap[0][peakPos[0],peakPos[1]]
+            SubComponent = (peakI > 7*np.std(np.std(StokesMap[0]))) & ((peakPos - np.array([cellNum,cellNum])).dot(peakPos - np.array([cellNum,cellNum])) > 100)  # Secondary peak
+            if SubComponent: text_src = text_src + ' Subcomponent at (%.1f %.1f) arcsec' % (Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]])
+            if index_Stokes == 0:
+                im = ax.contourf(Map_l, Map_m, StokesMap[0], levels=20, vmin=-5*StokesRMS, vmax=np.max(StokesMap[0]), cmap='viridis')
+                colorvar_I = figIM.add_axes([0.45, 0.50, 0.02, 0.40])
+                figIM.colorbar(im, cax=colorvar_I)
+                if SubComponent: ax.text(Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]], ' %.1f mJy' % (1000* StokesMap[0,peakPos[0],peakPos[1]]))
+                ax.text(mapSize, 1.25*mapSize, text_src)
+            else:
+                im = ax.contourf(Map_l, Map_m, StokesMap[index_Stokes], levels=20, vmin=-5*StokesRMS, vmax=15*StokesRMS, cmap='viridis')
+                if SubComponent: ax.text(Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]], ' %.1f mJy' % (1000* StokesMap[index_Stokes,peakPos[0],peakPos[1]]))
             ax.set_title('%s subtracted %.3f Jy' % (StokesComponents[index_Stokes], np.mean(scanDic[scan]['scanVis'][index_Stokes])))
             ax.plot(0.0, 0.0, 'w+')
+            if SubComponent: ax.plot(Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]], 'r+')
             ax.set_aspect('equal', adjustable='box')
-            ax.set_xlabel('arcsec'); ax.set_ylabel('arcsec'); 
             ax.set_xlim( cellSize*cellNum, -cellSize*cellNum)
             ax.set_ylim(-cellSize*cellNum,  cellSize*cellNum)
-            if index_Stokes == 0: ax.text(-mapSize, 1.15*mapSize, text_src)
-        colorvar_ax = figIM.add_axes([0.91, 0.09, 0.03, 0.7])
-        figIM.colorbar(im, cax=colorvar_ax)
-        colorvar_ax.set_title('Jy')
+        colorvar_P = figIM.add_axes([0.88, 0.10, 0.02, 0.40])
+        figIM.colorbar(im, cax=colorvar_P)
+        colorvar_P.set_title('Jy')
         figIM.savefig(pp, format='pdf')
     plt.close('all')
     pp.close()
