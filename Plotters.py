@@ -693,6 +693,7 @@ def plotFL(pp, scanDic, SPWDic):
     return
 #-------- Plot Stokes parameters vs uv distance
 def plotResidualMap(pp, scanDic, SPWDic):
+    NyquistRatio = 4    # oversampling in (u,v) space
     repFreq = np.mean([np.median(SPWDic['freq'][spw_index]) for spw_index, spw in enumerate( SPWDic['spw'] )])
     for scan in scanDic.keys():
         figIM, axes = plt.subplots(2, 2, figsize = (11, 8), sharex=True, sharey=True, gridspec_kw={'right':0.9})
@@ -702,7 +703,7 @@ def plotResidualMap(pp, scanDic, SPWDic):
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0]
         text_src  = '%s Scan%02d %s EL=%4.1f deg' % (scanDic[scan]['msfile'][:-3], scan, timeLabel, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         uv = repFreq* np.mean(scanDic[scan]['UVW'][:2], axis=2) / speed_of_light
-        cellSize = 0.125* RADSEC / np.sqrt(np.max(uv[0]**2 + uv[1]**2))
+        cellSize = RADSEC / np.sqrt(np.max(uv[0]**2 + uv[1]**2)) / (2* NyquistRatio)
         mapSize  = RADSEC / np.sqrt(np.min(uv[0]**2 + uv[1]**2))
         cellNum, blNum, spwNum = int(mapSize/cellSize), uv.shape[1], len(SPWDic['spw'])
         cellNum = 1 << (cellNum.bit_length() - 1)               # Round down to powers of 2
@@ -732,7 +733,7 @@ def plotResidualMap(pp, scanDic, SPWDic):
         for index_Stokes, ax in enumerate(axes.ravel()):
             peakPos = np.array((np.where(StokesMap[0] == np.max(StokesMap[0]))))[:,0]   # position of peak in Stokes I
             peakI   = StokesMap[0][peakPos[0],peakPos[1]]
-            SubComponent = (peakI > 7*np.std(np.std(StokesMap[0]))) & ((peakPos - np.array([cellNum,cellNum])).dot(peakPos - np.array([cellNum,cellNum])) > 100)  # Secondary peak
+            SubComponent = (peakI > 7*np.std(np.std(StokesMap[0]))) & ((peakPos - np.array([cellNum,cellNum])).dot(peakPos - np.array([cellNum,cellNum])) > NyquistRatio**2)  # Secondary peak
             if SubComponent: text_src = text_src + ' Secondary at (%.1f, %.1f) arcsec' % (Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]])
             if index_Stokes == 0:
                 im = ax.contourf(Map_l, Map_m, StokesMap[0], levels=10, vmin=-StokesRMS, vmax=np.max(StokesMap[0]), cmap='viridis')
