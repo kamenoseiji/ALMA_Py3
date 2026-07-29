@@ -123,7 +123,7 @@ XYspec = np.load('%s-REF%s-SC%d-SPW%d-XYspec.npy' % (prefix, refant, BPscan, spw
 BP_ant[:,1] *= XYspec
 BP_bl = BP_ant[ant0][:,polYindex]* BP_ant[ant1][:,polXindex].conjugate()    # Baseline-based bandpass table
 for scan_index, scan in enumerate(scanVisDic.keys()):
-    scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
+    scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, AZ, EL)
     scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
     if len(indexList(scanVisDic[scan]['mjdSec'], TS)) > 0 :
         scanAntFlag = FG[:, indexList(scanVisDic[scan]['mjdSec'], TS)]

@@ -143,7 +143,7 @@ scanList = onsourceScans
 relGain = np.ones([spwNum, 2, UseAntNum])
 polXindex, polYindex, scan_index = (arange(4)//2).tolist(), (arange(4)%2).tolist(), scanList.index(EQScan)
 interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], EQScan); timeNum = len(timeStamp)
-AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, refantID, AZ, EL)
+AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, AZ, EL)
 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; PA = np.arctan2( np.sin(PA), np.cos(PA))
 if len(StokesDic[EQcal]) > 0:
     StokesEQ = np.array(StokesDic[EQcal])
@@ -190,7 +190,7 @@ interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], BPScan); timeNum =
 if 'FG' in locals(): flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
 else: flagIndex = list(range(timeNum))
 #
-AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, refantID, AZ, EL)
+AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, AZ, EL)
 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; PA = np.arctan2( np.sin(PA), np.cos(PA))
 GainP, XYphase, caledVis = [], [], []
 DtermDic = {'mjdSec': np.median(timeStamp)}
@@ -289,8 +289,7 @@ for scan_index in list(range(scanNum)):
     if 'FG' in locals(): flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
     else: flagIndex = list(range(timeNum))
     #-------- Parallactic Angle
-    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
-    if np.max(ElScan) == 0.0: AzScan, ElScan = AzElMatch(timeStamp, azelTime, 0, refantID, AZ, EL)
+    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
     PA = (AzEl2PA(AzScan, ElScan) + BandPA[band_index])[flagIndex]; PAnum = len(PA); PS = InvPAVector(PA, np.ones(PAnum))
     PADic[sourceName] = PA.tolist()
     #-------- Plot Frame

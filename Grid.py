@@ -149,7 +149,7 @@ def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
             TauEList = TauEList + [residTskyTransfer0([Tau0Med], tempAtm, atmSecZ, np.median(Tsky, axis=0), atmEL) / (tempAtm - Tcmb)* np.exp(-Tau0Med* atmSecZ) / atmSecZ]
             SPList = SPList + [tauSMTH(atmTime, TauEList[spw_index])]   # interpolation along time
         else:
-            Tau0List = Tau0List + [-np.log(1.0 - Tsky/tempAtm)/atmSecZ]
+            Tau0List = Tau0List + [-np.log(1.0 - np.median(Tsky, axis=1)/tempAtm)/np.median(atmSecZ)]
             TauEList = TauEList + [np.array(0.0)]
     #-------- Applying Tsys and attenuation correction for each scan
     for scan_index, scan in enumerate(scanDic.keys()):

@@ -141,7 +141,7 @@ scanList = onsourceScans
 GainP, AeSeqX, AeSeqY = [], [], []  # effective area x flux density of the equalizer
 polXindex, polYindex, scan_index = (arange(4)//2).tolist(), (arange(4)%2).tolist(), onsourceScans.index(EQScan)
 interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], EQScan); timeNum = len(timeStamp)
-AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, refantID, AZ, EL)
+AzScan, ElScan = AzElMatch(timeStamp[flagIndex], azelTime, AntID, AZ, EL)
 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; PA = np.arctan2( np.sin(PA), np.cos(PA))
 if len(StokesDic[EQcal]) > 0:
     StokesEQ = np.array(StokesDic[EQcal])
@@ -207,7 +207,7 @@ SSO_flag = np.ones(SSONum)
 for sso_index in list(range(SSONum)):
     scan_index = indexList(np.array(SSOscanID), np.array(onsourceScans))[sso_index]
     interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], SSOscanID[sso_index]); timeNum = len(timeStamp)
-    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
+    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
     if (not BLCORR) and np.max(ElScan) < 30.0/180.0*pi : continue    # Too low Elevation
     SAantMap, SAblMap, SAblInv = subArrayIndex(uvFlag[sso_index], refantID) # in Canonical ordering
     if len(SAantMap) < 4: continue #  Too few antennas

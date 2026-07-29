@@ -131,7 +131,7 @@ for scan_index, scan in enumerate(scanVisDic.keys()):
     flagIndex = np.where(scanVisDic[scan]['flag'] > 0)[0].tolist()
     scanVisDic[scan]['index'] = list(range(startIndex, startIndex+len(flagIndex))); startIndex += len(flagIndex)
     scanVisDic[scan]['mjdSec'] = scanVisDic[scan]['mjdSec'][flagIndex]
-    scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, refAntID, AZ, EL)
+    scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'] = AzElMatch(scanVisDic[scan]['mjdSec'], azelTime, AntID, AZ, EL)
     scanVisDic[scan]['PA'] = AzEl2PA(scanVisDic[scan]['AZ'], scanVisDic[scan]['EL'], ALMA_lat) + BandPA
     scanVisDic[scan]['source'] = [source for source in scanDic.keys() if scan in scanDic[source]][0]
     scanVisDic[scan]['visSpec'] = (CrossPolBL(scanVisDic[scan]['visSpec'][:,:,blMap], blInv).transpose(3, 2, 0, 1) / BP_bl)[flagIndex].transpose(2,3,1,0) # bandpass cal

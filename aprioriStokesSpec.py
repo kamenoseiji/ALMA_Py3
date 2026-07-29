@@ -49,7 +49,7 @@ mjdSec, Az, El, PA = [], [], [], []
 for scan in scanList:
     interval, timeStamp = GetTimerecord(msfile, 0, 1, spw, scan)
     mjdSec = mjdSec + timeStamp.tolist()
-    scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, refAntID, AZ, EL)
+    scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
     scanPA = AzEl2PA(scanAz, scanEl, ALMA_lat) + BandPA
     Az, El, PA = Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
 #
@@ -301,7 +301,7 @@ if 'PolCalScans' in locals():
     mjdSec, Az, El = [], [], []
     for scan in PolCalScans:
         interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], scan)
-        scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
+        scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
         mjdSec = mjdSec + timeStamp.tolist()
         Az = Az + scanAz.tolist()
         El = El + scanEl.tolist()
@@ -378,7 +378,7 @@ for scan_index in range(scanNum):
     if 'FG' in locals(): flagIndex = np.where(FG[indexList(timeStamp, TS)] == 1.0)[0]
     else: flagIndex = range(timeNum)
     #-------- Parallactic Angle
-    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
+    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID,  AZ, EL)
     PA = (AzEl2PA(AzScan, ElScan) + BandPA[band_index])[flagIndex]; PAnum = len(PA)
     PS = InvPAVector(PA, np.ones(PAnum))
     BPCaledXspec, IList, PList = [], [], []

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from interferometry import GetAntName, GetAntPos, GetAzEl, GetAzOffset, GetChNum, GetPolQuery, GetSourceDic, AzElMatch, indexList, interValue, smoothGain, QUscale, AzEl2PA, simpleGaussFit
+from interferometry import GetAntName, GetAntPos, GetAzEl, GetAzOffset, GetChNum, GetPolQuery, GetSourceDic, indexList, interValue, smoothGain, QUscale, AzEl2PA, simpleGaussFit
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 RADSEC = np.pi/180/3600 # radian per arcsec
 CVEL   = 299792458      # spacetime constant

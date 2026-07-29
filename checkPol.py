@@ -117,7 +117,7 @@ for band_index in list(range(NumBands)):
             #
             for scanID in ScansDic[sourceName][file_index]:
                 interval, timeStamp = GetTimerecord(msfile, trialID, trialID, bpSPWList[file_index][0], scanID)
-                AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, trialID, AZ, EL)
+                AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
                 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]
                 PolAZ, PolEL, PolPA, refTime = PolAZ + AzScan.tolist(), PolEL + ElScan.tolist(),  PolPA + PA.tolist(), refTime + timeStamp.tolist()
                 text_sd = 'Scan %d : %s %s' % (scanID, qa.time('%fs' % (timeStamp[0]), form='fits', prec=6)[0][11:21], sourceName)

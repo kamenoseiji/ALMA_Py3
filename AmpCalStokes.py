@@ -59,7 +59,7 @@ EQflux = np.c_[np.exp(EQmodel[0]* np.log(centerFreqList) + EQmodel[1]), np.exp(E
 Ae     = np.c_[AeSeqX.T / EQflux[:,0], AeSeqY.T / EQflux[:,1]].reshape(UseAntNum, ppolNum, spwNum)
 #-------- XY phase using BP scan
 interval, timeStamp = GetTimerecord(msfile, 0, 0, spwList[0], BPScan); timeNum = len(timeStamp)
-AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
+AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
 PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; PA = np.arctan2( np.sin(PA), np.cos(PA))
 XYphase, caledVis = [], []
 DtermDic = {'mjdSec': np.median(timeStamp)}
@@ -135,8 +135,7 @@ for scan_index in list(range(scanNum)):
     timeNum = len(timeStamp)
     timeDic[sourceName] = list(range(timePointer, timePointer + timeNum))
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, refantID, AZ, EL)
-    if np.max(ElScan) == 0.0: AzScan, ElScan = AzElMatch(timeStamp, azelTime, 0, refantID, AZ, EL)
+    AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
     PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; PAnum = len(PA); PS = InvPAVector(PA, np.ones(PAnum))
     PADic[sourceName] = PA.tolist()
     #-------- Prepare plots

@@ -74,14 +74,7 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
     for scan_index, scan in enumerate(scanList):
         fieldID = msmd.fieldsforscan(scan)[0]
         sourceName = srcDic[fieldID]['Name']
-        probeAntID = 0
-        while True:
-            AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, probeAntID, AZ, EL)
-            if np.min(ElScan) < 0.1:
-                probeAntID += 1
-            else:
-                 break
-        #
+        AzScan, ElScan = AzElMatch(mjdList[scan_index], azelTime, AntID, AZ, EL)
         PA = AzEl2PA(AzScan, ElScan) + BandPA
         CS, SN, QCpUS, UCmQS = np.cos(2.0* PA), np.sin(2.0* PA), np.zeros(len(PA)), np.zeros(len(PA))
         StokesI, QCpUS, UCmQS = 0.0, 0.0, 0.0

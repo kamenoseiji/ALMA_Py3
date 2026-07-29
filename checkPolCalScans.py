@@ -93,9 +93,7 @@ for band_index, BandName in enumerate(UniqBands):
         fieldID = msmd.fieldsforscan(scan)[0]
         interval, timeStamp = GetTimerecord(msfile, 0, 0, bpspwLists[band_index][0], scan)
         AzScan, ElScan, ant_index = np.zeros(len(timeStamp)), np.zeros(len(timeStamp)), 0
-        while len(np.unique(AzScan)) < len(timeStamp):
-            AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, ant_index, AZ, EL)
-            ant_index += 1
+        AzScan, ElScan = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
         PA = AzEl2PA(AzScan, ElScan) + BandPA[band_index]; dPA = np.std(np.sin(PA)) #dPA = abs(np.sin(max(PA) - min(PA)))
         OnAZ = OnAZ + [np.median(AzScan)]
         OnEL = OnEL + [np.median(ElScan)]

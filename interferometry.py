@@ -311,15 +311,12 @@ def ecliptic2radec( longitude, latitude, mjd ):          # ecliptic -> J2000, mj
     return np.arctan2(Yb, Xb), np.arcsin(Zb)
 #
 #-------- MS data interface
-def AzElMatch( refTime, scanTime, AntID, targetAnt, Az, El ):
+def AzElMatch( refTime, scanTime, AntID, Az, El ):
+    antList = np.unique(AntID).tolist()
+    targetAnt = np.argmax(np.array([np.std(El[np.where(AntID == ant)[0].tolist()]) for ant in antList]))
     antTimeIndex = np.where(AntID == targetAnt)[0].tolist()
-    if len(antTimeIndex) == 0: antTimeIndex = np.where(AntID == 0)[0].tolist()
-    timeNum = len(refTime)
-    az, el = np.zeros(timeNum), np.zeros(timeNum)
-    for time_index in range(timeNum):
-        time_ptr = np.argmin( abs(scanTime[antTimeIndex] - refTime[time_index]) )
-        az[time_index], el[time_index] = np.median(Az[antTimeIndex[time_ptr]]), np.median(El[antTimeIndex[time_ptr]])
-    return az, el
+    time_ptr = [np.argmin(abs(scanTime[antTimeIndex] - now)) for now in refTime]
+    return Az[np.array(antTimeIndex)[time_ptr].tolist()], El[np.array(antTimeIndex)[time_ptr].tolist()]
 #
 #-------- Check the array structure in binary data
 def GetBaselineIndex(msfile, spwID, scanID): 

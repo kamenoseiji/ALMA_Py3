@@ -69,7 +69,7 @@ for spw_index, spw in enumerate(spwList):
         print('Scan%d %s : %.2f %.2f %.2f %.2f' % (scan, sourceName, StokesDic[sourceName][0],StokesDic[sourceName][1],StokesDic[sourceName][2],StokesDic[sourceName][3]))
         timeStamp, Pspec, Xspec = GetVisAllBL(msfile, spw, scan)  # Xspec[POL, CH, BL, TIME]
         del Pspec
-        scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, refAntID, AZ, EL)
+        scanAz, scanEl = AzElMatch(timeStamp, azelTime, AntID, AZ, EL)
         scanPA = AzEl2PA(scanAz, scanEl, ALMA_lat) + BandPA
         mjdSec, Az, El, PA = mjdSec + timeStamp.tolist(), Az + scanAz.tolist(), El + scanEl.tolist(), PA + scanPA.tolist()
         XspecList = XspecList + [Xspec]
