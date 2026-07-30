@@ -717,7 +717,7 @@ def plotResidualMap(pp, scanDic, SPWDic):
             for spw_index, spw in enumerate(SPWDic['spw']):
                 freq = np.median(SPWDic['freq'][spw_index])     # Hz
                 uv = freq* np.mean(scanDic[scan]['UVW'][:2], axis=2) / speed_of_light
-                StokesVis = (scanDic[scan]['StokesVis'][spw_index].T - np.array(scanDic[scan]['scanVis'])[:,spw_index]).T
+                StokesVis = (scanDic[scan]['StokesVis'][spw_index].T - scanDic[scan]['ScanFlux'][spw_index]).T
                 #StokesVis = scanDic[scan]['StokesVis'][spw_index]
                 uv_scale = uv/uvCellSize
                 for bl_index in scanDic[scan]['blFlag'][spw_index]:
@@ -744,7 +744,7 @@ def plotResidualMap(pp, scanDic, SPWDic):
             else:
                 im = ax.contourf(Map_l, Map_m, StokesMap[index_Stokes], levels=10, vmin=-5*StokesRMS, vmax=5*StokesRMS, cmap='viridis')
                 if SubComponent: ax.text(Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]], ' %.1f mJy' % (1000* StokesMap[index_Stokes,peakPos[0],peakPos[1]]))
-            ax.set_title('%s subtracted %.3f Jy' % (StokesComponents[index_Stokes], np.mean(scanDic[scan]['scanVis'][index_Stokes])))
+            ax.set_title('%s subtracted %.3f Jy' % (StokesComponents[index_Stokes], np.mean(scanDic[scan]['ScanFlux'][:,index_Stokes])))
             ax.plot(0.0, 0.0, 'w+')
             if SubComponent: ax.plot(Map_l[peakPos[0],peakPos[1]], Map_m[peakPos[0],peakPos[1]], 'r+')
             ax.set_aspect('equal', adjustable='box')

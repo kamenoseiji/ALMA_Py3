@@ -320,23 +320,18 @@ def Vis2Stokes(VisChav, Dcat, PA):
     return Stokes
 #-------- Linear regression for visibility-baseline relation
 def lmStokes(StokesVis, uvDist):
-    # StokesVis  : Stokes visibilities [Stokes, bl]
-    # uvDist     : Projected baseline length [bl]
     StokesFlux, StokesErr = np.zeros([4]), np.ones([4])
-    vismedian, percent80, sdvis = np.median(StokesVis[0].real), np.percentile(StokesVis[0].real, 80),  np.percentile(StokesVis[0].real, 95) - np.percentile(StokesVis[0].real, 68)
-    visFlag = np.where(abs(StokesVis[0].real - vismedian) < 3.0* sdvis )[0].tolist()      # 3-sigma critesion
-    weight = np.zeros(len(uvDist)); weight[visFlag] = 1.0/(np.var(StokesVis[0][visFlag].real)* uvDist[visFlag])
-    P, W = np.c_[np.ones(len(weight)), uvDist], np.diag(weight)
-    PtWP_inv = scipy.linalg.inv(P.T.dot(W.dot(P)))
-    solution, solerr = PtWP_inv.dot(P.T.dot(weight* StokesVis[0].real)),  np.sqrt(np.diag(PtWP_inv)) # solution[0]:intercept, solution[1]:slope
-    if abs(solution[1]) < 2.0* solerr[1]: solution[0], solution[1] = np.median(StokesVis[0][visFlag].real), 0.0
-    StokesFlux[0], StokesSlope, StokesErr[0] = solution[0], solution[1], solerr[0]
+    #-------- 1st look
+    coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, cov=True); coef_err = np.sqrt(np.diag(cov))
+    residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
+    visFlag = np.where((residVis > np.percentile(residVis, 10)) & (residVis < np.percentile(residVis, 90)))[0].tolist()   # filter by 10% percentile
+    #-------- 2nd look
+    coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, cov=True); coef_err = np.sqrt(np.diag(cov))
+    if abs(coef[0]) < 2.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0][visFlag]))
+    StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]
     for pol_index in [1,2,3]:
-        StokesFlux[pol_index] = StokesSlope * np.median(StokesVis[pol_index][visFlag].real)/StokesFlux[0]
-        solution[0] = weight.dot(StokesVis[pol_index].real)/np.sum(weight)
-        StokesFlux[pol_index] = solution[0]
-        resid = StokesVis[pol_index].real - solution[0]
-        StokesErr[pol_index] = np.sqrt(weight.dot(resid**2)/np.sum(weight))
+        coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index][visFlag].real / abs(StokesVis[0][visFlag].real), deg=0, cov=True)
+        StokesFlux[pol_index], StokesErr[pol_index] = coef[0], np.sqrt(cov[0,0])
     return StokesFlux, StokesSlope, StokesErr, visFlag
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):

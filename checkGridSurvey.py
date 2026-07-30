@@ -38,7 +38,7 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X11b91ad_X67c'
+prefix = 'uid___A002_X12b5566_X20c9'
 #prefix = 'uid___A002_X1344b1c_X798f'
 antFlag = []
 uvLimit = 5000
