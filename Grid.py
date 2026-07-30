@@ -322,9 +322,9 @@ def Vis2Stokes(VisChav, Dcat, PA):
 def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesErr = np.zeros([4]), np.ones([4])
     #-------- 1st look
-    coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, cov=True); coef_err = np.sqrt(np.diag(cov))
+    coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=uvDist, cov=True); coef_err = np.sqrt(np.diag(cov)) # small weights for short baselines (shadowed?)
     residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
-    visFlag = np.where((residVis > np.percentile(residVis, 10)) & (residVis < np.percentile(residVis, 90)))[0].tolist()   # filter by 10% percentile
+    visFlag = np.where((residVis > np.percentile(residVis, 15)) & (residVis < np.percentile(residVis, 95)))[0].tolist()   # filter by 10% percentile
     #-------- 2nd look
     coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, cov=True); coef_err = np.sqrt(np.diag(cov))
     if abs(coef[0]) < 2.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0][visFlag]))
