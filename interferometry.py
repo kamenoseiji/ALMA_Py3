@@ -1984,15 +1984,15 @@ def GridData( value, samp_x, samp_y, grid_x, grid_y, kernel ):
 #-------- ArrayCenterAntenna
 def bestRefant(uvDist, useantList=[]):
     blNum = len(uvDist)
-    antNum, ant0, ant1 = Bl2Ant(blNum)[0], ANT0[0:blNum], ANT1[0:blNum]
-    if len(useantList) == 0: useantList = range(antNum)
-    blCounter = np.zeros([antNum]); blCounter[useantList] += blNum
+    antNum = Bl2Ant(blNum)[0]
+    if useantList == []: useantList = list(range(antNum))
     distOrder = np.argsort(uvDist)
-    for bl_index in distOrder:
-        blCounter[ant0[bl_index]] += (blNum - bl_index)
-        blCounter[ant1[bl_index]] += (blNum - bl_index)
-        if np.max(blCounter) > 4* blNum: break
-    #
+    blCounter = np.zeros(antNum)
+    for blID in distOrder:
+        ant1, ant0 = Bl2Ant(blID)
+        if ant1 in useantList: blCounter[ant1] += 1
+        if ant0 in useantList: blCounter[ant0] += 1
+        if np.max(blCounter) > 1: break
     return np.argmax(blCounter)
 #
 #-------- SinglePol Visibility

@@ -38,7 +38,7 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X12b5566_X20c9'
+prefix = 'uid___A002_X11b91ad_X67c'
 #prefix = 'uid___A002_X1344b1c_X798f'
 antFlag = []
 uvLimit = 5000
@@ -78,6 +78,7 @@ if len(OnScanList) == 0: RXList = []
 msmd.open(msfile)
 spwNames = msmd.namesforspws(bpSPWs)
 for BandName in RXList:
+    if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
     BandbpSPW[BandName] = {'spw': [spw for spw_index,spw in enumerate(bpSPWs) if BandName in spwNames[spw_index]]}
     BandatmSPW[BandName]  = {'spw': [int(re.split('[SPW\.]', TrxFile)[3]) for TrxFile in TrxFileList if BandName in TrxFile] }
@@ -99,38 +100,35 @@ for BandName in RXList:
     else:
         checkScan = BPscan
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
-    flagAnt = np.ones([antNum])
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan))); chavSPWs.sort()
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
-    bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
-    if BLCORR: bunchNum = 1
+    #bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
+    #if BLCORR: bunchNum = 1
     for spw_index, spw in enumerate(chavSPWs):
         Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, BandatmSPW[BandName]['spw'][spw_index]))
-        flagAnt[np.where(np.min(np.median(Trx, axis=(1,3)), axis=0) < 5)[0].tolist()] = 0.0 # flag unrealistic Trx out
+        antFlag = antFlag + antList[np.where(np.min(np.median(Trx, axis=(1,3)), axis=0) < 5)[0].tolist()].tolist()  # flag unrealistic Trx out
         checkVis = XspecList[spw_index][0][[0,-1]][:,0]
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
         AV_bl = np.sum(AV_bl, axis=0)
-        errBL = list(set(np.where(AV_bl > 5.0)[0]) | set(np.where(np.median(abs(checkVis[0]), axis=1) > 5.0*np.median(abs(checkVis[0])))[0]) | set(np.where(np.median(abs(checkVis[1]), axis=1) > 5.0*np.median(abs(checkVis[1])))[0]))
-        if 0 < len(errBL) < 3 : # Single baseline error
-            flagSet = {}
-            for bl in errBL: flagSet = flagSet or set(Bl2Ant(bl))
-            antFlag = list(set(antFlag) | set(antList[list(flagSet)]))
-        else:                   # antenna-based flagging
-            errCount = np.zeros(Bl2Ant(len(AV_bl))[0])
-            for bl in errBL: errCount[list(Bl2Ant(bl))] += 1
-            antFlag = list(set(antFlag + antList[np.where(errCount > 1)[0].tolist()].tolist()))
-        #
-    flagAnt[indexList(antFlag, antList)] = 0.0
+        errBL = np.where( AV_bl > 7.0* np.median(AV_bl) )[0].tolist()
+        flagAntCount = np.unique(np.array([Bl2Ant(bl) for bl in errBL]), return_counts=True)
+        antFlag = antFlag + antList[flagAntCount[0][np.where(flagAntCount[1] > 2)[0].tolist()].tolist()].tolist()
+    antFlag = np.unique(np.array(antFlag)).tolist()
+    text_sd = '---Flagged by Trx and Allan Variance (%d): ' % (len(antFlag))
+    for ant in antFlag: text_sd = text_sd + '%s ' % (ant)
+    print(text_sd)
+    flagAnt = np.array([0.0 if ant in antFlag else 1.0 for ant in antList])
+    flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]
     useAntMap = np.where(flagAnt > 0.1)[0].tolist()
-    flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
+    useBlMap = np.where(flagBL > 0.1)[0].tolist()
     #--------
     srcDic = GetSourceDic(msfile)
     sourceList = list(dict.fromkeys([ srcDic[ID]['Name'] for ID in srcDic.keys() ]))
     SSOList   = indexList( np.array(SSOCatalog), np.array(sourceList))
-    if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
-    if BandName == 'RB_01': SSOList = []
-    SSOList = []
+    #if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
+    #if BandName == 'RB_01': SSOList = []
+    #SSOList = []
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
     #-------- Prepare log files
     logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
@@ -156,11 +154,7 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    if BPscan == 0:
-        checkScan = QSOscanList[np.argmax(np.array( [np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
-    else:
-        checkScan = BPscan
-    if not np.mean(np.array(scanDic[checkScan]['Tau'])) > -0.5 : continue
+    checkScan = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
     checkSource = scanDic[checkScan]['source']
     print('-----Check Scan %d : %s' % (checkScan, checkSource))
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
@@ -169,8 +163,10 @@ for BandName in RXList:
     antCoh = np.array([np.median(abs(Gain[0,ant_index]* Gain[1,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)])
     Aeff = 8.0* kb* antCoh / (np.pi* antDia[useAntMap]**2)
     flagAnt[[ant for ant_index,ant in enumerate(useAntMap) if abs(Aeff[ant_index] - np.median(Aeff)) > 0.25]] *= 0.0
-    useAntMap = np.where(flagAnt > 0.0)[0].tolist(); useAntNum = len(useAntMap)
-    useBlNum  = int(useAntNum* (useAntNum - 1) / 2); flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]; useBlMap = np.where(flagBL > 0.1)[0].tolist()
+    flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]
+    useAntMap = np.where(flagAnt > 0.0)[0].tolist()
+    useBlMap = np.where(flagBL > 0.0)[0].tolist()
+    useAntNum, useBlNum = len(useAntMap), len(useBlMap)
     text_sd = '  Usable antennas (%d) : ' % (len(useAntMap))
     for ants in antList[useAntMap].tolist(): text_sd = text_sd + ants + ' '
     print(text_sd)
@@ -178,13 +174,11 @@ for BandName in RXList:
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2); uvDist[useBlMap] *= 0.001
-    refantID = bestRefant(uvDist)
+    refantID = bestRefant(uvDist, useAntMap)
     print('Use %s as refant' % (antList[refantID]))
-    antMap = [refantID] + list(set(useAntMap) - set([refantID]))
-    useAntNum = len(antMap); useBlNum  = int(useAntNum* (useAntNum - 1) / 2)
+    antMap = [refantID] + [ant for ant in useAntMap if ant != refantID]
+    blMap, blInv = map(list, zip(*[Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]]) for bl_index in range(useBlNum)]))
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
-    blMap, blInv= list(range(useBlNum)), [False]* useBlNum
-    for bl_index, bl in enumerate(useBlMap): blMap[bl_index], blInv[bl_index]  = Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]])
     #-------- Remap baseline ordering
     for scan_index, scan in enumerate(BandScanList[BandName]):
         timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], scan)
