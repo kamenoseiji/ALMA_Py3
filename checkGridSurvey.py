@@ -38,7 +38,7 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X11b91ad_X67c'
+prefix = 'uid___A002_X12b5566_X20c9'
 #prefix = 'uid___A002_X1344b1c_X798f'
 antFlag = []
 uvLimit = 5000
@@ -110,7 +110,7 @@ for BandName in RXList:
         checkVis = XspecList[spw_index][0][[0,-1]][:,0]
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
-        AV_bl = np.sum(AV_bl, axis=0)
+        AV_bl = np.sum(AV_bl, axis=0)* antDia[ANT0[0:blNum]]*antDia[ANT1[0:blNum]]      # Aperture-scaled Allan Variance
         errBL = np.where( AV_bl > 7.0* np.median(AV_bl) )[0].tolist()
         flagAntCount = np.unique(np.array([Bl2Ant(bl) for bl in errBL]), return_counts=True)
         antFlag = antFlag + antList[flagAntCount[0][np.where(flagAntCount[1] > 2)[0].tolist()].tolist()].tolist()
