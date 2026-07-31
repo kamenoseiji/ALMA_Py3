@@ -328,13 +328,13 @@ def lmStokes(StokesVis, uvDist):
     residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
     #-------- 2nd look
     tmpWeight = 1.0/residVis
-    coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True); coef_err = np.sqrt(np.diag(cov))
+    visFlag = np.where((uvDist > 20) | (residVis < 3.0*np.std(residVis)))[0].tolist()  # Remove short-baseline outliers
+    coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, w=tmpWeight[visFlag], cov=True); coef_err = np.sqrt(np.diag(cov))
     residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
-    if blNum > 20: visFlag = np.where((uvDist < 20) & (residVis > 3.0*np.std(residVis)))[0].tolist() # Remove short-baseline outliers
-    if abs(coef[0]) < 3.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
+    if abs(coef[0]) < 7.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
     StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]
     for pol_index in [1,2,3]:
-        coef, cov = np.polyfit(uvDist, StokesFlux[0]*StokesVis[pol_index].real / abs(StokesVis[0].real), deg=0, cov=True)
+        coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index,visFlag].real / abs(StokesVis[0,visFlag].real), deg=0, cov=True)
         StokesFlux[pol_index], StokesErr[pol_index] = coef[0], np.sqrt(cov[0,0])
     return StokesFlux, StokesSlope, StokesErr, visFlag
 #-------- Smooth time-variable Tau
