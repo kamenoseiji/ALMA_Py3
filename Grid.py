@@ -322,16 +322,15 @@ def Vis2Stokes(VisChav, Dcat, PA):
 def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesErr, blNum = np.zeros([4]), np.ones([4]), len(uvDist)
     #-------- 1st look
-    tmpWeight = np.ones(blNum)
+    tmpWeight = StokesVis[0].real / np.std(StokesVis[0].imag)
     if blNum > 20: tmpWeight[np.where(uvDist < 20)[0].tolist()] *= 0.1              # possibly shadowed
     coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True) # small weights for short baselines (shadowed?)
-    residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
+    residVis = abs(StokesVis[0]) - np.polyval(coef, uvDist)
     #-------- 2nd look
-    tmpWeight = 1.0/residVis
-    visFlag = np.where((uvDist > 20) | (residVis < 3.0*np.std(residVis)))[0].tolist()  # Remove short-baseline outliers
+    visFlag = np.where((uvDist > 20) | (abs(residVis) < 3.0*np.std(residVis)))[0].tolist()  # Remove short-baseline outliers
+    blNum = len(visFlag)
     coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, w=tmpWeight[visFlag], cov=True); coef_err = np.sqrt(np.diag(cov))
-    residVis = abs(StokesVis[0]) - (coef[1] + coef[0]* uvDist)
-    if abs(coef[0]) < 7.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
+    if abs(coef[0]) < 3.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
     StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]
     for pol_index in [1,2,3]:
         coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index,visFlag].real / abs(StokesVis[0,visFlag].real), deg=0, cov=True)
