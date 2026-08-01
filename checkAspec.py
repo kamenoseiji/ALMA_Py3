@@ -26,8 +26,8 @@ spwList = [35,37]
 #-------- Procedures
 msfile = prefix + '.ms'
 antList = GetAntName(msfile)
-#plotAntList = antList if options.antName == '' else [ant for ant in options.antName.split(',')]
-plotAntList = antList
+plotAntList = antList if options.antName == '' else [ant for ant in options.antName.split(',')]
+#plotAntList = antList
 antNum = len(plotAntList)
 scanNum = len(scanList)
 spwNum = len(spwList)
