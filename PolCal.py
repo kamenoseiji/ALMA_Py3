@@ -90,6 +90,7 @@ def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
             'msfile': msfile,
             'source': sourceName,
             'mjdSec': mjdList[scan_index],
+            'AZ'    : AzScan,
             'EL'    : ElScan,
             'PA'    : PA,
             'SA'    : srcDic[fieldID]['SA'],

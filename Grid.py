@@ -114,6 +114,35 @@ def AeNominal(msfile, antList):
     msmd.close()
     msmd.done()
     return 0.72* 0.25* np.pi* antDia**2      # Nominal Collecting Area
+def ArrayAltAz(msfile):            # Antenna position in Alt-Az coordinates relative to the array center (EW, NS, H)
+    from interferometry import GetAntName, GetAntPos, GetAntD
+    antList = GetAntName(msfile)
+    antPos  = GetAntPos(msfile)
+    antDia  = GetAntD(antList)
+    antDic = dict(zip(antList, [[]]* len(antList)))
+    refVector  = np.mean(antPos, axis=1)                        # Array reference position
+    refVector_n = refVector/np.sqrt(refVector.dot(refVector))   # Normal vector 
+    antRelPos = (antPos.T - refVector).T
+    #---- (X,Y,Z) -> (EW, NS, H)
+    R_xy, R_z = np.sqrt(refVector_n[:2].dot(refVector_n[:2])), refVector_n[2]
+    CS, SN = refVector_n[0]/R_xy, refVector_n[1]/R_xy
+    Rm = np.array([ [R_z*CS, R_z*SN, -R_xy], [-SN,  CS, 0.0], [R_xy*CS, R_xy*SN, R_z]])    # Rotation matrix
+    ENpos = np.array([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]).dot(Rm.dot(antRelPos)) # East-West, North-South, Height
+    for ant_index, ant in enumerate(antDic.keys()): antDic[ant] = {'EN' : ENpos[:,ant_index], 'Dia' : antDia[ant_index] }
+    return antDic
+def AntShadow(antDic, az, el):        # Shadowing at az, el (rad)
+    directionVector = np.array([np.cos(el)*np.sin(az), np.cos(el)*np.cos(az), np.sin(el)])
+    antList = list(antDic.keys())
+    for ant in antDic.keys():
+        nearAntList = [otherAnt for otherAnt in antList if (otherAnt != ant) & ((antDic[otherAnt]['EN'] - antDic[ant]['EN']).dot(antDic[otherAnt]['EN'] - antDic[ant]['EN']) < (antDic[otherAnt]['Dia']* (1 + 1/np.tan(el)))**2)]
+        if len(nearAntList) < 1: antDic[ant]['Shadow'] = 0.0; continue
+        blVec = [(antDic[otherAnt]['EN'] - antDic[ant]['EN']) for otherAnt in nearAntList]
+        frontA= [blVec[other_index].dot(directionVector) for other_index, otherAnt in enumerate(nearAntList)]   # positive -> front side (shadow), negative -> backside (not shadow)
+        projBL= [blVec[other_index] - frontA[other_index]*directionVector for other_index, otherAnt in enumerate(nearAntList)]  # Projected baseline vector from the source
+        projSep = [np.sqrt(projBL[other_index].dot(projBL[other_index])) for other_index, otherAnt in enumerate(nearAntList)]   # Projected baseline lengthf
+        shadowFrac = [(0.5*(antDic[ant]['Dia'] + antDic[otherAnt]['Dia']) - projSep[other_index])/projSep[other_index] for other_index, otherAnt in enumerate(nearAntList)] 
+        antDic[ant]['Shadow'] = np.max(np.array([shadowFrac[other_index] if shadowFrac[other_index] > 0 and frontA[other_index] > 0 else 0 for other_index, otherAnt in enumerate(nearAntList)]))
+    return antDic
 #-------- Apply Tsys calibration to visibilities
 def applyTsysCal(prefix, BandName, BandbpSPW, scanDic, SSODic, XspecList):
     from interferometry import ANT0, ANT1, Ant2Bl, kb, Tcmb, GetAntName, GetAntD, GetTemp, indexList, smoothValue
@@ -322,12 +351,11 @@ def Vis2Stokes(VisChav, Dcat, PA):
 def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesErr, blNum = np.zeros([4]), np.ones([4]), len(uvDist)
     #-------- 1st look
-    tmpWeight = StokesVis[0].real / np.std(StokesVis[0].imag)
-    if blNum > 20: tmpWeight[np.where(uvDist < 20)[0].tolist()] *= 0.1              # possibly shadowed
+    tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
     coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True) # small weights for short baselines (shadowed?)
     residVis = abs(StokesVis[0]) - np.polyval(coef, uvDist)
     #-------- 2nd look
-    visFlag = np.where((uvDist > 20) | (abs(residVis) < 3.0*np.std(residVis)))[0].tolist()  # Remove short-baseline outliers
+    visFlag = np.where(abs(residVis) < 3.0*np.std(residVis))[0].tolist()  # Remove outliers
     blNum = len(visFlag)
     coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, w=tmpWeight[visFlag], cov=True); coef_err = np.sqrt(np.diag(cov))
     if abs(coef[0]) < 7.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
@@ -335,7 +363,7 @@ def lmStokes(StokesVis, uvDist):
     for pol_index in [1,2,3]:
         coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index,visFlag].real / abs(StokesVis[0,visFlag].real), deg=0, cov=True)
         StokesFlux[pol_index], StokesErr[pol_index] = coef[0], np.sqrt(cov[0,0])
-    return StokesFlux, StokesSlope, StokesErr, visFlag
+    return StokesFlux, StokesSlope, StokesErr
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:
@@ -349,6 +377,5 @@ def tauSMTH( timeSample, TauE ):
         tempTime = np.arange(np.min(timeSample) - 3600.0,  np.max(timeSample) + 3600.0, 300.0)
         tempTauE = np.repeat(np.median(TauE), len(tempTime))
         smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3)
-    #
     return smthTau
 #

@@ -38,7 +38,7 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X12e6550_X30b2'
+prefix = 'uid___A002_X137905e_X23bcc'
 #prefix = 'uid___A002_X1344b1c_X798f'
 antFlag = []
 uvLimit = 5000
@@ -62,6 +62,7 @@ if BLCORR: ELshadow = 30.0* np.pi/180.0
 #-------- Check Antenna List
 antList = GetAntName(msfile)
 antDia = GetAntD(antList)
+antDic = ArrayAltAz(msfile) # Antenna position in (E,N,H) coordinates, relative to the array center
 antNum = len(antList)
 blNum = int(antNum* (antNum - 1) / 2)
 polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -148,6 +149,10 @@ for BandName in RXList:
     StokesDic, SSODic = GetSSOFlux(StokesDic, qa.time('%fs' % (timeStampList[0][0]), form='ymd')[0], [1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]) for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])])
     #-------- Polarization responses per scan
     scanDic = PolResponse(msfile, srcDic, StokesDic, BandPA[BandName], BandScanList[BandName], timeStampList)
+    #-------- Identity shadowed antennas
+    for scan in scanDic.keys(): 
+        antDic = AntShadow(antDic, np.median(scanDic[scan]['AZ']), np.median(scanDic[scan]['EL']))
+        scanDic[scan]['Shadow'] = [ant for ant in antDic.keys() if antDic[ant]['Shadow'] > 0.05]
     QSOscanList = [scan for scan in scanDic.keys() if scanDic[scan]['I'] > 0.01 ]
     #-------- Apply Tsys calibration
     scanDic, XspecList = applyTsysCal(prefix, BandName, BandbpSPW[BandName], scanDic, SSODic, XspecList)
@@ -390,12 +395,17 @@ for BandName in RXList:
     #-------- Store Stokes parameters into scanDic
     for scan_index, scan in enumerate(scanDic.keys()):
         scanFlag  = scanDic[scan]['scanFlag']
+        flagAnt = np.ones(useAntNum)
+        shadowAnts = indexList(scanDic[scan]['Shadow'], antList[antMap])
+        flagAnt[shadowAnts] *= 0.1
+        flagBL = flagAnt[ANT0[0:useBlNum]]* flagAnt[ANT1[0:useBlNum]]
+        unShadowBL = [bl for bl in list(range(len(flagBL))) if flagBL[bl] > 0.5]
         uvw = np.mean(scanDic[scan]['UVW'], axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
         if len(scanFlag) == 0: continue
         sourceName = scanDic[scan]['source']
         text_src  = ' %02d %010s EL=%4.1f deg' % (scan, sourceName, 180.0* np.median(scanDic[scan]['EL'])/np.pi)
         timeLabel = qa.time('%fs' % np.median(scanDic[scan]['mjdSec']), form='ymd')[0] + ' SA=%.1f' % (scanDic[scan]['SA']) + ' deg.'
-        StokesVisList, visChavList, blFlag = [], [], []
+        StokesVisList, visChavList = [], []
         ScanFlux, ErrFlux, ScanSlope = np.zeros([len(BandbpSPW[BandName]['spw']), 4]), np.zeros([len(BandbpSPW[BandName]['spw']), 4]), np.zeros(len(BandbpSPW[BandName]['spw']))
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
             text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW[BandName]['freq'][spw_index]))
@@ -406,14 +416,13 @@ for BandName in RXList:
             #-------- SSO visibility to correct by model
             if sourceName in FscaleDic.keys(): StokesVis *= (SSODic[sourceName][1][spw_index] / FscaleDic[sourceName]['model'][spw_index])
             #-------- Linear regression to determine zero-spacing visibilities
-            ScanFlux[spw_index], ScanSlope[spw_index], ErrFlux[spw_index], visFlag = lmStokes(StokesVis, uvDist)
-            blFlag = blFlag + [visFlag]
+            ScanFlux[spw_index], ScanSlope[spw_index], ErrFlux[spw_index] = lmStokes(StokesVis[:,unShadowBL], uvDist[unShadowBL])
             for pol_index in list(range(4)):
                 text_Stokes[spw_index] = text_Stokes[spw_index] + ' %7.4f (%.4f) ' % (ScanFlux[spw_index, pol_index], ErrFlux[spw_index, pol_index])
             text_Stokes[spw_index] = text_Stokes[spw_index] + '%6.3f   %6.1f ' % (100.0* np.sqrt(ScanFlux[spw_index, 1]**2 + ScanFlux[spw_index, 2]**2)/ScanFlux[spw_index, 0], np.arctan2(ScanFlux[spw_index, 2],ScanFlux[spw_index, 1])*90.0/np.pi)
         #---- Update scanDic record entry
         CS, SN = np.cos(2.0* scanDic[scan]['PA']), np.sin(2.0* scanDic[scan]['PA'])
-        scanDic[scan]['blFlag'] = blFlag
+        scanDic[scan]['blFlag'] = unShadowBL
         scanDic[scan]['ScanFlux'] = ScanFlux        # ScanFlux[spw,pol]
         scanDic[scan]['QCpUS'] = [ScanFlux[spw_index, 1]* CS + ScanFlux[spw_index, 2]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]
         scanDic[scan]['UCmQS'] = [ScanFlux[spw_index, 2]* CS - ScanFlux[spw_index, 1]* SN for spw_index, spw in enumerate(BandbpSPW[BandName]['spw'])]

@@ -649,11 +649,11 @@ def plotFL(pp, scanDic, SPWDic):
         uvMin, uvMax, IMax = min(uvDist), max(uvDist), np.max(scanDic[scan]['ScanFlux'][:,0])
         axes[0,0].text(0.0, 1.15*180, text_src)
         axes[0,3].text(0.0, 1.15*180, timeLabel)
+        blFlag = scanDic[scan]['blFlag']
         for spw_index, spw in enumerate(SPWDic['spw']):
             StokesVis = scanDic[scan]['StokesVis'][spw_index]
             ScanFlux = scanDic[scan]['ScanFlux'][spw_index]
             ScanSlope = scanDic[scan]['uvSlope'][spw_index]* ScanFlux / ScanFlux[0]
-            blFlag = scanDic[scan]['blFlag'][spw_index]
             #flagOut = list(set(range(len(uvDist))) - set(blFlag)).sort()
             #-------- Plot Stokes visibilities
             axes[0,spw_index].plot( np.array([0.0, uvMax]), np.array([0.0, 0.0]), '-', color='grey')        # phase-0 line
@@ -720,7 +720,7 @@ def plotResidualMap(pp, scanDic, SPWDic):
                 StokesVis = (scanDic[scan]['StokesVis'][spw_index].T - scanDic[scan]['ScanFlux'][spw_index]).T
                 #StokesVis = scanDic[scan]['StokesVis'][spw_index]
                 uv_scale = uv/uvCellSize
-                for bl_index in scanDic[scan]['blFlag'][spw_index]:
+                for bl_index in scanDic[scan]['blFlag']:
                     UVMap[(cellNum + round(uv_scale[1,bl_index]))^cellNum, (cellNum + round(uv_scale[0,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index]
                     UVMap[(cellNum - round(uv_scale[1,bl_index]))^cellNum, (cellNum - round(uv_scale[0,bl_index]))^cellNum] += StokesVis[Stokes_index,bl_index].conjugate()
                     UVnum[(cellNum + round(uv_scale[1,bl_index]))^cellNum, (cellNum + round(uv_scale[0,bl_index]))^cellNum] += 1
