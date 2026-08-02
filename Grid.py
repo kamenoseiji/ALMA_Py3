@@ -14,8 +14,7 @@ SSOscore   = [
 [10.0,     9.0,       5.0,        5.0,        7.0,     4.0,  4.0,      3.0,     0.7,     0.7,     1.0,    1.0,      1.0],   # Band 7
 [ 5.0,     6.0,       7.0,        7.0,        7.0,     8.0,  4.0,      3.0,     0.7,     0.7,     1.0,    1.0,      1.0],   # Band 8
 [ 2.0,     3.0,       7.0,        7.0,        7.0,     9.0,  4.0,     10.0,     7.0,     4.0,     1.0,    1.0,      1.0]]   # Band 9
-ELshadow = math.pi* 35.0 / 180.0
-#ELshadow = math.pi* 65.0 / 180.0
+ELshadow = math.pi* 40.0 / 180.0    # EL to avoid refscan
 SunAngleThresh = 5.0
 #-- Acceptable opacity       B3   B4    B5   B6   B7   B8,  B9, B10
 TauLimit = [0.0,  0.1, 0.1, 0.2, 0.2, 0.25, 0.5, 0.5, 0.5, 0.5, 0.6]
@@ -292,7 +291,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
             Wg[SA] = np.sign(Aeff[:, ant_index])* np.median(abs(SSOmodelVis))
         if np.median(Ae) > 0.99 : Wg *= 1.0e-6
         if np.median(Ae) < 0.19 : Wg *= 1.0e-2
-        if np.median(scanDic['EL']) < ELshadow : Wg *= 1.0e-1
+        if np.median(scanDic['EL']) < ELshadow : Wg *= 0.01
         AeSPW = AeSPW + [Ae]
         WgSPW = WgSPW + [Wg]
         SSOmodel = SSOmodel + [SSOmodelVis]

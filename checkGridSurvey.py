@@ -58,7 +58,6 @@ RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
 BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
-if BLCORR: ELshadow = 30.0* np.pi/180.0
 #-------- Check Antenna List
 antList = GetAntName(msfile)
 antDia = GetAntD(antList)
