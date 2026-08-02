@@ -313,7 +313,7 @@ def ecliptic2radec( longitude, latitude, mjd ):          # ecliptic -> J2000, mj
 #-------- MS data interface
 def AzElMatch( refTime, scanTime, AntID, Az, El ):
     antList = np.unique(AntID).tolist()
-    targetAnt = np.argmax(np.array([np.std(El[np.where(AntID == ant)[0].tolist()]) for ant in antList]))
+    targetAnt = np.argsort([np.ptp(El[np.where(AntID == ant)[0].tolist()]) for ant in antList])[int(len(antList)/2)]
     antTimeIndex = np.where(AntID == targetAnt)[0].tolist()
     time_ptr = [np.argmin(abs(scanTime[antTimeIndex] - now)) for now in refTime]
     return Az[np.array(antTimeIndex)[time_ptr].tolist()], El[np.array(antTimeIndex)[time_ptr].tolist()]
