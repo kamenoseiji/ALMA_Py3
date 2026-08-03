@@ -35,7 +35,9 @@ uvLimit = int(options.uvLimit)
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
 Apriori = options.Apriori
-plotMap = options.Map
+PLOTMAP = options.Map
+PLOTFL  = PLOTMAP
+PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
 prefix = 'uid___A002_X12bc4e5_Xa5a3'
@@ -456,7 +458,7 @@ for BandName in RXList:
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
         text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
     #-------- Plot Stokes parameters vs uv distance
-    pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf'); plotFL(pp, scanDic, BandbpSPW[BandName])
+    if PLOTFL: pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf'); plotFL(pp, scanDic, BandbpSPW[BandName])
     #-------- Review D-term
     Dterm = np.zeros([useAntNum, len(BandbpSPW[BandName]['spw']), 2], dtype=complex)
     DtermDic = {'mjdSec': np.median(timeStamp)}
@@ -504,8 +506,6 @@ for BandName in RXList:
         if 'StokesVis' in scanDic[scan].keys():
             scanDic[scan]['scanVis'] = np.mean(np.array(scanDic[scan]['StokesVis']), axis=2).real.T
             scanDic[scan]['visChav'] = np.mean(np.array(scanDic[scan]['visChav']), axis=(0, 2))
-    pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName)); plotQUXY(pp, scanDic)
-    if plotMap:
-        pp = PdfPages('MP_' + prefix + '_' + BandName + '.pdf')
-        plotResidualMap(pp, scanDic, BandbpSPW[BandName])
+    if PLOTQU: pp = PdfPages('QU-%s-%s.pdf' % (prefix,BandName)); plotQUXY(pp, scanDic)
+    if PLOTMAP: pp = PdfPages('MP_' + prefix + '_' + BandName + '.pdf'); plotResidualMap(pp, scanDic, BandbpSPW[BandName])
 msmd.close()
