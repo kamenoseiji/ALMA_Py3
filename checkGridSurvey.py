@@ -30,7 +30,7 @@ parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply
 (options, args) = parser.parse_args()
 #-------- Check options
 prefix  = options.uid.replace("/", "_").replace(":","_").replace(" ","")
-antFlag = [ant for ant in options.antFlag.split(',')]
+antFlag = [ant for ant in options.antFlag.split(',') if ant != '']
 uvLimit = int(options.uvLimit)
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
@@ -107,12 +107,12 @@ for BandName in RXList:
         checkVis = XspecList[spw_index][0][[0,-1]][:,0]
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
-        AV_bl = np.sum(AV_bl, axis=0)
+        AV_bl = np.sum(AV_bl, axis=0)* antDia[ANT0[0:blNum]]*antDia[ANT1[0:blNum]]
         for badAnt in antFlag:
             badAntIndex = np.where(antList==badAnt)[0][0]
             badBL = [Ant2Bl(badAntIndex, index) for index in list(range(antNum)) if index != badAntIndex]
             AV_bl[badBL] = np.median(AV_bl) 
-        errBL = np.where(AV_bl > 5.0* np.median(AV_bl))[0].tolist()
+        errBL = np.where(AV_bl > 25.0* np.median(AV_bl))[0].tolist()
         while len(errBL) > 0:
             flagAntCount = np.unique([Bl2Ant(bl) for bl in errBL], return_counts=True) 
             badAnt = antList[flagAntCount[0][np.argmax(flagAntCount[1])]]
@@ -121,7 +121,7 @@ for BandName in RXList:
                 badAntIndex = np.where(antList==badAnt)[0][0]
                 badBL = [Ant2Bl(badAntIndex, index) for index in list(range(antNum)) if index != badAntIndex]
                 AV_bl[badBL] = np.median(AV_bl)
-            errBL = np.where( AV_bl > 5.0* np.median(AV_bl) )[0].tolist()
+            errBL = np.where( AV_bl > 25.0* np.median(AV_bl) )[0].tolist()
     antFlag = np.unique(np.array(antFlag)).tolist()
     text_sd = '---Flagged by Trx and Allan Variance (%d): ' % (len(antFlag))
     for ant in antFlag: text_sd = text_sd + '%s ' % (ant)
