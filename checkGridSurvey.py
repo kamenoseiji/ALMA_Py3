@@ -38,8 +38,7 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13a3180_X172c5'
-#prefix = 'uid___A002_X1344b1c_X798f'
+prefix = 'uid___A002_X105715f_X1c8b'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
@@ -102,18 +101,27 @@ for BandName in RXList:
     print('---Checking usable antennas for %s by ASD in Scan %d' % (BandName, checkScan))
     chavSPWs = list((set(msmd.chanavgspws()) - set(msmd.almaspws(sqld=True)) - set(msmd.almaspws(wvr=True))) & set(msmd.spwsforscan(checkScan))); chavSPWs.sort()
     timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecList[spw][scan] [corr, ch, bl, time]
-    #bunchNum = 8 if XspecList[0][0].shape[3] > 30 else max(1, int(XspecList[0][0].shape[3]/3))
-    #if BLCORR: bunchNum = 1
     for spw_index, spw in enumerate(chavSPWs):
         Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, BandatmSPW[BandName]['spw'][spw_index]))
         antFlag = antFlag + antList[np.where(np.min(np.median(Trx, axis=(1,3)), axis=0) < 5)[0].tolist()].tolist()  # flag unrealistic Trx out
         checkVis = XspecList[spw_index][0][[0,-1]][:,0]
         AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
         plotBLAV(prefix, antList, spw, AV_bl)
-        AV_bl = np.sum(AV_bl, axis=0)* antDia[ANT0[0:blNum]]*antDia[ANT1[0:blNum]]      # Aperture-scaled Allan Variance
-        errBL = np.where( AV_bl > 7.0* np.median(AV_bl) )[0].tolist()
-        flagAntCount = np.unique(np.array([Bl2Ant(bl) for bl in errBL]), return_counts=True)
-        antFlag = antFlag + antList[flagAntCount[0][np.where(flagAntCount[1] > 2)[0].tolist()].tolist()].tolist()
+        AV_bl = np.sum(AV_bl, axis=0)
+        for badAnt in antFlag:
+            badAntIndex = np.where(antList==badAnt)[0][0]
+            badBL = [Ant2Bl(badAntIndex, index) for index in list(range(antNum)) if index != badAntIndex]
+            AV_bl[badBL] = np.median(AV_bl) 
+        errBL = np.where(AV_bl > 5.0* np.median(AV_bl))[0].tolist()
+        while len(errBL) > 0:
+            flagAntCount = np.unique([Bl2Ant(bl) for bl in errBL], return_counts=True) 
+            badAnt = antList[flagAntCount[0][np.argmax(flagAntCount[1])]]
+            antFlag = list(set(antFlag + [badAnt]))
+            for badAnt in antFlag:
+                badAntIndex = np.where(antList==badAnt)[0][0]
+                badBL = [Ant2Bl(badAntIndex, index) for index in list(range(antNum)) if index != badAntIndex]
+                AV_bl[badBL] = np.median(AV_bl)
+            errBL = np.where( AV_bl > 5.0* np.median(AV_bl) )[0].tolist()
     antFlag = np.unique(np.array(antFlag)).tolist()
     text_sd = '---Flagged by Trx and Allan Variance (%d): ' % (len(antFlag))
     for ant in antFlag: text_sd = text_sd + '%s ' % (ant)
