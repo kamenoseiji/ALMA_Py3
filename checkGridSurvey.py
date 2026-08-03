@@ -38,13 +38,13 @@ Apriori = options.Apriori
 plotMap = options.Map
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X105715f_X1c8b'
+prefix = 'uid___A002_X12bc4e5_Xa5a3'
 antFlag = []
 uvLimit = 5000
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
-plotMap = True
+plotMap = False
 '''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)

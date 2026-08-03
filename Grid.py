@@ -357,7 +357,7 @@ def lmStokes(StokesVis, uvDist):
     visFlag = np.where(abs(residVis) < 3.0*np.std(residVis))[0].tolist()  # Remove outliers
     blNum = len(visFlag)
     coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, w=tmpWeight[visFlag], cov=True); coef_err = np.sqrt(np.diag(cov))
-    if abs(coef[0]) < 7.0* coef_err[0]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
+    if abs(coef[0]) < 3.0* coef_err[0] and coef[0]*np.max(uvDist) < -0.75*coef[1]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
     StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]
     for pol_index in [1,2,3]:
         coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index,visFlag].real / abs(StokesVis[0,visFlag].real), deg=0, cov=True)
