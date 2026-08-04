@@ -42,7 +42,7 @@ PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X1115718_X110cb'
+prefix = 'uid___A002_X106f040_X3526'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -58,7 +58,6 @@ tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
 os.system('casa --nologger --agg -c ' + SCR_DIR + 'SysCalTrx.py -u %s' % (prefix))
-#os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
 TrxFileList = glob.glob(prefix + '*Trx.npy')
 RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
@@ -193,7 +192,7 @@ for BandName in RXList:
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.percentile(antDia, 0.5)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
+    refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.median(antDia)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
     print('Use %s as refant' % (antList[refantID]))
     antMap = [refantID] + [ant for ant in useAntMap if ant != refantID]
     blMap, blInv = map(list, zip(*[Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]]) for bl_index in range(useBlNum)]))
