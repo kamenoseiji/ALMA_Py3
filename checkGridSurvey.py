@@ -26,12 +26,14 @@ parser.add_option('-Q',  dest='QUMODEL', metavar='QUMODEL', help='Initial Q,U fr
 parser.add_option('-U',  dest='uvLimit', metavar='uvLimit', help='(u, v) limet [m]', default='5000')
 parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to refer', default='0')
 parser.add_option('-m',  dest='Map',     metavar='Map',     help='Save redisual map', action='store_true')
+parser.add_option('-R', dest='refant', metavar='refant',    help='reference antenna', default='')
 parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply Tsys digital correction', action='store_true')
 (options, args) = parser.parse_args()
 #-------- Check options
 prefix  = options.uid.replace("/", "_").replace(":","_").replace(" ","")
 antFlag = [ant for ant in options.antFlag.split(',') if ant != '']
-uvLimit = int(options.uvLimit)
+uvLimit = int(options.uvLimit) 
+refant  = options.refant
 BPscan  = int(options.Scan)
 QUMODEL = options.QUMODEL
 Apriori = options.Apriori
@@ -40,13 +42,16 @@ PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X12bc4e5_Xa5a3'
+prefix = 'uid___A002_X1115718_X110cb'
 antFlag = []
 uvLimit = 5000
+refant  = ''
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
-plotMap = False
+PLOTMAP = False
+PLOTFL = True
+PLOTQU = False
 '''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
@@ -187,8 +192,8 @@ for BandName in RXList:
     if useAntNum < 4: continue
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
-    uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2); uvDist[useBlMap] *= 0.001
-    refantID = bestRefant(uvDist, useAntMap)
+    uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
+    refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.percentile(antDia, 0.5)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
     print('Use %s as refant' % (antList[refantID]))
     antMap = [refantID] + [ant for ant in useAntMap if ant != refantID]
     blMap, blInv = map(list, zip(*[Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]]) for bl_index in range(useBlNum)]))

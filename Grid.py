@@ -351,16 +351,20 @@ def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesErr, blNum = np.zeros([4]), np.ones([4]), len(uvDist)
     #-------- 1st look
     tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
+    tmpWeight[np.where(abs(StokesVis[0]) < np.median(abs(StokesVis[0])))[0].tolist()] *= 0.5
+    tmpWeight[np.where(abs(StokesVis[0]) < np.percentile(abs(StokesVis[0]), 25))[0].tolist()] *= 0.5
     coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True) # small weights for short baselines (shadowed?)
     residVis = abs(StokesVis[0]) - np.polyval(coef, uvDist)
     #-------- 2nd look
-    visFlag = np.where(abs(residVis) < 3.0*np.std(residVis))[0].tolist()  # Remove outliers
-    blNum = len(visFlag)
-    coef, cov = np.polyfit(uvDist[visFlag], abs(StokesVis[0,visFlag]), deg=1, w=tmpWeight[visFlag], cov=True); coef_err = np.sqrt(np.diag(cov))
+    tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
+    tmpWeight[np.where(abs(residVis) > 3.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
+    tmpWeight[np.where(abs(residVis) > 5.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
+    tmpWeight[np.where(abs(residVis) >20.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.1
+    coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True); coef_err = np.sqrt(np.diag(cov))
     if abs(coef[0]) < 3.0* coef_err[0] and coef[0]*np.max(uvDist) < -0.75*coef[1]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
     StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]
     for pol_index in [1,2,3]:
-        coef, cov = np.polyfit(uvDist[visFlag], StokesFlux[0]*StokesVis[pol_index,visFlag].real / abs(StokesVis[0,visFlag].real), deg=0, cov=True)
+        coef, cov = np.polyfit(uvDist, StokesFlux[0]*StokesVis[pol_index].real / abs(StokesVis[0].real), deg=0, w=tmpWeight, cov=True)
         StokesFlux[pol_index], StokesErr[pol_index] = coef[0], np.sqrt(cov[0,0])
     return StokesFlux, StokesSlope, StokesErr
 #-------- Smooth time-variable Tau
