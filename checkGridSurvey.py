@@ -42,7 +42,7 @@ PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X106f040_X3526'
+prefix = 'uid___A002_X134b3d1_Xc653'
 antFlag = []
 uvLimit = 5000
 refant  = ''
