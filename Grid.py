@@ -370,12 +370,12 @@ def lmStokes(StokesVis, uvDist):
 #-------- Smooth time-variable Tau
 def tauSMTH( timeSample, TauE ):
     if len(timeSample) > 5:
-        SplineWeight = np.ones(len(timeSample) + 4)
+        SplineWeight = np.ones(len(timeSample) + 8)
         flagIndex = (np.where(abs(TauE - np.median(TauE))/np.std(TauE) > 3.0)[0] + 2).tolist()
         SplineWeight[flagIndex] = 0.1
-        tempTime = np.append([timeSample[0]-20.0, timeSample[0]-10.0], np.append(timeSample, [timeSample[-1]+10.0, timeSample[-1]+20.0]))
-        tempTauE = np.append([TauE[0], TauE[0]], np.append(TauE, [TauE[-1], TauE[-1]]))
-        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3, w=SplineWeight, t=tempTime[list(range(1, len(tempTime), 2))] - 5.0 )
+        tempTime = np.append([timeSample[0]-100.0, timeSample[0]-20.0, timeSample[0]-10.0], np.append(timeSample, [timeSample[-1]+10.0, timeSample[-1]+20.0, timeSample[-1]+100.0, timeSample[-1]+200.0, timeSample[-1]+300.0]))
+        tempTauE = np.append([TauE[0], TauE[0], TauE[0]], np.append(TauE, [TauE[-1], TauE[-1], TauE[-1], TauE[-1], TauE[-1]]))
+        smthTau = scipy.interpolate.splrep(tempTime, tempTauE, k=3, w=SplineWeight, t=0.5*(timeSample[0:-1] + timeSample[1:]) )
     else:
         tempTime = np.arange(np.min(timeSample) - 3600.0,  np.max(timeSample) + 3600.0, 300.0)
         tempTauE = np.repeat(np.median(TauE), len(tempTime))

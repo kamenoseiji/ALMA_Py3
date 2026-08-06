@@ -43,6 +43,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
 prefix = 'uid___A002_X134b3d1_Xc653'
+#prefix = 'uid___A002_X13e5a87_X16535'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -58,6 +59,7 @@ tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
 #-------- Tsys calibration
 os.system('casa --nologger --agg -c ' + SCR_DIR + 'SysCalTrx.py -u %s' % (prefix))
+#os.system('casa --nologger --agg -c ' + SCR_DIR + 'TsysCal.py -u %s' % (prefix))
 TrxFileList = glob.glob(prefix + '*Trx.npy')
 RXList = list(set( [TrxFile.split('-')[1] for TrxFile in TrxFileList] ))
 #-------- Check Correlator Type
