@@ -42,9 +42,8 @@ PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
-#prefix = 'uid___A002_X134b3d1_Xc653'
-prefix = 'uid___A002_X13e5a87_X16535'
-antFlag = []
+prefix = 'uid___A002_X13ea123_X18008'
+antFlag = ['DA61','DA64','DV17']
 uvLimit = 5000
 refant  = ''
 BPscan  = 0
@@ -174,11 +173,14 @@ for BandName in RXList:
     #-------- Check usable antennas and refant
     print('-----Filter usable antennas')
     chRange = BandbpSPW[BandName]['chRange'][0]
-    if BPscan == 0: checkScan = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
-    checkSource = scanDic[checkScan]['source']
-    print('-----Check Scan %d : %s' % (checkScan, checkSource))
-    Xspec       = XspecList[spw_index][BandScanList[BandName].index(checkScan)][:,:,useBlMap]
-    checkVis    = np.mean(Xspec[[0,-1]][:,chRange], axis=1) / scanDic[checkScan]['I']
+    if BPscan == 0:
+        polCalScan = QSOscanList[np.argmax(np.array([np.median(abs(scanDic[scan]['UCmQS']))* scanDic[scan]['I']* np.sign(np.median(scanDic[scan]['EL']) - ELshadow) for scan in QSOscanList]))]
+    else:
+        polCalScan = BPscan
+    polCalSource = scanDic[polCalScan]['source']
+    print('-----Check Scan %d : %s' % (polCalScan, polCalSource))
+    Xspec       = XspecList[spw_index][BandScanList[BandName].index(polCalScan)][:,:,useBlMap]
+    checkVis    = np.mean(Xspec[[0,-1]][:,chRange], axis=1) / scanDic[polCalScan]['I']
     Gain =  np.array([np.apply_along_axis(gainComplex, 0, checkVis[0]), np.apply_along_axis(gainComplex, 0, checkVis[-1])])
     antCoh = np.array([np.median(abs(Gain[0,ant_index]* Gain[1,ant_index].conjugate())) for ant_index, ant in enumerate(useAntMap)])
     Aeff = 8.0* kb* antCoh / (np.pi* antDia[useAntMap]**2)
@@ -192,7 +194,7 @@ for BandName in RXList:
     print(text_sd)
     if useAntNum < 4: continue
     print('-----Select reference antenna')
-    timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], checkScan)
+    timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], polCalScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.median(antDia)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
     print('Use %s as refant' % (antList[refantID]))
@@ -207,23 +209,23 @@ for BandName in RXList:
             Xspec = CrossPolBL(XspecList[spw_index][scan_index][:,:,blMap], blInv)
             XspecList[spw_index][scan_index] = Xspec
     print('-----Bandpass to align SPWs and polarization')
-    #-------- Bandpass using checkScan
+    #-------- Bandpass using polCalScan
     FreqList, BPList, spwGainList = [], [], []
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
-        Xspec = XspecList[spw_index][BandScanList[BandName].index(checkScan)]
+        Xspec = XspecList[spw_index][BandScanList[BandName].index(polCalScan)]
         BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr = CrossPolBP(Xspec)
         BPList = BPList + [BP_ant]
         spwGainList = spwGainList + [Gain]
     #-------- SPW phase offsets
     spwTwiddle = SPWalign(np.array(spwGainList))
     #-------- Phase-aligned bandpass table
-    print('-----SPW-aligned bandpass in scan %d : %s' % (checkScan, scanDic[checkScan]['source']))
+    print('-----SPW-aligned bandpass in scan %d : %s' % (polCalScan, scanDic[polCalScan]['source']))
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BPList[spw_index] = (BPList[spw_index].transpose(2,0,1) * spwTwiddle[:,:,spw_index]).transpose(1,2,0)
     pp = PdfPages('BP-%s-%s.pdf' % (prefix,BandName))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPList)
     os.system('rm -rf B0')
-    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(checkScan), refant=antList[refantID], solnorm=True, minblperant=3)
+    bandpass(msfile, caltable='B0', spw=','.join(map(str, BandbpSPW[BandName]['spw'])), scan=str(polCalScan), refant=antList[refantID], solnorm=True, minblperant=3)
     #-------- SPW-combined phase calibration
     print('-----Antenna-based gain correction')
     text_sd = '        coherence loss % :'
@@ -296,7 +298,7 @@ for BandName in RXList:
         BPList = BPList + [BPSPWList]
         XYList = XYList + [XYSPWList]
         XYWList=XYWList + [XYsnrList]
-    checkScan = bestXYscan
+    polCalScan = bestXYscan
     #-------- Average bandpass
     XYW = np.array(XYWList)**2
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -332,15 +334,15 @@ for BandName in RXList:
     pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
     plotSP(pp, prefix, antList[antMap], BandbpSPW[BandName]['spw'], BandbpSPW[BandName]['freq'], BPSPWList, 0.0, 1.2, True)
     del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
-    #-------- XY sign in checkScan
+    #-------- XY sign in polCalScan
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
         BP_ant = BPSPWList[spw_index].transpose(1,2,0)
-        scanFlag  = scanDic[checkScan]['scanFlag']
-        scanPhase = scanDic[checkScan]['Gain'][:,scanFlag] / abs(scanDic[checkScan]['Gain'][:,scanFlag])
-        Xspec = XspecList[spw_index][list(scanDic.keys()).index(checkScan)][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
+        scanFlag  = scanDic[polCalScan]['scanFlag']
+        scanPhase = scanDic[polCalScan]['Gain'][:,scanFlag] / abs(scanDic[polCalScan]['Gain'][:,scanFlag])
+        Xspec = XspecList[spw_index][list(scanDic.keys()).index(polCalScan)][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
-        XYphase = np.angle(scanDic[checkScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
+        XYphase = np.angle(scanDic[polCalScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
         XYsign = np.sign(np.cos(XYphase))
         print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
         BPSPWList[spw_index][:,1] *= XYsign
@@ -388,7 +390,7 @@ for BandName in RXList:
     text_sd = text_sd + fluxCalText
     logfile.write(text_sd +'\n'); print(text_sd)
     logjy = open(prefix + '-' + BandName + '-JyK.log', 'w')
-    timeLabel = qa.time('%fs' % np.median(scanDic[checkScan]['mjdSec']), form='ymd')[0]
+    timeLabel = qa.time('%fs' % np.median(scanDic[polCalScan]['mjdSec']), form='ymd')[0]
     for ant_index, ant in enumerate(antList[antMap]):
         text_sd = '%s : ' % (ant)
         for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
@@ -399,7 +401,8 @@ for BandName in RXList:
     logjy.write('\n'); logjy.close()
     #-------- Gain transfer and equalization
     QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
-    if len(QSONonShadowScanList) > 0: checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
+    if (len(QSONonShadowScanList) > 0) and (checkScan not in QSONonShadowScanList):
+        checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
     scan_index = list(scanDic.keys()).index(checkScan)
     newAeff = np.ones([useAntNum, 2, len(BandbpSPW[BandName]['spw'])])
     for spw_index, spw in enumerate(BandbpSPW[BandName]['spw']):
