@@ -85,6 +85,13 @@ msmd.open(msfile)
 spwNames = msmd.namesforspws(bpSPWs)
 for BandName in RXList:
     if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: continue
+    #-------- Prepare log files
+    logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
+    #ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
+    text_corr = ' %s BLCORR' % (prefix) if BLCORR else ' %s ACACORR' % (prefix)
+    text_tsysdigital = ' TsysDigitalCorrection ON' if TsysDigitalCorrection else ' TsysDigitalCorrection OFF'
+    logfile.write('# ' + text_corr + text_tsysdigital + '\n')
+    #-------- Frequency setup
     BandPA[BandName] = (BANDPA[int(BandName[3:5])] + 90.0)*math.pi/180.0
     BandbpSPW[BandName] = {'spw': [spw for spw_index,spw in enumerate(bpSPWs) if BandName in spwNames[spw_index]]}
     BandatmSPW[BandName]  = {'spw': [int(re.split('[SPW\.]', TrxFile)[3]) for TrxFile in TrxFileList if BandName in TrxFile] }
@@ -132,7 +139,7 @@ for BandName in RXList:
     antFlag = np.unique(np.array(antFlag)).tolist()
     text_sd = '---Flagged by Trx and Allan Variance (%d): ' % (len(antFlag))
     for ant in antFlag: text_sd = text_sd + '%s ' % (ant)
-    print(text_sd)
+    print(text_sd); logfile.write('#' + text_sd + '\n')
     flagAnt = np.array([0.0 if ant in antFlag else 1.0 for ant in antList])
     flagBL = flagAnt[ANT0[0:blNum]]* flagAnt[ANT1[0:blNum]]
     useAntMap = np.where(flagAnt > 0.1)[0].tolist()
@@ -145,12 +152,6 @@ for BandName in RXList:
     #if BandName == 'RB_01': SSOList = []
     #SSOList = []
     FscaleDic = dict(zip(np.array(sourceList)[SSOList].tolist(), [[]]* len(SSOList)))
-    #-------- Prepare log files
-    logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
-    ingestFile = open(prefix + '-' + BandName + '-Ingest.log', 'w')
-    text_corr = ' %s BLCORR' % (prefix) if BLCORR else ' %s ACACORR' % (prefix)
-    text_tsysdigital = ' TsysDigitalCorrection ON' if TsysDigitalCorrection else ' TsysDigitalCorrection OFF'
-    logfile.write(text_corr + text_tsysdigital + '\n')
     print('-----%s----' % (BandName))
     #-------- D-term from history
     Dcat = GetDterm(TBL_DIR, antList, int(BandName[3:5]), timeStampList[0][0])
@@ -178,7 +179,8 @@ for BandName in RXList:
     else:
         polCalScan = BPscan
     polCalSource = scanDic[polCalScan]['source']
-    print('-----Check Scan %d : %s' % (polCalScan, polCalSource))
+    text_sd = '-----PolCal Scan %d : %s' % (polCalScan, polCalSource)
+    print(text_sd); logfile.write('#' + text_sd + '\n')
     Xspec       = XspecList[spw_index][BandScanList[BandName].index(polCalScan)][:,:,useBlMap]
     checkVis    = np.mean(Xspec[[0,-1]][:,chRange], axis=1) / scanDic[polCalScan]['I']
     Gain =  np.array([np.apply_along_axis(gainComplex, 0, checkVis[0]), np.apply_along_axis(gainComplex, 0, checkVis[-1])])
@@ -191,13 +193,14 @@ for BandName in RXList:
     useAntNum, useBlNum = len(useAntMap), len(useBlMap)
     text_sd = '  Usable antennas (%d) : ' % (len(useAntMap))
     for ants in antList[useAntMap].tolist(): text_sd = text_sd + ants + ' '
-    print(text_sd)
+    print(text_sd); logfile.write('#' + text_sd + '\n')
     if useAntNum < 4: continue
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], polCalScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
     refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.median(antDia)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
-    print('Use %s as refant' % (antList[refantID]))
+    text_sd = '  Use %s as refant' % (antList[refantID])
+    print(text_sd); logfile.write('#' + text_sd + '\n')
     antMap = [refantID] + [ant for ant in useAntMap if ant != refantID]
     blMap, blInv = map(list, zip(*[Ant2BlD(antMap[ANT0[bl_index]], antMap[ANT1[bl_index]]) for bl_index in range(useBlNum)]))
     ant0, ant1 = ANT0[0:useBlNum], ANT1[0:useBlNum]
@@ -466,7 +469,7 @@ for BandName in RXList:
         text_sd = ' --------------------------------------------------------------------------------------------------------'; logfile.write(text_sd + '\n'); print(text_sd)
         if len(BandbpSPW[BandName]['spw']) > 1: logfile.write(text_mean + '\n'); print(text_mean)
         text_sd = ' UV_min_max  %6.1f  %6.1f ' % (uvMin, uvMax); logfile.write(text_sd + '\n'); print(text_sd)
-        text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix); ingestFile.write(text_ingest)
+        text_ingest = '%10s, NE, NE, NE, NE, %e, %6.3f, %6.4f, %6.3f, %6.4f, %5.1f, %5.1f, NE, NE, %s, %s, %s\n' % (scanDic[scan]['source'], np.median(BandbpSPW[BandName]['freq'][spw_index]), pflux[0], np.sqrt(0.0004*pflux[0]**2 + pfluxerr[0]**2), np.sqrt(pflux[1]**2 + pflux[2]**2)/pflux[0], np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/pflux[0], np.arctan2(pflux[2],pflux[1])*90.0/np.pi, np.sqrt(pfluxerr[1]**2 + pfluxerr[2]**2)/np.sqrt(pflux[1]**2 + pflux[2]**2)*90.0/np.pi, timeLabel.replace('/','-'), fluxCalText, prefix)#; ingestFile.write(text_ingest)
     #-------- Plot Stokes parameters vs uv distance
     if PLOTFL: pp = PdfPages('FL_' + prefix + '_' + BandName + '.pdf'); plotFL(pp, scanDic, BandbpSPW[BandName])
     #-------- Review D-term
@@ -510,7 +513,7 @@ for BandName in RXList:
         logfile.write(text_fd + '\n'); print(text_sd)
     #----
     logfile.close()
-    ingestFile.close()
+    #ingestFile.close()
     #-------- Plot QUXY
     for scan_index, scan in enumerate(scanDic.keys()):
         if 'StokesVis' in scanDic[scan].keys():
