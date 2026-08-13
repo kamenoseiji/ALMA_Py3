@@ -357,9 +357,9 @@ def lmStokes(StokesVis, uvDist):
     residVis = abs(StokesVis[0]) - np.polyval(coef, uvDist)
     #-------- 2nd look
     tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
-    tmpWeight[np.where(abs(residVis) > 3.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
-    tmpWeight[np.where(abs(residVis) > 5.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
-    tmpWeight[np.where(abs(residVis) >20.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.1
+    #tmpWeight[np.where(abs(residVis) > 3.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
+    #tmpWeight[np.where(abs(residVis) > 5.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.5
+    tmpWeight[np.where(abs(residVis) > 10.0*np.sqrt(cov[1,1]))[0].tolist()] *= 0.1
     coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True); coef_err = np.sqrt(np.diag(cov))
     if abs(coef[0]) < 3.0* coef_err[0] and coef[0]*np.max(uvDist) < -0.75*coef[1]: coef[0], coef[1] = 0.0, np.median(abs(StokesVis[0]))
     StokesFlux[0], StokesSlope, StokesErr[0] = coef[1], coef[0], coef_err[1]

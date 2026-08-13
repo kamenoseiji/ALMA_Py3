@@ -124,8 +124,9 @@ for data in dataList:
     StokesValues = fluxInterpolate( StokesDic, data['names'][0]['name'], 1.0e-9* data['frequency'] )
     I = StokesValues[0,0]
     Psqr = StokesValues[0,1]**2 + StokesValues[0,2]**2
+    ePsqr= ((StokesValues[1,1]*StokesValues[0,1])**2 + (StokesValues[1,2]*StokesValues[0,2])**2) / Psqr
     Pdeg = 100.0*np.sqrt(Psqr) / I
-    ePdeg = Pdeg*np.sqrt( (StokesValues[0,1]**2 * StokesValues[1,1]**2 + StokesValues[0,2]**2 * StokesValues[1,2]**2)/Psqr**2 + (StokesValues[1,0]/I)**2 )
+    ePdeg = 100.0*np.sqrt(ePsqr/I**2 + Psqr*StokesValues[1,0]**2/I**4)
     Pang = 90.0* np.arctan2(StokesValues[0,2],StokesValues[0,1])/np.pi
     ePang= 90.0* np.sqrt(StokesValues[0,1]**2 * StokesValues[1,2]**2 + StokesValues[0,2]**2 * StokesValues[1,1]**2) / Psqr / np.pi
     print('%s : %.1f GHz : %6.3f (%.3f) %+.3f (%.3f) %+.3f (%.3f) %+.3f (%.3f)  %6.3f (%.3f)  %+7.3f (%.3f)' % (data['names'][0]['name'], 1.0e-9* data['frequency'],

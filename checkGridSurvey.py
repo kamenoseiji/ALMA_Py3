@@ -42,14 +42,14 @@ PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 '''
-prefix = 'uid___A002_X13ea123_X18008'
-antFlag = ['DA61','DA64','DV17']
+prefix = 'uid___A002_X137effa_X1d90e'
+antFlag = []
 uvLimit = 5000
 refant  = ''
 BPscan  = 0
 QUMODEL = True
 TsysDigitalCorrection = False
-PLOTMAP = False
+PLOTMAP = True
 PLOTFL = True
 PLOTQU = False
 '''
@@ -346,6 +346,7 @@ for BandName in RXList:
         XYsign = np.sign(np.cos(XYphase))
         print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
         BPSPWList[spw_index][:,1] *= XYsign
+        #BPSPWList[spw_index][:,1] *= -1
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
         scanFlag  = scanDic[scan]['scanFlag']
