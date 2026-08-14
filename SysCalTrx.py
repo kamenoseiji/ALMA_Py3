@@ -12,7 +12,7 @@ parser.add_option('-t', dest='PLOTTSYS', metavar='PLOTTSYS',
 prefix  = options.prefix.replace("/", "_").replace(":","_").replace(" ","")
 PLOTTSYS= options.PLOTTSYS
 '''
-prefix = 'uid___A002_X13da9fd_X40af'
+prefix = 'uid___A002_X102faf1_Xe5d'
 PLOTTSYS = True
 '''
 #-------- Read SYSCAL table
@@ -21,7 +21,8 @@ tb.open(msfile + '/SYSCAL')
 colnameList = tb.colnames()
 timeStamp = tb.getcol('TIME')
 tempAtm = GetTemp(msfile)
-timeSyscalList = timeStamp[ np.where(np.diff(timeStamp) != 0.0)[0].tolist() + [-1] ]
+#timeSyscalList = timeStamp[ np.where(np.diff(timeStamp) != 0.0)[0].tolist() + [-1] ]
+timeSyscalList = np.unique(timeStamp)
 antID = tb.getcol('ANTENNA_ID')
 spwID = tb.getcol('SPECTRAL_WINDOW_ID')
 TRX = tb.getcol('TRX_SPECTRUM')
@@ -52,6 +53,10 @@ for spw_index, spw in enumerate(spwList):
     chNum, chWid, freq = GetChNum(msfile, spw)
     spwDic[spw] = {'band': BandNames[spw_index], 'chNum': chNum, 'chWid': chWid, 'freq' : freq}
 for scan_index, scan in enumerate(scanList):
+    if scan_index >= len(timeSyscalList):
+        scanList.remove(scan)
+        del TsysDic[scan]
+        continue
     data_index = np.where(timeStamp == timeSyscalList[scan_index])[0].tolist()
     spwsInScan = np.unique(spwID[data_index]).tolist()
     antsInScan = np.unique(antID[data_index]).tolist()

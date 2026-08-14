@@ -25,6 +25,7 @@ parser.add_option('-A',  dest='Apriori', metavar='Apriori',  help='Apriori ampli
 parser.add_option('-Q',  dest='QUMODEL', metavar='QUMODEL', help='Initial Q,U from AMAPOLA', action='store_true')
 parser.add_option('-U',  dest='uvLimit', metavar='uvLimit', help='(u, v) limet [m]', default='5000')
 parser.add_option('-c',  dest='Scan',    metavar='Scan',    help='Scan number to refer', default='0')
+parser.add_option('-X',  dest='XYsign',  metavar='XYsign',  help='Force XY sign (1 or -1)', default='')
 parser.add_option('-m',  dest='Map',     metavar='Map',     help='Save redisual map', action='store_true')
 parser.add_option('-R', dest='refant', metavar='refant',    help='reference antenna', default='')
 parser.add_option('-T',  dest='TsysDigital', metavar='TsysDigital',  help='Apply Tsys digital correction', action='store_true')
@@ -41,8 +42,9 @@ PLOTMAP = options.Map
 PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
+if options.XYsign != '': XYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X137effa_X1d90e'
+prefix = 'uid___A002_X122494b_X130e2'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -198,7 +200,7 @@ for BandName in RXList:
     print('-----Select reference antenna')
     timeStamp, UVW = GetUVW(msfile, BandbpSPW[BandName]['spw'][0], polCalScan)
     uvw = np.mean(UVW, axis=2); uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.median(antDia)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
+    refantID = bestRefant(uvDist, [ant for ant in useAntMap if antDia[ant] >= np.percentile(antDia, 80)]) if refant == '' or refant not in antList[useAntMap] else np.where(antList == refant)[0][0]
     text_sd = '  Use %s as refant' % (antList[refantID])
     print(text_sd); logfile.write('#' + text_sd + '\n')
     antMap = [refantID] + [ant for ant in useAntMap if ant != refantID]
@@ -346,10 +348,10 @@ for BandName in RXList:
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[polCalScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
-        XYsign = np.sign(np.cos(XYphase))
-        print('SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign))
+        XYsign = np.sign(np.cos(XYphase)) if options.XYsign == '' else np.sign(int(options.XYsign))
+        text_sd = 'SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign)
+        logfile.write('# ' + text_sd +'\n'); print(text_sd)
         BPSPWList[spw_index][:,1] *= XYsign
-        #BPSPWList[spw_index][:,1] *= -1
     #-------- Apply Bandpass and Phase Correction
     for scan_index, scan in enumerate(BandScanList[BandName]):
         scanFlag  = scanDic[scan]['scanFlag']
