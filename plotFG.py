@@ -29,7 +29,6 @@ antList = np.load(ANfileName)
 TS = np.load('%s-SPW%d.TS.npy' % (prefix, spwList[0]))
 DT = []
 for mjdSec in TS.tolist(): DT.append(datetime.datetime.strptime(au.call_qa_time('%fs' % (mjdSec), form='fits', prec=9), '%Y-%m-%dT%H:%M:%S.%f'))
-
 pp = PdfPages('FG_%s.pdf' % (prefix))
 logfile = open(prefix + '-PolFlag.log', 'w')
 FGList, flagAntList = [], []

@@ -18,7 +18,6 @@ import ssl
 import scipy.optimize
 import time
 import datetime
-import analysisUtils as au
 from casatools import table as tbtool
 from casatools import msmetadata as msmdtool
 from casatools import quanta as qatool
@@ -641,20 +640,50 @@ def GetDterm(URI, antMap, band, refMJD):
 #
 def GetSourceDic(msfile):              # source Dictionary
     from Grid import sourceRename
+    import json
     msmd.open(msfile)
     tb.open(msfile + '/FIELD')
     fieldList = msmd.fieldnames(); fieldID = set()
+    mjdSec = tb.getcol('TIME')[0]
+    #---- Solar Position
+    base_url = "https://ssd.jpl.nasa.gov/api/horizons.api"
+    JPLparams = {           # Query for JPL Horizons
+        "format": "json",
+        "COMMAND": "'10'",  # Sun
+        "OBJ_DATA": "'NO'",
+        "MAKE_EPHEM": "'YES'",
+        "EPHEM_TYPE": "'OBSERVER'",
+        "CENTER": "'500'",  # Geocenter
+        "START_TIME": f"'{mjd2utc(mjdSec).split('.')[0].replace('T',' ')}'",
+        "STOP_TIME":  f"'{mjd2utc(mjdSec+60).split('.')[0].replace('T',' ')}'",
+        "STEP_SIZE": "'1 min'",
+        "QUANTITIES": "'2'",
+        "ANG_FORMAT": "'DEG'"}
+    url_parts = urllib.parse.urlencode(JPLparams, quote_via=urllib.parse.quote)
+    request_url = f"{base_url}?{url_parts}"
+    ssl_context = ssl._create_unverified_context()
+    req = urllib.request.Request( request_url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, context=ssl_context) as response:
+        response_data = response.read().decode("utf-8")
+    data = json.loads(response_data)
+    result_text = data.get("result", "")
+    data_match = re.search(r"\$\$SOE\n(.*)\n\$\$EOE", result_text, re.DOTALL)
+    data_line = data_match.group(1).strip()
+    float_values = re.findall(r"-?\d+\.\d+", data_line)
+    sunPos = np.array([float(float_values[0]), float(float_values[1])]) / RADDEG
     for field in fieldList: fieldID = fieldID | set(msmd.fieldsforname(field))
     fieldID = list(fieldID); fieldID.sort()
     fieldDic = dict(zip(fieldID, [[]]* len(fieldID)))
     fieldPos  = tb.getcol('PHASE_DIR')[:,0].T
     fieldList = sourceRename(fieldList)
     for ID in fieldDic.keys():
+        deltaRA = fieldPos[ID,0] - sunPos[0]
+        deltaDC = fieldPos[ID,1] - sunPos[1]
         fieldDic[ID] = {
             'Name': fieldList[ID],
             'RA'  : fieldPos[ID,0],
             'DEC' : fieldPos[ID,1],
-            'SA'  : au.angleToSun(vis=msfile, field=ID, verbose=False)}
+            'SA'  : RADDEG*2* np.arcsin(np.sqrt(np.sin(0.5* deltaDC)**2 + np.cos(fieldPos[ID,1])* np.cos(sunPos[1]) * np.sin(0.5*deltaRA)**2))}
     msmd.close()
     tb.close()
     return fieldDic

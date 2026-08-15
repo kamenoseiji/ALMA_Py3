@@ -28,7 +28,10 @@ os.system(queryText)
 fp = open('SLT.log', 'r')
 SLTline = fp.readlines()
 fp.close()
-if len(SLTline) > 0:
-    SLTentries = SLTline[0].split('\"')
-    for SLTentry in SLTentries:
-        if 'uid://A002/' in SLTentry : print('new %s' % (SLTentry))
+#if len(SLTline) > 0:
+SLTentries = SLTline[0].split('\"')
+UIDList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'execBlockUid' in SLTentry]
+arrayNameList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'arrayName' in SLTentry]
+startTimeList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'start' in SLTentry]
+endTimeList   = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'end' in SLTentry]
+for index, UID in enumerate(UIDList): print('new %s %s %s %s' % (UID, arrayNameList[index], startTimeList[index], endTimeList[index]))

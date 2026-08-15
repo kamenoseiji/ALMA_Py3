@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from interferometry import ALMA_lat, GetAzEl, AzElMatch, AzEl2PA
-import analysisUtils as au
 from casatools import msmetadata as msmdtool
 msmd = msmdtool()
 #
@@ -33,35 +32,6 @@ def GetAMAPOLAStokes(SCR_DIR, sourceList, timeText, FreqGHz):    #
     #
     return StokesDic
 #
-def GetSSOFlux(StokesDic, timeText, FreqGHz):
-    from Grid import SSOCatalog
-    # StokesDic  : Stokes parameter dictionlary
-    # timeText   : e.g. '2017/04/12/11:26:17'
-    # FreqGHz    : frequency list in GHz
-    #sourceList = list(StokesDic.keys())
-    #SSOList = [source for source in sourceList if not str.isdigit(source[1])]
-    SSOList = [source for source in StokesDic.keys() if source in SSOCatalog]
-    SSODic = dict(zip(SSOList, [[]]*len(SSOList)))
-    if len(SSOList) == 0: return StokesDic, SSODic
-    for SSO in SSOList:
-        flux, major, minor, pa = [], [], [], []
-        for spw_index, freq in enumerate(FreqGHz):
-            freqcorr = 1.0
-            if freq < 62.0:
-                freqcorr = (freq/62.0)**2
-                freq = 62.0
-                #print('%.1f GHz : corr=%.1f\n' % (freq, freqcorr))
-            text_Freq = '%6.2fGHz' % (freq)
-            SSOmodel = au.predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
-            flux  = flux + [freqcorr* SSOmodel['spectrum']['bl0flux']['value']]
-        #
-        major = SSOmodel['shape']['majoraxis']['value']* np.pi / 21600.0
-        minor = SSOmodel['shape']['minoraxis']['value']* np.pi / 21600.0
-        pa    = SSOmodel['shape']['positionangle']['value']* np.pi / 180.0
-        StokesDic[SSO] = [FreqGHz, flux]
-        SSODic[SSO]    = [FreqGHz, flux, [major, minor, pa]]
-    #
-    return StokesDic, SSODic
 #-------- PA and polarization responses
 def PolResponse(msfile, srcDic, StokesDic, BandPA, scanList, mjdList):
     scanDic = dict(zip(scanList, [[]]* len(scanList)))

@@ -1,0 +1,16 @@
+objname     = 'Neptune'
+standard    = 'Butler-JPL-Horizons 2012'
+epoch       = '2026-08-15T00:00:00'
+minfreq     = '230GHz'
+maxfreq     = '230GHz'
+nfreqs      = 1
+prefix      = ''
+antennalist = ''
+showplot    = False
+symb        = '.'
+include0amp = False
+include0bl  = False
+blunit      = ''
+showbl0flux = False
+savefig     = ''
+#predictcomp( objname='Neptune',standard='Butler-JPL-Horizons 2012',epoch='2026-08-15T00:00:00',minfreq='230GHz',maxfreq='230GHz',nfreqs=1,prefix='',antennalist='',showplot=False,symb='.',include0amp=False,include0bl=False,blunit='',showbl0flux=False,savefig='' )

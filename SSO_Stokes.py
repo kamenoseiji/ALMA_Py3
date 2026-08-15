@@ -4,7 +4,6 @@ from scipy import interpolate
 from scipy.interpolate import InterpolatedUnivariateSpline
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ptick
-import analysisUtils as au
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Plotters.py').read())
 from matplotlib.backends.backend_pdf import PdfPages

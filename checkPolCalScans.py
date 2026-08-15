@@ -1,7 +1,6 @@
 import os
 import sys
 import numpy as np
-import analysisUtils as au
 from interferometry import BANDPA, BANDFQ, GetBPcalSPWs, GetSourceDic, indexList, GetAzEl, GetTimerecord, AzElMatch, AzEl2PA
 from Grid import SSOCatalog, SSOscore, ELshadow
 from optparse import OptionParser

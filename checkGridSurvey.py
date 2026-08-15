@@ -3,7 +3,6 @@ import glob
 import re
 import math
 import numpy as np
-import analysisUtils as au
 import xml.etree.ElementTree as ET
 from matplotlib.backends.backend_pdf import PdfPages
 from interferometry import GetTemp, Tcmb, kb, BANDPA, BANDFQ, indexList, subArrayIndex, GetAntName, GetAntD, GetSourceDic, GetBandNames, GetAeff, GetDterm, quadratic_interpol, GetAtmSPWs, GetBPcalSPWs, GetSPWFreq, GetOnSource, GetUVW, loadScanSPW, gainComplex, gainComplexErr, gainComplexVec, bestRefant, ANT0, ANT1, Ant2Bl, Ant2BlD, Bl2Ant, CrossPolBL, CrossPolBP, SPWalign, delay_search, linearRegression, VisMuiti_solveD, AllanVarPhase, specBunch
@@ -12,9 +11,31 @@ import matplotlib.ticker as ptick
 from Plotters import plotSP, plotXYP, plotBLAV, plotFL, plotQUXY, plotResidualMap
 from Grid import *
 from ASDM_XML import CheckCorr, BandList
-from PolCal import GetAMAPOLAStokes, GetSSOFlux, PolResponse
+from PolCal import GetAMAPOLAStokes, PolResponse
 from optparse import OptionParser
 def AV(vis): return AllanVarPhase(np.angle(vis), 1)
+def GetSSOFlux(StokesDic, timeText, FreqGHz):
+    from Grid import SSOCatalog
+    # StokesDic  : Stokes parameter dictionlary
+    # timeText   : e.g. '2017/04/12/11:26:17'
+    # FreqGHz    : frequency list in GHz
+    #sourceList = list(StokesDic.keys())
+    #SSOList = [source for source in sourceList if not str.isdigit(source[1])]
+    SSOList = [source for source in StokesDic.keys() if source in SSOCatalog]
+    SSODic = dict(zip(SSOList, [[]]*len(SSOList)))
+    if len(SSOList) == 0: return StokesDic, SSODic
+    for SSO in SSOList:
+        flux, major, minor, pa = [], [], [], []
+        for freq in FreqGHz:
+            text_Freq = '%6.2fGHz' % (freq)
+            SSOmodel = predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
+            flux  = flux + [SSOmodel['spectrum']['bl0flux']['value']]
+        major = SSOmodel['shape']['majoraxis']['value']* np.pi / 21600.0
+        minor = SSOmodel['shape']['minoraxis']['value']* np.pi / 21600.0
+        pa    = SSOmodel['shape']['positionangle']['value']* np.pi / 180.0
+        StokesDic[SSO] = [FreqGHz, flux]
+        SSODic[SSO]    = [FreqGHz, flux, [major, minor, pa]]
+    return StokesDic, SSODic
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
 #-------- Parse options
@@ -44,7 +65,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': XYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X122494b_X130e2'
+prefix = 'uid___A002_X1232108_X159e9'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -348,7 +369,7 @@ for BandName in RXList:
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[polCalScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
-        XYsign = np.sign(np.cos(XYphase)) if options.XYsign == '' else np.sign(int(options.XYsign))
+        XYsign = np.sign(np.cos(XYphase)) if 'XYsign' not in locals() else np.sign(XYsign)
         text_sd = 'SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign)
         logfile.write('# ' + text_sd +'\n'); print(text_sd)
         BPSPWList[spw_index][:,1] *= XYsign

@@ -1,5 +1,4 @@
 import sys
-import analysisUtils as au
 exec(open(SCR_DIR + 'interferometry.py').read())
 exec(open(SCR_DIR + 'Grid.py').read())
 exec(open(SCR_DIR + 'ASDM_XML.py').read())
