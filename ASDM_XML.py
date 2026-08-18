@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from interferometry import indexList
 def CheckCorr( prefix ):
+    if not os.path.isdir(prefix): return 'ALMA_BASELINE'  # Default BLCORR
     Corr_XML = prefix + '/CorrelatorMode.xml'
     tree = ET.parse(Corr_XML)
     root = tree.getroot()

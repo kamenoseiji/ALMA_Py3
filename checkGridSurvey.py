@@ -63,7 +63,7 @@ PLOTMAP = options.Map
 PLOTFL  = PLOTMAP
 PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
-if options.XYsign != '': XYsign  = np.sign(int(options.XYsign))
+if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
 prefix = 'uid___A002_X1232108_X159e9'
 antFlag = []
@@ -369,7 +369,7 @@ for BandName in RXList:
         BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
         BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
         XYphase = np.angle(scanDic[polCalScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
-        XYsign = np.sign(np.cos(XYphase)) if 'XYsign' not in locals() else np.sign(XYsign)
+        XYsign = np.sign(np.cos(XYphase)) if 'givenXYsign' not in locals() else np.sign(givenXYsign)
         text_sd = 'SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign)
         logfile.write('# ' + text_sd +'\n'); print(text_sd)
         BPSPWList[spw_index][:,1] *= XYsign
