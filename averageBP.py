@@ -57,7 +57,6 @@ for spw_index, spw in enumerate(spwList):
         else:
             XYvar  = -np.log(abs(XYcorr) - 1.0e-3)
             XYweight =  XYsign / (XYvar + np.percentile(XYvar, 100/scanNum))
-        #
     else:
         BPmean =  np.mean(BPant.transpose(3,0,1,2)* BPweight, axis=1).transpose(1,2,0)
         chNum = BPmean.shape[2]

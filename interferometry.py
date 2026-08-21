@@ -491,6 +491,14 @@ def GetPHchavSPWs(msfile):
     msmd.close()
     return [spw for spw_index, spw in enumerate(phSPWs) if 'CH_AVG' in SPWnames[spw_index] ]
 #
+#-------- Get spectral Phase-cal SPWs
+def GetPHSPWs(msfile):
+    msmd.open(msfile)
+    phSPWs  = msmd.spwsforintent("CALIBRATE_PHASE*").tolist(); phSPWs.sort()
+    SPWnames= msmd.namesforspws(phSPWs)
+    msmd.close()
+    return [spw for spw_index, spw in enumerate(phSPWs) if 'FULL_RES' in SPWnames[spw_index] ]
+#
 def GetSPWnames(msfile, spwList):
     msmd.open(msfile)
     SPWnames= msmd.namesforspws(spwList)
@@ -498,25 +506,19 @@ def GetSPWnames(msfile, spwList):
     return SPWnames
 #
 def GetSPWFreq(msfile, SPWdic):
-    RXList = list(SPWdic.keys())
-    for BandName in RXList:
-        if SPWdic[BandName] == []: continue
-        #-------- SPW and Frequency List
-        chNumList, chRangeList, BWList, FreqList = [], [], [], []
-        for spw in SPWdic[BandName]['spw']:
-            chNum, chWid, freq = GetChNum(msfile, spw)
-            chNumList = chNumList + [chNum]
-            chRangeList = chRangeList + [list(range(int(0.1*chNum), int(0.95*chNum)))]
-            BWList = BWList + [chNum* np.median(chWid)]
-            FreqList = FreqList + [freq]
-        #
-        SPWdic[BandName]['freq']  = FreqList
-        SPWdic[BandName]['chNum'] = chNumList
-        SPWdic[BandName]['chRange'] = chRangeList
-        SPWdic[BandName]['BW']    = BWList
+    chNumList, chRangeList, BWList, FreqList = [], [], [], []
+    for spw in SPWdic['spw']:
+        chNum, chWid, freq = GetChNum(msfile, spw)
+        chNumList = chNumList + [chNum]
+        chRangeList = chRangeList + [list(range(int(0.05*chNum), int(0.95*chNum)))]
+        BWList = BWList + [chNum* np.median(chWid)]
+        FreqList = FreqList + [freq]
     #
+    SPWdic['freq']  = FreqList
+    SPWdic['chNum'] = chNumList
+    SPWdic['chRange'] = chRangeList
+    SPWdic['BW']    = BWList
     return SPWdic
-#
 #-------- Get GridSurvey Scans
 def GetOnSource(msfile):
     msmd.open(msfile)
@@ -601,9 +603,8 @@ def GetAeff(URI, antMap, band, refMJD):
     return Aeff
 #
 def GetDterm(URI, antMap, band, refMJD):
-    print('GetDterm : %sDtermB%d.%s.table' % (URI,  band, antMap[0]))
+    print('GetDterm : %sDtermB%d.*.table' % (URI,  band))
     context = ssl._create_unverified_context()
-    if band == 4 : band = 3
     antNum = len(antMap)
     Dterm  = np.zeros([antNum, 2, 4], dtype=complex)    # Dterm[ant, pol, spw]
     for ant_index in range(antNum):
