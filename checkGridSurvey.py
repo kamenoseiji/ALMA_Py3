@@ -65,7 +65,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13ea123_Xebb8'
+prefix = 'uid___A002_X137ec08_X8ed'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -98,16 +98,11 @@ polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
 #-------- Check SPWs of atmCal and bandpass
 print('---Checking SPWs and Scan information')
 bpSPWs = GetBPcalSPWs(msfile)
-#BandPA  = dict(zip(RXList, [[]]*len(RXList)))    # Band PA
-#BandbpSPW  = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for visibilitiies
-#BandatmSPW = dict(zip(RXList, [[]]*len(RXList))) # Band SPW for atmCal
-#BandScanList = dict(zip(RXList, [[]]*len(RXList))) # Band scan list
 OnScanList = GetOnSource(msfile)
 if len(OnScanList) == 0: RXList = []
 #-------- 
 msmd.open(msfile)
 spwNames = msmd.namesforspws(bpSPWs)
-#for BandName in RXList:
 if BandName not in ['RB_01', 'RB_02', 'RB_03', 'RB_04', 'RB_06', 'RB_07']: msmd.close(); exit()
 #-------- Prepare log files
 logfile = open(prefix + '-' + BandName + '-Flux.log', 'w')
@@ -322,7 +317,7 @@ for scan_index, scan in enumerate(BandScanList):
     BPList = BPList + [BPSPWList]
     XYList = XYList + [XYSPWList]
     XYWList=XYWList + [XYsnrList]
-polCalScan = bestXYscan
+#polCalScan = bestXYscan
 #-------- Average bandpass
 XYW = np.array(XYWList)**2
 for spw_index, spw in enumerate(BandbpSPW['spw']):
@@ -391,19 +386,9 @@ if not Apriori:
 SSOList = list(FscaleDic.keys())
 for SSO in SSOList:
     if FscaleDic[SSO] == None: del FscaleDic[SSO]
-SSOList = list(FscaleDic.keys())
-for SSO in SSOList:
-    if len(FscaleDic[SSO]) == 0: del FscaleDic[SSO]
-#-------- A priori Aperture Efficiencies (if no SSO) 
-WgSum = 0.0
-for SSO in FscaleDic.keys():
-    SSOWG = 1.0
-    for spw_index, spw in enumerate(BandbpSPW['spw']): SSOWG *= np.median(FscaleDic[SSO]['Wg'][spw_index])
-    WgSum += SSOWG
-if WgSum > 1.0e-2: Aeff = averageAe(FscaleDic, BandbpSPW['spw'])   # Aeff[ant, pol, spw]
-else: 
-    Aeff = np.ones([useAntNum, 2, len(BandbpSPW['spw'])])
-    for spw_index, spw in enumerate(BandbpSPW['spw']): Aeff[:,:,spw_index] = etaA[:,antMap].T
+#-------- WgSum : to judge SSO flux calibration or a priori (SEFD)
+WgSum = np.sum( [np.median(np.array(FscaleDic[SSO]['Wg'])) for SSO in FscaleDic.keys()] )
+Aeff =  averageAe(FscaleDic, BandbpSPW['spw']) if WgSum > 0.01 else np.array([etaA[:,antMap] for spw in BandbpSPW['spw']]).transpose(2,1,0)
 text_sd = ' Aeff: '
 for spw_index, spw in enumerate(BandbpSPW['spw']): text_sd = text_sd + 'SPW%02d-X SPW%02d-Y ' % (spw, spw)
 fluxCalText = ''
@@ -420,15 +405,12 @@ for ant_index, ant in enumerate(antList[antMap]):
             text_jy = '%s %s %d %s %f %s %s %e %e %5.1f' % (prefix, ant, spw, polName, 2.0* kb / (0.25* Aeff[ant_index][pol_index][spw_index]* np.pi*antDia[ant_index]**2), timeLabel, BandName, np.median(BandbpSPW['freq'][spw_index]), abs(BandbpSPW['BW'][spw_index]), tempAtm); logjy.write(text_jy + '\n')
     logfile.write(text_sd +'\n'); print(text_sd)
 logjy.write('\n'); logjy.close()
-#-------- Gain transfer and equalization
+#-------- Gain transfer and equalization using check scan
 QSONonShadowScanList = [scan for scan in QSOscanList if np.median(scanDic[scan]['EL']) > ELshadow]
 if (len(QSONonShadowScanList) > 0) and (checkScan not in QSONonShadowScanList):
     checkScan = QSONonShadowScanList[np.argmax([scanDic[scan]['I'] for scan in QSONonShadowScanList])]
 scan_index = list(scanDic.keys()).index(checkScan)
-newAeff = np.ones([useAntNum, 2, len(BandbpSPW['spw'])])
-for spw_index, spw in enumerate(BandbpSPW['spw']):
-    newAeff[:,:,spw_index] = AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[:,:,spw_index], antDia[antMap] )
-for ant_index, ant in enumerate(antMap): Aeff[ant_index] = newAeff[ant_index]
+Aeff = np.array([AeTransfer(np.mean(XspecList[spw_index][scan_index][0::3][:,chRange], axis=(1,3)), Aeff[:,:,spw_index], antDia[antMap]) for spw_index, spw in enumerate(BandbpSPW['spw'])]).transpose(1,2,0)
 #-------- Stokes visibilities for each scan
 text_Stokes = np.repeat('',len(BandbpSPW['spw'])).tolist()
 #-------- Store Stokes parameters into scanDic
@@ -448,7 +430,7 @@ for scan_index, scan in enumerate(scanDic.keys()):
     ScanFlux, ErrFlux, ScanSlope = np.zeros([len(BandbpSPW['spw']), 4]), np.zeros([len(BandbpSPW['spw']), 4]), np.zeros(len(BandbpSPW['spw']))
     for spw_index, spw in enumerate(BandbpSPW['spw']):
         text_Stokes[spw_index] = ' SPW%02d %5.1f GHz ' % (spw, 1.0e-9* np.median(BandbpSPW['freq'][spw_index]))
-        visChav = GainScale(newAeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
+        visChav = GainScale(Aeff[:,:,spw_index], antDia[antMap], np.mean(XspecList[spw_index][scan_index][:,chRange], axis=1))
         visChavList = visChavList + [visChav]
         StokesVis = Vis2Stokes(visChav, Dcat[antMap][:,:,spw_index], scanDic[scan]['PA'][scanFlag])
         StokesVisList = StokesVisList + [StokesVis]
