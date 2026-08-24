@@ -65,7 +65,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13ea123_Xebb8'
+prefix = 'uid___A002_X13e0d4e_X3639'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -385,7 +385,7 @@ if not Apriori:
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW, uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW['spw'])])
 SSOList = list(FscaleDic.keys())
 for SSO in SSOList:
-    if FscaleDic[SSO] == []: del FscaleDic[SSO]
+    if (FscaleDic[SSO] == []) or (FscaleDic[SSO] == None): del FscaleDic[SSO]
 #-------- WgSum : to judge SSO flux calibration or a priori (SEFD)
 WgSum = np.sum( [np.median(np.array(FscaleDic[SSO]['Wg'])) for SSO in FscaleDic.keys()] )
 Aeff =  averageAe(FscaleDic, BandbpSPW['spw']) if WgSum > 0.01 else np.array([etaA[:,antMap] for spw in BandbpSPW['spw']]).transpose(2,1,0)
