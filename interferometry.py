@@ -506,14 +506,17 @@ def GetSPWnames(msfile, spwList):
     return SPWnames
 #
 def GetSPWFreq(msfile, SPWdic):
+    msmd.open(msfile)
+    TDMspwList = msmd.tdmspws().tolist()
+    msmd.close()
     chNumList, chRangeList, BWList, FreqList = [], [], [], []
     for spw in SPWdic['spw']:
         chNum, chWid, freq = GetChNum(msfile, spw)
+        chRange = list(range(int(0.1*chNum), int(0.9*chNum))) if spw in TDMspwList else list(range(chNum))
         chNumList = chNumList + [chNum]
-        chRangeList = chRangeList + [list(range(int(0.05*chNum), int(0.95*chNum)))]
+        chRangeList = chRangeList + [chRange]
         BWList = BWList + [chNum* np.median(chWid)]
         FreqList = FreqList + [freq]
-    #
     SPWdic['freq']  = FreqList
     SPWdic['chNum'] = chNumList
     SPWdic['chRange'] = chRangeList
