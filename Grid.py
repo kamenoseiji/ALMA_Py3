@@ -249,7 +249,7 @@ def SSOAe(antList, spwDic, uvw, scanDic, SSODic, XSList):
     SSOname = scanDic['source']
     text_sd = ' Flux Calibrator : %10s EL=%.1f' % (SSOname, 180.0*np.median(scanDic['EL'])/np.pi)
     uvDist = np.sqrt(uvw[0]**2 + uvw[1]**2)
-    UVlimit = 0.5 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
+    UVlimit = 0.25 / SSODic[SSOname][2][0]          # Maximum usable uv distance [lambda]
     text_sd = text_sd + ' uv limit = %5.0f klambda' % (UVlimit*1.0e-3); print(text_sd)
     antNum, blNum, antDia = len(antList), len(uvDist), GetAntD(antList)
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]

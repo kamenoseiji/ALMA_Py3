@@ -65,7 +65,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X137ec08_X8ed'
+prefix = 'uid___A002_X13eff67_X11ee8'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -137,10 +137,12 @@ timeStampList, XspecList = loadScanSPW(msfile, chavSPWs, [checkScan])  # XspecLi
 for spw_index, spw in enumerate(chavSPWs):
     Trx = np.load('%s-%s-SPW%d.Trx.npy'  % (prefix, BandName, BandatmSPW['spw'][spw_index]))
     antFlag = antFlag + antList[np.where(np.min(np.median(Trx, axis=(1,3)), axis=0) < 5)[0].tolist()].tolist()  # flag unrealistic Trx out
+    antFlag = antFlag + antList[np.where(np.max(np.median(Trx, axis=(1,3)), axis=0) > 2.0* np.median(Trx))[0].tolist()].tolist()  # flag unrealistic Trx out
     checkVis = XspecList[spw_index][0][[0,-1]][:,0]
     AV_bl = np.array([np.apply_along_axis(AV, 1, checkVis[0]), np.apply_along_axis(AV, 1, checkVis[1])])
     plotBLAV(prefix, antList, spw, AV_bl)
     AV_bl = np.sum(AV_bl, axis=0)* antDia[ANT0[0:blNum]]*antDia[ANT1[0:blNum]]
+    antFlag = list(set(antFlag))
     #-------- Antennas in bad baselines
     for badAnt in antFlag:
         badAntIndex = np.where(antList==badAnt)[0][0]
@@ -157,7 +159,7 @@ for spw_index, spw in enumerate(chavSPWs):
             badBL = [Ant2Bl(badAntIndex, index) for index in list(range(antNum)) if index != badAntIndex]
             AV_bl[badBL] = np.median(AV_bl)
         errBL = np.where( AV_bl > 25.0* np.median(AV_bl) )[0].tolist()
-antFlag = np.unique(np.array(antFlag)).tolist()
+antFlag =list(set(antFlag))
 text_sd = '---Flagged by Trx and Allan Variance (%d): ' % (len(antFlag))
 for ant in antFlag: text_sd = text_sd + '%s ' % (ant)
 print(text_sd); logfile.write('#' + text_sd + '\n')
@@ -264,7 +266,8 @@ for scan_index, scan in enumerate(BandScanList):
     #-------- Filter outliners out
     scanGain = np.zeros([BP_ant.shape[0], chAvgVis.shape[0]], dtype=complex)
     bl_vis = np.mean(np.array(chAvgList), axis=0).T
-    outLierVis = np.where(abs(bl_vis) > 10.0* np.median(abs(bl_vis)))
+    #outLierVis = np.where(abs(bl_vis) > 10.0* np.median(abs(bl_vis)))
+    outLierVis = np.where(abs(bl_vis) > 10.0* np.percentile(abs(np.mean(bl_vis, axis=1)), 80))
     scanFlag = list(set(range(bl_vis.shape[1])) - set(np.unique(outLierVis[1]))); scanFlag.sort()
     if len(scanFlag) > 1:
         scanGain[:,scanFlag] = np.apply_along_axis(gainComplex, 0, bl_vis[:,scanFlag])
@@ -285,8 +288,8 @@ text_sd = '----- XY delay           :'
 for spw_index, spw in enumerate(BandbpSPW['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
 print(text_sd)
 maxXYsnr, bestXYscan = 0.0, 0
-for scan_index, scan in enumerate(BandScanList):
-    if scan not in QSOscanList : continue              # filter by QSO
+for scan_index, scan in enumerate(QSOscanList):
+    #if scan not in QSOscanList : continue              # filter by QSO
     text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
     scanFlag  = scanDic[scan]['scanFlag']
     if len(scanFlag) == 0: continue
@@ -385,7 +388,7 @@ if not Apriori:
         FscaleDic[scanDic[scan]['source']] = SSOAe(antList[antMap], BandbpSPW, uvw, scanDic[scan], SSODic, [XspecList[spw_index][scan_index][0::3] for spw_index,spw in enumerate(BandbpSPW['spw'])])
 SSOList = list(FscaleDic.keys())
 for SSO in SSOList:
-    if FscaleDic[SSO] == None: del FscaleDic[SSO]
+    if FscaleDic[SSO] == []: del FscaleDic[SSO]
 #-------- WgSum : to judge SSO flux calibration or a priori (SEFD)
 WgSum = np.sum( [np.median(np.array(FscaleDic[SSO]['Wg'])) for SSO in FscaleDic.keys()] )
 Aeff =  averageAe(FscaleDic, BandbpSPW['spw']) if WgSum > 0.01 else np.array([etaA[:,antMap] for spw in BandbpSPW['spw']]).transpose(2,1,0)
@@ -398,6 +401,7 @@ logfile.write(text_sd +'\n'); print(text_sd)
 logjy = open(prefix + '-' + BandName + '-JyK.log', 'w')
 timeLabel = qa.time('%fs' % np.median(scanDic[polCalScan]['mjdSec']), form='ymd')[0]
 for ant_index, ant in enumerate(antList[antMap]):
+    if np.min(Aeff[ant_index]) < 1.0e-6: continue
     text_sd = '%s : ' % (ant)
     for spw_index, spw in enumerate(BandbpSPW['spw']):
         for pol_index, polName in enumerate(['X','Y']):
