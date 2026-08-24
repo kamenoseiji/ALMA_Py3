@@ -319,7 +319,7 @@ for scan_index, scan in enumerate(QSOscanList):
     BPList = BPList + [BPSPWList]
     XYList = XYList + [XYSPWList]
     XYWList=XYWList + [XYsnrList]
-#polCalScan = bestXYscan
+polCalScan = bestXYscan
 #-------- Average bandpass
 XYW = np.array(XYWList); XYW  = np.where(XYW < 5.0, 0.001, np.where(XYW > 100, 100, XYW))
 for spw_index, spw in enumerate(BandbpSPW['spw']):

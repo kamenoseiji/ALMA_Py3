@@ -2,7 +2,7 @@ library(RCurl)
 eval(parse(text = getURL("https://raw.githubusercontent.com/kamenoseiji/ALMAR/refs/heads/master/StatStokes.R", ssl.verifypeer = FALSE)))
 #source('~/ALMAR/StatStokes.R')
 Arguments <- commandArgs(trailingOnly = T)
-timeWindow <- 60* 86400
+timeWindow <- 90* 86400
 #Arguments <- c('-D2026/06/20/23:16:20', '-F281.500000', 'J1337-1257')
 #-------- Parse arguments
 parseArg <- function( args ){
