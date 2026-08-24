@@ -65,7 +65,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X137effa_X1d98b'
+prefix = 'uid___A002_X13ea123_Xebb8'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -287,7 +287,6 @@ print(text_sd)
 text_sd = '----- XY delay           :'
 for spw_index, spw in enumerate(BandbpSPW['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
 print(text_sd)
-maxXYsnr, bestXYscan = 0.0, 0
 for scan_index, scan in enumerate(QSOscanList):
     text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
     scanFlag  = scanDic[scan]['scanFlag']
@@ -308,20 +307,19 @@ for scan_index, scan in enumerate(QSOscanList):
         XYdelay, XYsnr = delay_search( BPCaledXYSpec[BandbpSPW['chRange'][spw_index]] )
         XYdelay = (float(chNum) / float(len(BandbpSPW['chRange'][spw_index])))* XYdelay
         text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW['BW'][spw_index]*1.0e-9), XYsnr)
+        if np.median(scanDic[scan]['EL']) < ELshadow: XYsnr *= 0.01
         XYsnrList = XYsnrList + [XYsnr]
         BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
         XYSPWList = XYSPWList + [BPCaledXYSpec]
     print(text_sd)
-    if np.median(np.array(XYsnrList)) > maxXYsnr:
-        maxXYsnr = np.median(np.array(XYsnrList))
-        bestXYscan = scan
     BPavgScanList = BPavgScanList + [scan]
     BPList = BPList + [BPSPWList]
     XYList = XYList + [XYSPWList]
     XYWList=XYWList + [XYsnrList]
+bestXYscan = QSOscanList[np.argmax(np.mean(np.array(XYWList), axis=1))]
 polCalScan = bestXYscan
 #-------- Average bandpass
-XYW = np.array(XYWList); XYW  = np.where(XYW < 5.0, 0.001, np.where(XYW > 100, 100, XYW))
+XYW = np.array(XYWList); XYW  = np.where(XYW < 3.0, 0.01, np.where(XYW > 100, 100, XYW))
 for spw_index, spw in enumerate(BandbpSPW['spw']):
     print('XY List : %s spw=%d, spw_index=%d' % (BandName, spw, spw_index))
     chRange = BandbpSPW['chRange'][spw_index]
