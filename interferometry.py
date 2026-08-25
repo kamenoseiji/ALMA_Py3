@@ -1499,7 +1499,7 @@ def SPWalign(spwGain):       # spwGain[spw, pol, ant, time]
 #
 def CrossPolBP(Xspec):  # full-polarization bandpass: Xspec[pol, ch, bl, time]
     polNum, chNum, blNum, timeNum = Xspec.shape
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))
+    chRange = list(range(int(0.1*chNum), int(0.9*chNum)))
     antNum = Bl2Ant(blNum)[0]
     ant0, ant1 = ANT0[0:blNum], ANT1[0:blNum]
     polXindex, polYindex = (np.arange(4)//2).tolist(), (np.arange(4)%2).tolist()
@@ -1509,7 +1509,6 @@ def CrossPolBP(Xspec):  # full-polarization bandpass: Xspec[pol, ch, bl, time]
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- Tentative BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
-    medBP = np.median(abs(BP_ant), axis=(0,1))
     XPspec = np.mean((abs(Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1])* Xspec.transpose(1,0,2,3) / (Gain[polYindex][:,ant0]* Gain[polXindex][:,ant1].conjugate())).transpose(1,0,2,3), axis=3)
     #---- improved BP
     BP_ant[:,0], BP_ant[:,1] = gainComplexVec(XPspec[0].T), gainComplexVec(XPspec[3].T)
@@ -1519,13 +1518,10 @@ def CrossPolBP(Xspec):  # full-polarization bandpass: Xspec[pol, ch, bl, time]
     for pol_index in [0,1]:
         ant_index = np.where( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) > 0.1* np.median( abs(np.mean(BP_ant[:,pol_index][:,chRange], axis=1)) ))[0].tolist()
         BP_ant[ant_index, pol_index] = (BP_ant[ant_index, pol_index].T / np.mean(abs(BP_ant[ant_index, pol_index][:,chRange]), axis=1)).T
-    #
     BPCaledXYSpec = np.mean(BPCaledXspec[:,1], axis=0) +  np.mean(BPCaledXspec[:,2], axis=0).conjugate()
-    #XYdelay, XYsnr = delay_search( BPCaledXYSpec )
     XYdelay, XYsnr = delay_search( BPCaledXYSpec[chRange] )
     XYdelay = (float(chNum) / float(len(chRange)))* XYdelay
     return BP_ant, BPCaledXYSpec, XYdelay, Gain, XYsnr
-#
 def BPaverage(BPList, XYList, scanList, BPweight, XYweight):
     chTrim = 0.06
     BPant, XYspec  = np.array(BPList), np.array(XYList)
@@ -1564,7 +1560,7 @@ def BPtable(msfile, spw, BPScan, blMap, blInv, bunchNum=1, FG=np.array([]), TS=n
     print(text_sd)
     #
     ant0, ant1, polNum, chNum, timeNum = ANT0[0:blNum], ANT1[0:blNum], Pspec.shape[0], Xspec.shape[1], Xspec.shape[3]
-    chRange = list(range(int(0.1*chNum), int(0.95*chNum)))                   # Trim band edge
+    chRange = list(range(int(0.1*chNum), int(0.9*chNum)))                   # Trim band edge
     kernel_index = KERNEL_BL[0:(antNum-1)]
     if polNum == 4:
         BP_ant  = np.ones([antNum, 2, chNum], dtype=complex)          # BP_ant[ant, pol, ch]
