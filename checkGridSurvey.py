@@ -27,9 +27,14 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
     for SSO in SSOList:
         flux, major, minor, pa = [], [], [], []
         for freq in FreqGHz:
-            text_Freq = '%6.2fGHz' % (freq)
-            SSOmodel = predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
-            flux  = flux + [SSOmodel['spectrum']['bl0flux']['value']]
+            if freq >= 62.0:
+                text_Freq = '%.2fGHz' % (freq)
+                SSOmodel = predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
+                flux  = flux + [SSOmodel['spectrum']['bl0flux']['value']]
+            else:
+                text_Freq = '62.0GHz'
+                SSOmodel = predictcomp(objname=SSO, standard="Butler-JPL-Horizons 2012", minfreq=text_Freq, maxfreq=text_Freq, nfreqs=1, prefix="", antennalist="aca.cycle3.cfg", epoch=timeText, showplot=True)
+                flux  = flux + [SSOmodel['spectrum']['bl0flux']['value']* (freq/62.0)**2]
         major = SSOmodel['shape']['majoraxis']['value']* np.pi / 21600.0
         minor = SSOmodel['shape']['minoraxis']['value']* np.pi / 21600.0
         pa    = SSOmodel['shape']['positionangle']['value']* np.pi / 180.0
@@ -65,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13e0d4e_X3639'
+prefix = 'uid___A002_X13ef24b_X6cbf'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -330,7 +335,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
         if len(scanDic[scan]['scanFlag']) < 3: continue
         #-------- average BP
         BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
-        BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.1 
+        BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.01 
         BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW**2).transpose(2,0,1)
         #-------- average XY
         XYspec = XYList[scan_index][spw_index]
