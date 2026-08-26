@@ -350,7 +350,8 @@ def Vis2Stokes(VisChav, Dcat, PA):
 def lmStokes(StokesVis, uvDist):
     StokesFlux, StokesErr, blNum = np.zeros([4]), np.ones([4]), len(uvDist)
     #-------- 1st look
-    tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
+    #tmpWeight = np.ones(blNum) / np.std(StokesVis[0].imag)
+    tmpWeight = np.exp(-uvDist/max(uvDist)) / np.std(StokesVis[0].imag)
     tmpWeight[np.where(abs(StokesVis[0]) < np.median(abs(StokesVis[0])))[0].tolist()] *= 0.5
     tmpWeight[np.where(abs(StokesVis[0]) < np.percentile(abs(StokesVis[0]), 25))[0].tolist()] *= 0.5
     coef, cov = np.polyfit(uvDist, abs(StokesVis[0]), deg=1, w=tmpWeight, cov=True) # small weights for short baselines (shadowed?)
