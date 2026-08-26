@@ -70,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13ef24b_X6cbf'
+prefix = 'uid___A002_X13f1ab3_Xdeaf'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -292,7 +292,8 @@ print(text_sd)
 text_sd = '----- XY delay           :'
 for spw_index, spw in enumerate(BandbpSPW['spw']): text_sd = text_sd + '  [ns]  ( SNR )'
 print(text_sd)
-for scan_index, scan in enumerate(QSOscanList):
+for scan in QSOscanList:
+    scan_index = BandScanList.index(scan)
     text_sd = '----- Scan%3d %10s :' % (scan, scanDic[scan]['source'])
     scanFlag  = scanDic[scan]['scanFlag']
     if len(scanFlag) == 0: continue
