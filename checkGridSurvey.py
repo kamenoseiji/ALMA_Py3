@@ -44,6 +44,7 @@ def GetSSOFlux(StokesDic, timeText, FreqGHz):
 SCR_DIR = os.environ['HOME'] + '/ALMA_Py3/'
 TBL_DIR = 'https://www.alma.cl/~skameno/AMAPOLA/Table/'
 #-------- Parse options
+'''
 parser = OptionParser()
 parser.add_option('-u',  dest='uid', metavar='uid', help='UID to reduce e.g. uid___A002_X10ded83_Xa91e', default='')
 parser.add_option('-a',  dest='antFlag', metavar='antFlag', help='Antennas to flag out', default='')
@@ -70,7 +71,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13f1ab3_Xdeaf'
+prefix = 'uid___A002_X11c29b6_Xb1c2'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -80,7 +81,6 @@ TsysDigitalCorrection = False
 PLOTMAP = False
 PLOTFL = False
 PLOTQU = False
-'''
 msfile = prefix + '.ms'
 tempAtm = GetTemp(msfile)
 if tempAtm != tempAtm: tempAtm = 270.0; print('Cannot get ambient-load temperature ... employ 270.0 K, instead.')
@@ -322,7 +322,8 @@ for scan in QSOscanList:
     BPList = BPList + [BPSPWList]
     XYList = XYList + [XYSPWList]
     XYWList=XYWList + [XYsnrList]
-bestXYscan = QSOscanList[np.argmax(np.mean(np.array(XYWList), axis=1))]
+#bestXYscan = QSOscanList[np.argmax(np.mean(np.array(XYWList), axis=1))]
+bestXYscan = QSOscanList[np.argmax(np.min(np.array(XYWList), axis=1))]
 polCalScan = bestXYscan
 #-------- Average bandpass
 XYW = np.array(XYWList); XYW  = np.where(XYW < 3.0, 0.01, np.where(XYW > 100, 100, XYW))
@@ -365,7 +366,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
     Xspec = XspecList[spw_index][list(scanDic.keys()).index(polCalScan)][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
     BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
     BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
-    XYphase = np.angle(scanDic[polCalScan]['UCmQS'][spw_index]*np.mean(BPCaledXY.conjugate()))
+    XYphase = np.angle(np.mean(scanDic[polCalScan]['UCmQS'][spw_index]* BPCaledXY.conjugate()))
     XYsign = np.sign(np.cos(XYphase)) if 'givenXYsign' not in locals() else np.sign(givenXYsign)
     text_sd = 'SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign)
     logfile.write('# ' + text_sd +'\n'); print(text_sd)
