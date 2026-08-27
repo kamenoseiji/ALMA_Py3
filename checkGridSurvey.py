@@ -70,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X11c29b6_Xb1c2'
+prefix = 'uid___A002_X101c3b2_X1111'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -285,7 +285,7 @@ for scan_index, scan in enumerate(BandScanList):
     for ant_index, ant in enumerate(antList[antMap]): text_sd = text_sd + ' %.2f' % (100.0* (1.0 - coh[ant_index]))
     print(text_sd)
 #-------- Scan-by-scan bandpass and XY delay with SNR
-BPavgScanList, BPList, XYList, XYWList = [], [], [], []
+BPavgScanList = []  # scans used in bandpass averaging
 text_sd = '-----Scan-by-scan BP     :'
 for spw_index, spw in enumerate(BandbpSPW['spw']): text_sd = text_sd + '     SPW%2d     ' % (spw)
 print(text_sd)
@@ -318,34 +318,31 @@ for scan in QSOscanList:
         BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
         XYSPWList = XYSPWList + [BPCaledXYSpec]
     print(text_sd)
+    scanDic[scan]['BP'] = BPSPWList
+    scanDic[scan]['XY'] = XYSPWList
+    scanDic[scan]['XYsnr'] = XYsnrList
     BPavgScanList = BPavgScanList + [scan]
-    BPList = BPList + [BPSPWList]
-    XYList = XYList + [XYSPWList]
-    XYWList=XYWList + [XYsnrList]
-#bestXYscan = QSOscanList[np.argmax(np.mean(np.array(XYWList), axis=1))]
-bestXYscan = QSOscanList[np.argmax(np.min(np.array(XYWList), axis=1))]
-polCalScan = bestXYscan
 #-------- Average bandpass
-XYW = np.array(XYWList); XYW  = np.where(XYW < 3.0, 0.01, np.where(XYW > 100, 100, XYW))
 for spw_index, spw in enumerate(BandbpSPW['spw']):
     print('XY List : %s spw=%d, spw_index=%d' % (BandName, spw, spw_index))
     chRange = BandbpSPW['chRange'][spw_index]
-    refXY = XYList[np.argmax( XYW[:,spw_index])][spw_index]
-    XY = 0.0* refXY
-    BP = 0.0* BPList[0][spw_index]
+    XYsnrList = [scanDic[scan]['XYsnr'][spw_index] for scan in BPavgScanList]
+    XYrefscan = BPavgScanList[XYsnrList.index(max(XYsnrList))]
+    refXYspec = scanDic[XYrefscan]['XY'][spw_index]
+    XY = 0.0* refXYspec
+    BP = 0.0* scanDic[XYrefscan]['BP'][spw_index]
+    for scan_index, scan in enumerate(BPavgScanList):
+        if scanDic[scan]['XYsnr'][spw_index] < 3.0: continue
+        XYspec = scanDic[scan]['XY'][spw_index]
+        XYcorr = XYspec[chRange].dot(refXYspec[chRange].conjugate())
+        XY = XY + abs(XYcorr)* np.sign(XYcorr.real)* XYspec
+    BPweight = [abs(np.mean(scanDic[scan]['Gain'])) for scan in BPavgScanList]
     for scan_index, scan in enumerate(BPavgScanList):
         if len(scanDic[scan]['scanFlag']) < 3: continue
-        #-------- average BP
-        BPW = abs(np.mean(scanDic[scan]['Gain'], axis=1)) / np.median(np.std(np.angle(scanDic[scan]['Gain']), axis=1))
-        BPW[ np.where(BPW < 0.2)[0].tolist() ] *= 0.01 
-        BP  = BP + (BPList[scan_index][spw_index].transpose(1,2,0)* BPW**2).transpose(2,0,1)
-        #-------- average XY
-        XYspec = XYList[scan_index][spw_index]
-        Weight = XYW[scan_index][spw_index] * np.sign( XYspec[chRange].dot(refXY[chRange].conjugate()))
-        XY     = XY + Weight* XYspec
-    #---- Save averaged BP
-    BPSPWList[spw_index] = (BP.transpose(2,0,1) / np.mean(abs(BP[:,:,chRange]), axis=2)).transpose(1,2,0)
-    BPSPWList[spw_index][:,1] *= (XY / abs(XY))
+        BP = BP + BPweight[scan_index]* scanDic[XYrefscan]['BP'][spw_index]
+    BP = BP / np.sum(BPweight)
+    BP[:,1] *= (XY / abs(XY))
+    BPSPWList[spw_index] = BP
     #---- Save into CASA caltable
     if os.path.isfile('B0'):
         tb.open('B0', nomodify=False)
@@ -357,17 +354,19 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
         tb.close()
 pp = PdfPages('BP-%s-%s-%d.pdf' % (prefix, BandName, 0))
 plotSP(pp, prefix, antList[antMap], BandbpSPW['spw'], BandbpSPW['freq'], BPSPWList, 0.0, 1.2, True)
-del BPavgScanList, BPList, XYList, XYWList, XYW, XY, refXY, BP, XYSPWList, XYsnrList
 #-------- XY sign in polCalScan
 for spw_index, spw in enumerate(BandbpSPW['spw']):
     BP_ant = BPSPWList[spw_index].transpose(1,2,0)
-    scanFlag  = scanDic[polCalScan]['scanFlag']
-    scanPhase = scanDic[polCalScan]['Gain'][:,scanFlag] / abs(scanDic[polCalScan]['Gain'][:,scanFlag])
-    Xspec = XspecList[spw_index][list(scanDic.keys()).index(polCalScan)][:,:,:,scanFlag]* (scanPhase[ant1]* scanPhase[ant0].conjugate())
-    BPCaledXspec = (Xspec.transpose(3, 0, 1, 2) / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())).transpose(1,2,3,0)
-    BPCaledXY    = np.mean(BPCaledXspec[1][chRange], axis=(0,1)) +  np.mean(BPCaledXspec[2][chRange], axis=(0,1)).conjugate()
-    XYphase = np.angle(np.mean(scanDic[polCalScan]['UCmQS'][spw_index]* BPCaledXY.conjugate()))
-    XYsign = np.sign(np.cos(XYphase)) if 'givenXYsign' not in locals() else np.sign(givenXYsign)
+    BPCaledXY = 0.0 + 0.0j
+    for scan_index, scan in enumerate(BPavgScanList):
+        if scanDic[scan]['XYsnr'][spw_index] < 3.0: continue
+        scanFlag  = scanDic[scan]['scanFlag']
+        scanPhase = scanDic[scan]['Gain'][:,scanFlag] / abs(scanDic[scan]['Gain'][:,scanFlag])
+        Xspec = np.mean(XspecList[spw_index][list(scanDic.keys()).index(scan)][:,:,:,scanFlag]*(scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3)
+        BPCaledXspec = Xspec / (BP_ant[polYindex][:,:,ant0]* BP_ant[polXindex][:,:,ant1].conjugate())
+        BPCaledXY   += scanDic[scan]['UCmQS'][spw_index]* (np.mean(BPCaledXspec[1][chRange]) +  np.mean(BPCaledXspec[2][chRange].conjugate()))
+    XYphase = np.angle(BPCaledXY)
+    XYsign = np.sign(BPCaledXY.real) if 'givenXYsign' not in locals() else np.sign(givenXYsign)
     text_sd = 'SPW[%d] : XY phase = %6.1f [deg] sign = %3.0f' % (spw, 180.0*XYphase/np.pi, XYsign)
     logfile.write('# ' + text_sd +'\n'); print(text_sd)
     BPSPWList[spw_index][:,1] *= XYsign
