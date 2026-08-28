@@ -6,7 +6,7 @@ parser = OptionParser()
 parser.add_option('-u', dest='prefixList', metavar='prefixList',
     help='EB UID   e.g. uid___A002_X1399105_X40ca,uid___A002_X1399105_X414b,uid___A002_X1399105_X41c8', default='')
 (options, args) = parser.parse_args()
-prefixList = [prefix for prefix in options.prefixList.split(',')]
+prefixList = [prefix.replace("/", "_").replace(":","_") for prefix in options.prefixList.split(',')]
 #prefixList = ['uid___A002_X1399105_X40ca','uid___A002_X1399105_X414b','uid___A002_X1399105_X41c8']
 #prefixList = ['uid___A002_Xadabcb_X2ae']
 prefixElement = prefixList[0].split('_X'); newPrefix = prefixElement[0] + '_X' + prefixElement[1]
@@ -14,6 +14,7 @@ os.system('rm -rf %s.ms*' % (newPrefix))
 comvis = []
 for file_index, prefix in enumerate(prefixList):
     msfile = prefix + '.ms'
+    if not os.path.isdir(msfile): importasdm(prefix)
     SPWdic = spwMS(msfile)
     fullResSPWs = GetPHSPWs(msfile)
     chavSPWs    = GetPHchavSPWs(msfile)
