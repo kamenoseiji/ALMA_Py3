@@ -70,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X101c3b2_X1111'
+prefix = 'uid___A002_X13f4b3b_X4564'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -313,7 +313,7 @@ for scan in QSOscanList:
         XYdelay, XYsnr = delay_search( BPCaledXYSpec[BandbpSPW['chRange'][spw_index]] )
         XYdelay = (float(chNum) / float(len(BandbpSPW['chRange'][spw_index])))* XYdelay
         text_sd = text_sd + ' %6.3f (%5.1f)' % (0.5* XYdelay/(BandbpSPW['BW'][spw_index]*1.0e-9), XYsnr)
-        if np.median(scanDic[scan]['EL']) < ELshadow: XYsnr *= 0.01
+        if np.median(scanDic[scan]['EL']) < ELshadow: XYsnr *= (np.median(scanDic[scan]['EL']) / ELshadow / 2)**2
         XYsnrList = XYsnrList + [XYsnr]
         BPSPWList = BPSPWList + [BP_ant.transpose(1,0,2)]
         XYSPWList = XYSPWList + [BPCaledXYSpec]
@@ -332,7 +332,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
     XY = 0.0* refXYspec
     BP = 0.0* scanDic[XYrefscan]['BP'][spw_index]
     for scan_index, scan in enumerate(BPavgScanList):
-        if scanDic[scan]['XYsnr'][spw_index] < 3.0: continue
+        if scanDic[scan]['XYsnr'][spw_index] < 1.5: continue
         XYspec = scanDic[scan]['XY'][spw_index]
         XYcorr = XYspec[chRange].dot(refXYspec[chRange].conjugate())
         XY = XY + abs(XYcorr)* np.sign(XYcorr.real)* XYspec
