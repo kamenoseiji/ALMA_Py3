@@ -70,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13f4b3b_X4564'
+prefix = 'uid___A002_X13f1ab3_Xaa33'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -324,7 +324,7 @@ for scan in QSOscanList:
     BPavgScanList = BPavgScanList + [scan]
 #-------- Average bandpass
 for spw_index, spw in enumerate(BandbpSPW['spw']):
-    print('XY List : %s spw=%d, spw_index=%d' % (BandName, spw, spw_index))
+    #print('XY List : %s spw=%d, spw_index=%d' % (BandName, spw, spw_index))
     chRange = BandbpSPW['chRange'][spw_index]
     XYsnrList = [scanDic[scan]['XYsnr'][spw_index] for scan in BPavgScanList]
     XYrefscan = BPavgScanList[XYsnrList.index(max(XYsnrList))]
@@ -359,7 +359,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
     BP_ant = BPSPWList[spw_index].transpose(1,2,0)
     BPCaledXY = 0.0 + 0.0j
     for scan_index, scan in enumerate(BPavgScanList):
-        if scanDic[scan]['XYsnr'][spw_index] < 3.0: continue
+        if scanDic[scan]['XYsnr'][spw_index] < 1.5: continue
         scanFlag  = scanDic[scan]['scanFlag']
         scanPhase = scanDic[scan]['Gain'][:,scanFlag] / abs(scanDic[scan]['Gain'][:,scanFlag])
         Xspec = np.mean(XspecList[spw_index][list(scanDic.keys()).index(scan)][:,:,:,scanFlag]*(scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3)
