@@ -332,7 +332,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
     XY = 0.0* refXYspec
     BP = 0.0* scanDic[XYrefscan]['BP'][spw_index]
     for scan_index, scan in enumerate(BPavgScanList):
-        if scanDic[scan]['XYsnr'][spw_index] < 1.5: continue
+        if scanDic[scan]['XYsnr'][spw_index] < 1.0: continue
         XYspec = scanDic[scan]['XY'][spw_index]
         XYcorr = XYspec[chRange].dot(refXYspec[chRange].conjugate())
         XY = XY + abs(XYcorr)* np.sign(XYcorr.real)* XYspec
@@ -359,7 +359,7 @@ for spw_index, spw in enumerate(BandbpSPW['spw']):
     BP_ant = BPSPWList[spw_index].transpose(1,2,0)
     BPCaledXY = 0.0 + 0.0j
     for scan_index, scan in enumerate(BPavgScanList):
-        if scanDic[scan]['XYsnr'][spw_index] < 1.5: continue
+        if scanDic[scan]['XYsnr'][spw_index] < 1.0: continue
         scanFlag  = scanDic[scan]['scanFlag']
         scanPhase = scanDic[scan]['Gain'][:,scanFlag] / abs(scanDic[scan]['Gain'][:,scanFlag])
         Xspec = np.mean(XspecList[spw_index][list(scanDic.keys()).index(scan)][:,:,:,scanFlag]*(scanPhase[ant1]* scanPhase[ant0].conjugate()), axis=3)

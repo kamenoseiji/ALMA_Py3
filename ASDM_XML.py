@@ -121,7 +121,7 @@ def spwMS(msfile):
     msmd = msmdtool()
     msmd.open(msfile)
     spwList = list(set(msmd.tdmspws()) | set(msmd.fdmspws()))
-    spwList = [spw for spw in spwList if len(msmd.scansforspw(spw)) > 0]
+    spwList = [int(spw) for spw in spwList if len(msmd.scansforspw(spw)) > 0]
     spwList.sort()
     spwDic  = dict(zip(spwList, [[]]*len(spwList))) # Dictionary for spw info
     for spw in spwDic.keys():
