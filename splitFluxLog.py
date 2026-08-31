@@ -7,7 +7,9 @@ parser = OptionParser()
 parser.add_option('-u', dest='prefixList', metavar='prefixList',
     help='EB UID   e.g. uid___A002_X13e5a87_X34eb,uid___A002_X13e5a87_X3570,uid___A002_X13e5a87_X35ed', default='')
 (options, args) = parser.parse_args()
-prefixList = [prefix for prefix in options.prefixList.split(',')]
+#prefixList = [prefix for prefix in options.prefixList.split(',')]
+prefixList = ['uid___A002_X13f4b3b_X1d780','uid___A002_X13f4b3b_X1dc28','uid___A002_X13f4b3b_X1de10','uid___A002_X13f4b3b_X1e748','uid___A002_X13f4b3b_X1ed63','uid___A002_X13f4b3b_X1f0bd','uid___A002_X13f4b3b_X1f60a','uid___A002_X13f4b3b_X1fb96','uid___A002_X13f4b3b_X1fe0a']
+for prefix in prefixList: os.system('rm -rf %s-*-Flux.log' % (prefix))
 prefixElement = prefixList[0].split('_X'); newPrefix = prefixElement[0] + '_X' + prefixElement[1]
 logFileList = glob.glob(newPrefix + '*Flux.log')
 for logFileName in logFileList:
@@ -50,9 +52,10 @@ for logFileName in logFileList:
         if DtermSection: commonDterm = commonDterm + [Line]
         if ScanSection >= 0: ScanLog = ScanLog + ['SCAN %d #' % (ScanSection) + Line]
     #-------- Separate into each EB
-    DTsep = sorted(range(len(DT)-1), key=lambda index: np.diff(DT)[index], reverse=True)
-    scanDelimitor = [DTsep[index] for index, prefix in enumerate(prefixList)]
-    scanDelimitor[-1] = len(DT)-1
+    DTdiff = np.diff(DT)
+    DTgap = float(np.sort(DTdiff)[::-1][len(prefixList)-2])
+    scanDelimitor = [diff_index for diff_index,diff in enumerate(DTdiff) if diff >= DTgap]
+    scanDelimitor = scanDelimitor + [len(DT)-1]
     scanInitilize = [0] + [scan + 1 for scan in scanDelimitor[:-1]]
     for file_index, prefix in enumerate(prefixList):
         fileName = prefix + '-' + band + '-Flux.log'
@@ -66,5 +69,4 @@ for logFileName in logFileList:
             splitlogfile.write(log2write)
         for logEntry in commonDterm: splitlogfile.write(logEntry)
         splitlogfile.close()
-        
 #
