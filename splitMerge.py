@@ -21,6 +21,7 @@ for file_index, prefix in enumerate(prefixList):
     bandList = list(set([SPWdic[spw]['Band'] for spw in SPWdic.keys()]))
     for band in bandList:
         splitMS = prefix + '.split.%s.ms' % (band)
+        os.system('rm -rf %s' % (splitMS))
         bandFullResSPWs = [spw for spw in fullResSPWs if SPWdic[spw]['Band'] == band]
         msmd.open(msfile)
         scanList = msmd.scansforspw(bandFullResSPWs[0]).tolist()
@@ -33,5 +34,7 @@ for file_index, prefix in enumerate(prefixList):
 for band in bandList:
     comVisBand = [msFileName for msFileName in comvis if band in msFileName]
     if len(comVisBand) > 1:
-        print('MEARGE : %s ' % (newPrefix + '.' + band + '.ms'))
-        concat(vis=comVisBand, freqtol='1MHz', dirtol='0.1arcsec', concatvis= newPrefix + '.' + band + '.ms')
+        mergeMS = newPrefix + '.' + band + '.ms'
+        print('MEARGE : ' + mergeMS)
+        os.system('rm -rf %s' % (mergeMS))
+        concat(vis=comVisBand, freqtol='1MHz', dirtol='0.1arcsec', concatvis= mergeMS)

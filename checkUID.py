@@ -2,11 +2,9 @@ import os
 import glob
 import numpy as np
 from datetime import datetime
-def generetaCheckEach( prefix ):
-    return('sed -e "s/uid___A002_X[0-9a-f]*_X[0-9a-f]*/%s/g" template.py > checkEach.py' % (prefix))
-#
+from interferometry import GetAntName
 def replaceList( UID, status ):
-    UID_text = UID.replace(':','\:').replace('/','\/')
+    UID_text = UID.replace("___", r"\:\/\/").replace("_",r"\/")
     return('sed -e "s/new %s/%s %s/g" UID/UIDList > UID/UIDnew' % (UID_text, status, UID_text))
 #
 UIDfile = open('./UID/UIDList', 'r')
@@ -16,14 +14,15 @@ UIDentry = list(set(UIDentry))
 newEntry = [entry for entry in UIDentry if entry.split()[0] == 'new']
 FSUIDs = list(set([entry.split('/')[3] for entry in newEntry]))     # Each FSR
 for FS in FSUIDs:
-    FSentry = [entry for entry in UIDentry if FS in entry]
+    FSentry = [entry for entry in newEntry if FS in entry]
     ArrayIDs = list(set([entry.split()[2] for entry in FSentry]))   # Each Array
     for Array in ArrayIDs:
-        ARentry = [entry for entry in UIDentry if Array in entry]
+        ARentry = [entry for entry in newEntry if Array in entry]
         DT     = [datetime.strptime(entry.split()[4], "%Y-%m-%dT%H:%M:%S").timestamp() for entry in ARentry]
         EBList = [entry.split()[1].replace("/", "_").replace(":","_").replace(" ","") for entry in ARentry]
         sort_index = np.argsort(DT).tolist()
-        for prefix in EBList:
+        #-------- Generage MS
+        for prefix in EBList:                                       # Each EB
             if not os.path.isdir(prefix + '.ms'):
                 if not os.path.isdir(prefix):
                     if not os.path.isdir('UID/' + prefix):
@@ -31,6 +30,15 @@ for FS in FSUIDs:
                         os.system('mv %s UID/' % (prefix))
                     os.system('ln -s UID/' + prefix + ' .')
                 importasdm(prefix)
+        #-------- Check Number of Antennas in the array
+        antList = GetAntName(prefix + '.ms')
+        if len(antList) < 4: 
+            for index in sort_index:
+                text_sd = replaceList(EBList[index], 'fail')
+                os.system(text_sd)
+                os.system('mv ./UID/UIDnew ./UID/UIDList')
+            continue
+        #-------- Concatinate multiple EBs with the same array
         if len(ARentry) > 1:
             text_sd = 'casa -c ~/ALMA_Py3/splitMerge.py -u '
             for index in sort_index: text_sd = text_sd + EBList[index] + ','
@@ -54,6 +62,7 @@ for FS in FSUIDs:
                     os.system(text_sd)
                     os.system('mv ./UID/UIDnew ./UID/UIDList')
                 os.system('rm -rf %s' % (msfile))
+                os.system('rm -rf casa*.log')
                 os.system('mv *.npy NPY/')
                 os.system('mv *.pdf PDF/')
                 os.system('mv *.log LOG/')
@@ -63,9 +72,11 @@ for FS in FSUIDs:
             os.system(text_sd)
             print(text_sd)
             print('scp ' + EBList[0] + '*Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
+            os.system('scp ' + EBList[0] + '*Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
             text_sd = replaceList(EBList[0], 'done')
             os.system(text_sd)
             os.system('mv ./UID/UIDnew ./UID/UIDList')
+            os.system('rm -rf casa*.log')
             os.system('mv *.npy NPY/')
             os.system('mv *.pdf PDF/')
             os.system('mv *.log LOG/')
