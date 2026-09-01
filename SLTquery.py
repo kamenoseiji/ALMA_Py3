@@ -34,4 +34,5 @@ UIDList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if '
 arrayNameList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'arrayName' in SLTentry]
 startTimeList = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'start' in SLTentry]
 endTimeList   = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'end' in SLTentry]
-for index, UID in enumerate(UIDList): print('new %s %s %s %s' % (UID, arrayNameList[index], startTimeList[index], endTimeList[index]))
+SBnameList   = [SLTentries[index+2] for index, SLTentry in enumerate(SLTentries) if 'schedBlockCode' in SLTentry]
+for index, UID in enumerate(UIDList): print('new %s %s %s %s %s' % (UID, arrayNameList[index], startTimeList[index], endTimeList[index], SBnameList[index]))
