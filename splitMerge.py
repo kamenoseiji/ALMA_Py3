@@ -35,7 +35,7 @@ for band in bandList:
     comVisBand = [msFileName for msFileName in comvis if band in msFileName]
     if len(comVisBand) > 1:
         mergeMS = newPrefix + '.' + band + '.ms'
-        print('MEARGE : ' + mergeMS)
+        print('MERGE : ' + mergeMS)
         os.system('rm -rf %s' % (mergeMS))
         concat(vis=comVisBand, freqtol='1MHz', dirtol='0.1arcsec', concatvis= mergeMS)
         for msFileName in comVisBand: os.system('rm -rf %s' % (msFileName))
