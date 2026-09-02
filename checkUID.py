@@ -13,6 +13,7 @@ UIDfile.close()
 UIDentry = list(set(UIDentry))
 newEntry = [entry for entry in UIDentry if (entry.split()[0] == 'new') and ('B9' not in entry.split()[-1])]
 FSUIDs = list(set([entry.split('/')[3] for entry in newEntry]))     # Each FSR
+FSUIDs = sorted(FSUIDs, key=lambda x:int(x[1:], 16), reverse=True)                # new to old order
 for FS in FSUIDs:
     FSentry = [entry for entry in newEntry if FS in entry]
     ArrayIDs = list(set([entry.split()[2] for entry in FSentry]))   # Each Array
