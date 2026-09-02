@@ -25,7 +25,7 @@ if options.SBcode  != '': queryText = queryText + '&schedBlockCode=' + options.S
 if options.Subject != '': queryText = queryText + '&subject=' + options.Subject
 if options.ProjectName != '': queryText = queryText + '&projectName=' + options.ProjectName
 queryText = queryText + '\' > SLT.log'
-print(queryText)
+#print(queryText)
 os.system(queryText)
 fp = open('SLT.log', 'r')
 SLTline = fp.readlines()
