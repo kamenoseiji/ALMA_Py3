@@ -19,14 +19,14 @@ for FS in FSUIDs:
     ArrayIDs = list(set([entry.split()[2] for entry in FSentry]))   # Each Array
     for Array in ArrayIDs:
         ARentry = [entry for entry in FSentry if Array in entry]
-        DT     = [datetime.strptime(entry.split()[4], "%Y-%m-%dT%H:%M:%S").timestamp() for entry in ARentry]
+        DT     = [datetime.strptime(entry.split()[3], "%Y-%m-%dT%H:%M:%S").timestamp() for entry in ARentry]
         EBList = [entry.split()[1].replace("/", "_").replace(":","_").replace(" ","") for entry in ARentry]
         #-------- Generage MS
         for prefix in EBList:                                       # Each EB
             if not os.path.isdir(prefix + '.ms'):
                 if not os.path.isdir(prefix):
                     if not os.path.isdir('UID/' + prefix):
-                        os.system('asdmExport %s' % (prefix))
+                        os.system('asdmExportLight %s' % (prefix))
                         os.system('mv %s UID/' % (prefix))
                     os.system('ln -s UID/' + prefix + ' .')
                 importasdm(prefix)
