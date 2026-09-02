@@ -36,8 +36,8 @@ for FS in FSUIDs:
         #-------- Check Number of Antennas in the array
         antList = GetAntName(prefix + '.ms')
         if len(antList) < 4: 
-            for index in sort_index:
-                text_sd = replaceList(EBList[index], 'fail')
+            for prefix in EBList:
+                text_sd = replaceList(prefix, 'fail')
                 os.system(text_sd)
                 os.system('mv ./UID/UIDnew ./UID/UIDList')
             continue
