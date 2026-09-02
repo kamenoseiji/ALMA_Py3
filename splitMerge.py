@@ -38,3 +38,4 @@ for band in bandList:
         print('MEARGE : ' + mergeMS)
         os.system('rm -rf %s' % (mergeMS))
         concat(vis=comVisBand, freqtol='1MHz', dirtol='0.1arcsec', concatvis= mergeMS)
+        for msFileName in comVisBand: os.system('rm -rf %s' % (msFileName))

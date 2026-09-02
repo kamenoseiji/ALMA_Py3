@@ -17,7 +17,7 @@ for FS in FSUIDs:
     FSentry = [entry for entry in newEntry if FS in entry]
     ArrayIDs = list(set([entry.split()[2] for entry in FSentry]))   # Each Array
     for Array in ArrayIDs:
-        ARentry = [entry for entry in newEntry if Array in entry]
+        ARentry = [entry for entry in FSentry if Array in entry]
         DT     = [datetime.strptime(entry.split()[4], "%Y-%m-%dT%H:%M:%S").timestamp() for entry in ARentry]
         EBList = [entry.split()[1].replace("/", "_").replace(":","_").replace(" ","") for entry in ARentry]
         #-------- Generage MS
