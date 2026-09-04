@@ -70,7 +70,7 @@ PLOTQU  = PLOTMAP
 TsysDigitalCorrection = options.TsysDigital
 if options.XYsign != '': givenXYsign  = np.sign(int(options.XYsign))
 '''
-prefix = 'uid___A002_X13f1ab3_Xaa33'
+prefix = 'uid___A002_X13e5a87_X34eb'
 antFlag = []
 uvLimit = 5000
 refant  = ''
@@ -95,6 +95,7 @@ BLCORR = True
 if 'ACA' in CheckCorr(prefix): BLCORR = False
 #-------- Check Antenna List
 antList = GetAntName(msfile)
+antFlag = [ant for ant in antFlag if ant in antList]
 antDia = GetAntD(antList)
 antDic = ArrayAltAz(msfile) # Antenna position in (E,N,H) coordinates, relative to the array center
 antNum = len(antList)

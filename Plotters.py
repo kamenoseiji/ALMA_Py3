@@ -223,7 +223,7 @@ def plotBLAV(prefix, antList, spw, AV_bl):
     #
     AVmap = np.sum(AVmap, axis=0)
     for ant_index, ant in enumerate(antList): AVmap[ant_index, ant_index] = 0.0
-    imAV = axAV.imshow(AVmap, cmap='coolwarm', vmin=0.0, vmax=0.01)
+    imAV = axAV.imshow(AVmap, cmap='coolwarm', vmin=0.0, vmax=0.05)
     figAV.colorbar(imAV, ax=axAV)
     axAV.plot([0,antNum-1], [0,antNum-1], color='w')
     axAV.set_xticks(list(range(antNum))); axAV.set_yticks( list(range(antNum)))

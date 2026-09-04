@@ -18,14 +18,17 @@ if UserPass == '':
     print('Set b64credentials as an environmental variable')
     exit()
 SLT_URI  = 'https://asa.alma.cl/webslt/service/api/entries?'
-SLTstart = (datetime.datetime.today() - datetime.timedelta(days=backDays)).strftime('%Y-%m-%dT%H:%M:%S')
-SLTend   = (datetime.datetime.today() - datetime.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S')
-queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&status=success' % (UserPass, SLT_URI, SLTstart, SLTend)
-if options.SBcode  != '': queryText = queryText + '&schedBlockCode=' + options.SBcode
-if options.Subject != '': queryText = queryText + '&subject=' + options.Subject
-if options.ProjectName != '': queryText = queryText + '&projectName=' + options.ProjectName
-queryText = queryText + '\' > SLT.log'
-print(queryText)
+ST = list(range(0, backDays, 100))
+ET = [st-1 for st in ST[1:]] + [backDays]
+for term_index, term in enumerate(ET):
+    SLTstart = (datetime.datetime.today() - datetime.timedelta(days=term)).strftime('%Y-%m-%dT%H:%M:%S')
+    SLTend   = (datetime.datetime.today() - datetime.timedelta(days=ST[term_index]) - datetime.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S')
+    queryText = 'curl -H\"Authorization: Basic %s\" \'%sintervalStart=%s&intervalEnd=%s&status=success' % (UserPass, SLT_URI, SLTstart, SLTend)
+    if options.SBcode  != '': queryText = queryText + '&schedBlockCode=' + options.SBcode
+    if options.Subject != '': queryText = queryText + '&subject=' + options.Subject
+    if options.ProjectName != '': queryText = queryText + '&projectName=' + options.ProjectName
+    queryText = queryText + '\' > SLT.log'
+    print(queryText)
 os.system(queryText)
 fp = open('SLT.log', 'r')
 SLTline = fp.readlines()
