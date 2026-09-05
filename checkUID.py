@@ -15,6 +15,7 @@ newEntry = [entry for entry in UIDentry if (entry.split()[0] == 'new') and ('B9'
 FSUIDs = list(set([entry.split('/')[3] for entry in newEntry]))     # Each FSR
 FSUIDs = sorted(FSUIDs, key=lambda x:int(x[1:], 16), reverse=True)                # new to old order
 for FS in FSUIDs:
+    newPrefix = 'uid___A002_' + FS
     FSentry = [entry for entry in newEntry if FS in entry]
     ArrayIDs = list(set([entry.split()[2] for entry in FSentry]))   # Each Array
     for Array in ArrayIDs:
@@ -45,17 +46,16 @@ for FS in FSUIDs:
         for bandName in bandList:
             EBindexList = [index for index,band in enumerate(bandEB) if bandName in band]
             if len(EBindexList) > 1:
-                DTband, EBband = np.array(DT)[EBindexList], np.array(EBList)[EBindexList]
-                sort_index = np.argsort(DTband).tolist()
-                #-------- Concatinate multiple EBs with the same array
-                text_sd = 'casa -c ~/ALMA_Py3/splitMerge.py -u '
-                for index in sort_index: text_sd = text_sd + EBband[index] + ','
-                print(text_sd[:-1])
-                os.system(text_sd[:-1])
-                for index in sort_index: os.system('rm -rf %s.ms*' % (EBband[index]))
-                #-------- Run AMAPOLA reduction for concatenated MS
-                prefixElement = EBband[0].split('_X'); newPrefix = prefixElement[0] + '_X' + prefixElement[1]
                 prefix = '%s.%s' % (newPrefix, bandName)
+                if not os.path.isdir(prefix + '.ms'):
+                    #-------- Concatinate multiple EBs with the same array
+                    DTband, EBband = np.array(DT)[EBindexList], np.array(EBList)[EBindexList]
+                    sort_index = np.argsort(DTband).tolist()
+                    text_sd = 'casa -c ~/ALMA_Py3/splitMerge.py -u '
+                    for index in sort_index: text_sd = text_sd + EBband[index] + ','
+                    print(text_sd[:-1])
+                    os.system(text_sd[:-1])
+                #-------- Run AMAPOLA reduction for concatenated MS
                 text_sd = 'casa -c ~/ALMA_Py3/checkGridSurvey.py -u %s' % (prefix)
                 print(text_sd)
                 os.system(text_sd)
@@ -71,7 +71,6 @@ for FS in FSUIDs:
                     os.system(text_sd)
                     os.system('mv ./UID/UIDnew ./UID/UIDList')
                     os.system('rm -rf %s.%s.ms' % (EBband[index], bandName))
-                os.system('rm -rf %s.ms' % (prefix))
                 os.system('rm -rf casa*.log')
                 os.system('mv *.npy NPY/')
                 os.system('mv *.pdf PDF/')
