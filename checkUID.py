@@ -47,10 +47,10 @@ for FS in FSUIDs:
             EBindexList = [index for index,band in enumerate(bandEB) if bandName in band]
             if len(EBindexList) > 1:
                 prefix = '%s.%s' % (newPrefix, bandName)
+                DTband, EBband = np.array(DT)[EBindexList], np.array(EBList)[EBindexList]
+                sort_index = np.argsort(DTband).tolist()
                 if not os.path.isdir(prefix + '.ms'):
                     #-------- Concatinate multiple EBs with the same array
-                    DTband, EBband = np.array(DT)[EBindexList], np.array(EBList)[EBindexList]
-                    sort_index = np.argsort(DTband).tolist()
                     text_sd = 'casa -c ~/ALMA_Py3/splitMerge.py -u '
                     for index in sort_index: text_sd = text_sd + EBband[index] + ','
                     print(text_sd[:-1])
@@ -91,4 +91,5 @@ for FS in FSUIDs:
                 os.system('mv *.pdf PDF/')
                 os.system('mv *.log LOG/')
                 os.system('rm -rf *.cl')
+            os.system('rm -rf %s.ms*' % (prefix))
 #
