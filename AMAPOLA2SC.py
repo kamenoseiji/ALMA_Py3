@@ -48,11 +48,9 @@ def AMAPOLA_IQUV( logLines ):
     QSOList = [source for source in sourceList if source[0] == 'J']
     StokesDic = dict(zip(QSOList, [[]]*len(QSOList)))
     for QSO in QSOList:
-        print(QSO)
         QSOLines = [log_index for log_index,log in enumerate(logList) if QSO in log and 'EL=' in log]
         for QSOblock in QSOLines:
             lineIndex = QSOblock
-            print(logList[lineIndex])
             HeadWords = logList[lineIndex].split()
             EL = [float(word.split('=')[1]) for word in HeadWords if 'EL=' in word][0]
             DT = [word for word in HeadWords if '/' in word][0]

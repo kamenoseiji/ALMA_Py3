@@ -67,6 +67,7 @@ for FS in FSUIDs:
                 for index in sort_index:
                     print('scp ' + EBband[index] + '-' + bandName + '-Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
                     os.system('scp ' + EBband[index] + '-' + bandName + '-Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
+                    os.system('casa -c ~/ALMA_Py3/AMAPOLA2SC.py -u %s' % (EBband[index]))
                     text_sd = replaceList(EBband[index], 'done')
                     os.system(text_sd)
                     os.system('mv ./UID/UIDnew ./UID/UIDList')
@@ -83,6 +84,7 @@ for FS in FSUIDs:
                 os.system(text_sd)
                 print('scp ' + prefix + '-' + bandName + '-Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
                 os.system('scp ' + prefix + '-' + bandName + '-Flux.log skameno@ssh.alma.cl:/home/skameno/public_html/Grid/Stokes/')
+                os.system('casa -c ~/ALMA_Py3/AMAPOLA2SC.py -u %s' % (prefix))
                 text_sd = replaceList(prefix, 'done')
                 os.system(text_sd)
                 os.system('mv ./UID/UIDnew ./UID/UIDList')
